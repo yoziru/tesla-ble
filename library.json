@@ -1,6 +1,6 @@
 {
   "name": "TeslaBLE",
-  "version": "1.0.4",
+  "version": "2.0.0",
   "description": "This CPP library facilitates direct communication with Tesla vehicles via the BLE API. It offers fundamental features such as unlocking/locking, opening the trunk, and more. The library's capabilities are contingent on the range of actions implemented by Tesla, which is the only limitation at present.",
   "keywords": "tesla, ble",
   "repository": {
@@ -9,19 +9,19 @@
   },
   "authors": [
     {
-      "name": "Pascal Matthiesen",
-      "email": "me@pascal.sh",
-      "url": "https://pascal.sh",
+      "name": "Yasir Ekinci",
+      "email": "hi@yasirekinci.com",
+      "url": "https://yasirekinci.com",
       "maintainer": true
     }
   ],
   "license": "MIT",
-  "homepage": "https://github.com/pmdroid/tesla-ble/wiki",
+  "homepage": "https://github.com/yoziru/tesla-ble/wiki",
   "frameworks": "*",
   "platforms": [
     "espidf"
   ],
   "dependencies": {
-    "nanopb/Nanopb": "^0.4.7"
+    "nanopb/Nanopb": "^0.4.8"
   }
 }

@@ -1,10 +1,12 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.22)
+
 include(FetchContent)
 project(TeslaBLE
-        VERSION 1.0.0
+        VERSION 2.0.0
         DESCRIPTION "CPP Tesla BLE Library"
         LANGUAGES CXX C
 )
+set(CMAKE_CXX_STANDARD 23)
 
 set(MBEDTLS_AS_SUBPROJECT ON)
 set(ENABLE_PROGRAMS OFF)
@@ -14,13 +16,13 @@ set(BUILD_EXAMPLES ON)
 FetchContent_Declare(
         nanopb
         GIT_REPOSITORY https://github.com/nanopb/nanopb.git
-        GIT_TAG 0.4.7
+        GIT_TAG 0.4.8
         GIT_SHALLOW    TRUE
 )
 FetchContent_Declare(
         mbedtls
-        GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
-        GIT_TAG v3.4.1
+        GIT_REPOSITORY https://github.com/espressif/mbedtls.git
+        GIT_TAG mbedtls-3.5.2-idf
         GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(nanopb mbedtls)
@@ -35,8 +37,16 @@ find_package(Nanopb REQUIRED)
 add_library(TeslaBLE
         STATIC
         src/client.cpp
-        src/utils.cpp
+        src/peer.cpp
+        src/tb_utils.cpp
+        src/car_server.pb.c
+        src/common.pb.c
+        src/errors.pb.c
+        src/keys.pb.c
+        src/signatures.pb.c
+        src/universal_message.pb.c
         src/vcsec.pb.c
+        src/vehicle.pb.c
         ${nanopb_SOURCE_DIR}/pb_decode.c
         ${nanopb_SOURCE_DIR}/pb_encode.c
         ${nanopb_SOURCE_DIR}/pb_common.c
@@ -56,4 +66,13 @@ target_include_directories(
 
 target_link_libraries(TeslaBLE PUBLIC mbedcrypto mbedtls mbedx509)
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/client.h)
+set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/peer.h)
+set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/tb_utils.h)
+set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/car_server.pb.h)
+set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/common.pb.h)
+set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/errors.pb.h)
+set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/keys.pb.h)
+set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/signatures.pb.h)
+set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/universal_message.pb.h)
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/vcsec.pb.h)
+set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/vehicle.pb.h)

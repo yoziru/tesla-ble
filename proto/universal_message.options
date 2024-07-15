@@ -1,0 +1,14 @@
+# "universal_message.proto"
+
+UniversalMessage.Destination.routing_address max_size:16 fixed_length:true
+
+## SessionInfoRequest
+UniversalMessage.SessionInfoRequest.public_key max_size:65 type:FT_STATIC
+UniversalMessage.SessionInfoRequest.challenge max_size:32 type:FT_STATIC
+
+## RoutableMessage
+UniversalMessage.RoutableMessage.protobuf_message_as_bytes max_size:100 type:FT_STATIC
+UniversalMessage.RoutableMessage.session_info max_size:100 type:FT_STATIC
+
+UniversalMessage.RoutableMessage.request_uuid max_size:16 type:FT_STATIC
+UniversalMessage.RoutableMessage.uuid max_size:16 fixed_length:true

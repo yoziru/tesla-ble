@@ -1,5 +1,11 @@
 # Created by https://www.toptal.com/developers/gitignore/api/intellij,c++,cmake,platformio,visualstudiocode
 # Edit at https://www.toptal.com/developers/gitignore?templates=intellij,c++,cmake,platformio,visualstudiocode
+.vscode
+build/
+test.md
+test.py
+.DS_Store
+keys/
 
 ### C++ ###
 # Prerequisites
@@ -42,6 +48,7 @@ CMakeFiles
 CMakeScripts
 Testing
 Makefile
+!proto/Makefile
 cmake_install.cmake
 install_manifest.txt
 compile_commands.json

@@ -1,0 +1,39 @@
+# "car_server.proto"
+
+CarServer.NearbyChargingSites.timestamp type:FT_IGNORE
+CarServer.Ping.local_timestamp type:FT_IGNORE
+CarServer.Ping.last_remote_timestamp type:FT_IGNORE
+
+# CarServer.EraseUserDataAction.reason type:FT_IGNORE
+# CarServer.ResultReason.reason.plain_text type:FT_IGNORE
+
+# CarServer.EncryptedData.ciphertext type:FT_IGNORE
+# CarServer.EncryptedData.tag type:FT_IGNORE
+
+# CarServer.DrivingClearSpeedLimitPinAction.pin type:FT_IGNORE
+# CarServer.DrivingSpeedLimitAction.pin type:FT_IGNORE
+# CarServer.HvacSeatHeaterActions.hvacSeatHeaterAction type:FT_IGNORE
+
+# CarServer.HvacSeatCoolerActions.hvacSeatCoolerAction
+# CarServer.HvacSetPreconditioningMaxAction.manual_override_mode
+# CarServer.HvacTemperatureAdjustmentAction.hvac_temperature_zone
+# CarServer.NearbyChargingSites.superchargers
+
+# CarServer.Superchargers.amenities type:FT_IGNORE
+# CarServer.Superchargers.billing_info type:FT_IGNORE
+# CarServer.Superchargers.billing_time type:FT_IGNORE
+# CarServer.Superchargers.city type:FT_IGNORE
+# CarServer.Superchargers.country type:FT_IGNORE
+# CarServer.Superchargers.district type:FT_IGNORE
+# CarServer.Superchargers.name type:FT_IGNORE
+# CarServer.Superchargers.postal_code type:FT_IGNORE
+# CarServer.Superchargers.state type:FT_IGNORE
+# CarServer.Superchargers.street_address type:FT_IGNORE
+# CarServer.Superchargers.out_of_order_stalls_names type:FT_IGNORE
+
+# CarServer.VehicleControlSetValetModeAction.password
+# CarServer.VehicleControlTriggerHomelinkAction.token
+
+# CarServer.AutoSeatClimateAction.carseat
+# CarServer.SetVehicleNameAction.vehicleName
+# CarServer.VehicleControlSetPinToDriveAction.password

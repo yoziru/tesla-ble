@@ -1,0 +1,8 @@
+# "vcsec.proto"
+
+VCSEC.PublicKey.PublicKeyRaw max_size:65 type:FT_STATIC
+VCSEC.SignedMessage.protobufMessageAsBytes max_size:100 type:FT_STATIC
+
+VCSEC.KeyIdentifier.publicKeySHA1 max_size:4 type:FT_STATIC
+# VCSEC.WhitelistInfo.whitelistEntries ?
+VCSEC.InformationRequest.publicKey max_size:65 type:FT_STATIC

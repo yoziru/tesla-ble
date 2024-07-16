@@ -19,3 +19,10 @@ jobs:
 
       - name: Configure and Build Project
         uses: threeal/cmake-action@main
+
+      # run simple example as a test
+      - name: Build and run example
+        run: |
+          cd example/simple
+          cmake --build .
+          ./simple

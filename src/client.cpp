@@ -42,10 +42,10 @@ namespace TeslaBLE
 
   void Client::generateNonce()
   {
-    // random 12 bytes using arc4random()
+    // random 12 bytes using rand()
     for (int i = 0; i < 12; i++)
     {
-      this->nonce_[i] = arc4random() % 256;
+      this->nonce_[i] = rand() % 256;
     }
   }
 
@@ -882,11 +882,11 @@ namespace TeslaBLE
     {
     }
 
-    // random 16 bytes using arc4random()
+    // random 16 bytes using rand()
     pb_byte_t uuid[16];
     for (int i = 0; i < sizeof(uuid); i++)
     {
-      uuid[i] = arc4random() % 256;
+      uuid[i] = rand() % 256;
     }
     memcpy(universal_message.uuid, uuid, sizeof(uuid));
 
@@ -931,7 +931,7 @@ namespace TeslaBLE
     pb_byte_t uuid[16];
     for (int i = 0; i < sizeof(uuid); i++)
     {
-      uuid[i] = arc4random() % 256;
+      uuid[i] = rand() % 256;
     }
     // mbedtls_ctr_drbg_random(&this->drbg_context_, uuid, sizeof(uuid));
     memcpy(universal_message.uuid, uuid, sizeof(uuid));

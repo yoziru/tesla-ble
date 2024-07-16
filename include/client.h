@@ -23,7 +23,8 @@ namespace TeslaBLE
 {
   class Client
   {
-  static const int SHARED_KEY_SIZE_BYTES = 16;
+    static const int SHARED_KEY_SIZE_BYTES = 16;
+
   private:
     mbedtls_pk_context private_key_context_;
     mbedtls_ecp_keypair tesla_key_vcsec_;
@@ -74,7 +75,6 @@ namespace TeslaBLE
 
     int createPrivateKey();
 
-
     void generateNonce();
 
     void setVIN(const char *vin);
@@ -92,6 +92,7 @@ namespace TeslaBLE
     void cleanup();
 
     int buildWhiteListMessage(Keys_Role role,
+                              VCSEC_KeyFormFactor form_factor,
                               pb_byte_t *output_buffer,
                               size_t *output_length);
 
@@ -164,7 +165,6 @@ namespace TeslaBLE
     int buildChargingSwitchMessage(bool isOn,
                                    pb_byte_t *output_buffer,
                                    size_t *output_length);
-
   };
 } // namespace TeslaBLE
 // #endif // MBEDTLS_CONFIG_FILE

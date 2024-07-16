@@ -190,8 +190,8 @@ namespace TeslaBLE
   int Client::GenerateKeyId()
   {
     pb_byte_t buffer[20];
-    int return_code = mbedtls_sha1(this->public_key_, this->public_key_size_,buffer);
-        if (return_code != 0)
+    int return_code = mbedtls_sha1(this->public_key_, this->public_key_size_, buffer);
+    if (return_code != 0)
     {
       printf("SHA1 KeyId hash error: -0x%04x\n\n", (unsigned int)-return_code);
       return 1;
@@ -214,7 +214,7 @@ namespace TeslaBLE
                            const uint8_t *public_key_buffer,
                            size_t public_key_size)
   {
-    mbedtls_ecp_keypair& tesla_key = isInfotainment ? this->tesla_key_infotainment_
+    mbedtls_ecp_keypair &tesla_key = isInfotainment ? this->tesla_key_infotainment_
                                                     : this->tesla_key_vcsec_;
     pb_byte_t shared_secret[MBEDTLS_ECP_MAX_BYTES];
     size_t shared_secret_olen;
@@ -287,7 +287,7 @@ namespace TeslaBLE
     printf("Shared secret before hash: ");
     for (size_t i = 0; i < shared_secret_olen; i++)
     {
-        printf("%02x", shared_secret[i]);
+      printf("%02x", shared_secret[i]);
     }
     printf("\n");
 
@@ -352,12 +352,12 @@ namespace TeslaBLE
     size_t shared_secret_size = this->SHARED_KEY_SIZE_BYTES;
 
     // check SHA-1 shared secret should be 16 bytes
-      printf("Shared secret: ");
-      for (size_t i = 0; i < shared_secret_size; i++)
-      {
-        printf("%02x", shared_secret[i]);
-      }
-      printf("\n");
+    printf("Shared secret: ");
+    for (size_t i = 0; i < shared_secret_size; i++)
+    {
+      printf("%02x", shared_secret[i]);
+    }
+    printf("\n");
     if (shared_secret_size != this->SHARED_KEY_SIZE_BYTES)
     {
       printf("\033[1;31mError: Shared secret SHA1 is not 16 bytes (actual size = %u)\033[0m\n", shared_secret_size);
@@ -500,6 +500,7 @@ namespace TeslaBLE
    * @return int result code 0 for successful
    */
   int Client::buildWhiteListMessage(Keys_Role role,
+                                    VCSEC_KeyFormFactor form_factor,
                                     pb_byte_t *output_buffer,
                                     size_t *output_length)
   {
@@ -523,7 +524,7 @@ namespace TeslaBLE
 
     VCSEC_WhitelistOperation whitelist = VCSEC_WhitelistOperation_init_default;
     whitelist.has_metadataForKey = true;
-    whitelist.metadataForKey.keyFormFactor = VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY;
+    whitelist.metadataForKey.keyFormFactor = form_factor;
 
     whitelist.which_sub_message =
         VCSEC_WhitelistOperation_addKeyToWhitelistAndAddPermissions_tag;

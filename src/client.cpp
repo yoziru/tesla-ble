@@ -979,11 +979,11 @@ namespace TeslaBLE
                                           size_t *output_length,
                                           bool encryptPayload)
   {
-    pb_byte_t payload_buffer;
+    pb_byte_t payload_buffer[100];
     size_t payload_length;
     printf("message: %p\n", message);
     printf("message.which_sub_message: %d\n", message->which_sub_message);
-    int return_code = pb_encode_fields(&payload_buffer, &payload_length, VCSEC_UnsignedMessage_fields, &message);
+    int return_code = pb_encode_fields(payload_buffer, &payload_length, VCSEC_UnsignedMessage_fields, message);
     if (return_code != 0)
     {
       printf("\033[1;31mFailed to encode unsigned message\033[0m\n");
@@ -992,7 +992,7 @@ namespace TeslaBLE
 
     // build universal message
     return this->buildUniversalMessageWithPayload(
-        &payload_buffer, payload_length, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        payload_buffer, payload_length, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
         output_buffer, output_length, encryptPayload);
   }
 

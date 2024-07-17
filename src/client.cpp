@@ -960,7 +960,7 @@ namespace TeslaBLE
                                           bool encryptPayload)
   {
     pb_byte_t payload_buffer;
-    size_t payload_length = 0;
+    size_t payload_length;
     printf("message: %p\n", message);
     printf("message.which_sub_message: %d\n", message->which_sub_message);
     pb_encode_fields(&payload_buffer, &payload_length, VCSEC_UnsignedMessage_fields, &message);
@@ -1172,6 +1172,39 @@ namespace TeslaBLE
     size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
     int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer, &universal_encode_buffer_size, true);
+    if (status != 0)
+    {
+      printf("Failed to build unsigned message\n");
+      return status;
+    }
+    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
+                        output_buffer, output_length);
+    return 0;
+  }
+
+  int Client::buildVCSECInformationRequestMessage(VCSEC_InformationRequestType request_type,
+                                                  pb_byte_t *output_buffer,
+                                                  size_t *output_length,
+                                                  uint32_t key_slot)
+  {
+    VCSEC_InformationRequest information_request = VCSEC_InformationRequest_init_default;
+    information_request.informationRequestType = request_type;
+
+    if (key_slot != 0xFFFFFFFF)
+    {
+      printf("Adding key slot info");
+      information_request.which_key = VCSEC_InformationRequest_slot_tag;
+      information_request.key.slot = key_slot;
+    }
+
+    VCSEC_UnsignedMessage unsigned_message = VCSEC_UnsignedMessage_init_default;
+    unsigned_message.which_sub_message = VCSEC_UnsignedMessage_InformationRequest_tag;
+    unsigned_message.sub_message.InformationRequest = information_request;
+
+
+    size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
+    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
+    int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer, &universal_encode_buffer_size, false);
     if (status != 0)
     {
       printf("Failed to build unsigned message\n");

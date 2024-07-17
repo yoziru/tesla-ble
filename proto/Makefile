@@ -1,5 +1,6 @@
 generate_raw:
-	 nanopb_generator *.proto --output-dir=out/
+	mkdir -p out
+	nanopb_generator *.proto --output-dir=out/
 
 fix:
 	sed '/google\/protobuf\/timestamp/d' out/car_server.pb.h > out/car_server.pb.h.tmp

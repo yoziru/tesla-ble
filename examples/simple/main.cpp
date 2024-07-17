@@ -29,7 +29,7 @@ int main()
     printf("Failed create private key\n");
   }
 
-  unsigned char private_key_buffer[sizeof MOCK_PRIVATE_KEY];
+  unsigned char private_key_buffer[sizeof MOCK_PRIVATE_KEY + 1];
   size_t private_key_length;
   client.getPrivateKey(private_key_buffer, sizeof(private_key_buffer),
                        &private_key_length);

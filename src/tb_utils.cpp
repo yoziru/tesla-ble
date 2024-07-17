@@ -95,6 +95,11 @@ namespace TeslaBLE
       return 1;
     }
     printf("Bytes written: %zu\n", unsigned_message_size_stream.bytes_written);
+    if (unsigned_message_size_stream.bytes_written == 0)
+    {
+      printf("\033[1;31mNo bytes written\033[0m\n");
+      return 1;
+    }
     *output_length = unsigned_message_size_stream.bytes_written;
     // printf("Message size: %hhu\n", *output_length);
 

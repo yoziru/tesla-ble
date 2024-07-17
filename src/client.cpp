@@ -539,7 +539,12 @@ namespace TeslaBLE
     printf("Encoding whitelist message\n");
     pb_byte_t payload_buffer[80];
     size_t payload_length;
-    pb_encode_fields(payload_buffer, &payload_length, VCSEC_UnsignedMessage_fields, &payload);
+    int return_code = pb_encode_fields(payload_buffer, &payload_length, VCSEC_UnsignedMessage_fields, &payload);
+    if (return_code != 0)
+    {
+      printf("Failed to encode whitelist message\n");
+      return 1;
+    }
 
     printf("Encoded whitelist message :");
     for (int i = 0; i < payload_length; i++)
@@ -563,7 +568,12 @@ namespace TeslaBLE
     printf("Encoding VCSEC to VCSEC message\n");
     pb_byte_t vcsec_encode_buffer[86];
     size_t vcsec_encode_buffer_size;
-    pb_encode_fields(vcsec_encode_buffer, &vcsec_encode_buffer_size, VCSEC_ToVCSECMessage_fields, &vcsec_message);
+    return_code = pb_encode_fields(vcsec_encode_buffer, &vcsec_encode_buffer_size, VCSEC_ToVCSECMessage_fields, &vcsec_message);
+    if (return_code != 0)
+    {
+      printf("Failed to encode VCSEC to VCSEC message\n");
+      return 1;
+    }
     printf("Encoded VCSEC to VCSEC message length: %d\n", vcsec_encode_buffer_size);
     printf("Encoded VCSEC to VCSEC message :");
     for (int i = 0; i < vcsec_encode_buffer_size; i++)
@@ -891,7 +901,12 @@ namespace TeslaBLE
     }
     memcpy(universal_message.uuid, uuid, sizeof(uuid));
 
-    pb_encode_fields(output_buffer, output_length, UniversalMessage_RoutableMessage_fields, &universal_message);
+    int return_code = pb_encode_fields(output_buffer, output_length, UniversalMessage_RoutableMessage_fields, &universal_message);
+    if (return_code != 0)
+    {
+      printf("\033[1;31mFailed to encode universal message\033[0m\n");
+      return 1;
+    }
     return 0;
   }
 
@@ -939,7 +954,12 @@ namespace TeslaBLE
 
     size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    pb_encode_fields(universal_encode_buffer, &universal_encode_buffer_size, UniversalMessage_RoutableMessage_fields, &universal_message);
+    int return_code = pb_encode_fields(universal_encode_buffer, &universal_encode_buffer_size, UniversalMessage_RoutableMessage_fields, &universal_message);
+    if (return_code != 0)
+    {
+      printf("\033[1;31mFailed to encode universal message\033[0m\n");
+      return 1;
+    }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
                         output_buffer, output_length);
 
@@ -959,15 +979,20 @@ namespace TeslaBLE
                                           size_t *output_length,
                                           bool encryptPayload)
   {
-    pb_byte_t payload_buffer;
-    size_t payload_length = 0;
+    pb_byte_t payload_buffer[100];
+    size_t payload_length;
     printf("message: %p\n", message);
     printf("message.which_sub_message: %d\n", message->which_sub_message);
-    pb_encode_fields(&payload_buffer, &payload_length, VCSEC_UnsignedMessage_fields, &message);
+    int return_code = pb_encode_fields(payload_buffer, &payload_length, VCSEC_UnsignedMessage_fields, message);
+    if (return_code != 0)
+    {
+      printf("\033[1;31mFailed to encode unsigned message\033[0m\n");
+      return 1;
+    }
 
     // build universal message
     return this->buildUniversalMessageWithPayload(
-        &payload_buffer, payload_length, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        payload_buffer, payload_length, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
         output_buffer, output_length, encryptPayload);
   }
 
@@ -1000,7 +1025,12 @@ namespace TeslaBLE
   {
     pb_byte_t payload_buffer[100];
     size_t payload_length = 0;
-    pb_encode_fields(payload_buffer, &payload_length, CarServer_Action_fields, action);
+    int return_code = pb_encode_fields(payload_buffer, &payload_length, CarServer_Action_fields, action);
+    if (return_code != 0)
+    {
+      printf("\033[1;31mFailed to encode car action message\033[0m\n");
+      return 1;
+    }
     printf("payload length: %zu\n", payload_length);
     printf("payload: ");
     for (int i = 0; i < payload_length; i++)
@@ -1172,6 +1202,39 @@ namespace TeslaBLE
     size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
     int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer, &universal_encode_buffer_size, true);
+    if (status != 0)
+    {
+      printf("Failed to build unsigned message\n");
+      return status;
+    }
+    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
+                        output_buffer, output_length);
+    return 0;
+  }
+
+  int Client::buildVCSECInformationRequestMessage(VCSEC_InformationRequestType request_type,
+                                                  pb_byte_t *output_buffer,
+                                                  size_t *output_length,
+                                                  uint32_t key_slot)
+  {
+    VCSEC_InformationRequest information_request = VCSEC_InformationRequest_init_zero;
+    information_request.informationRequestType = request_type;
+
+    if (key_slot != 0xFFFFFFFF)
+    {
+      printf("Adding key slot info");
+      information_request.which_key = VCSEC_InformationRequest_slot_tag;
+      information_request.key.slot = key_slot;
+    }
+
+    VCSEC_UnsignedMessage unsigned_message = VCSEC_UnsignedMessage_init_default;
+    unsigned_message.which_sub_message = VCSEC_UnsignedMessage_InformationRequest_tag;
+    unsigned_message.sub_message.InformationRequest = information_request;
+
+
+    size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
+    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
+    int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer, &universal_encode_buffer_size, false);
     if (status != 0)
     {
       printf("Failed to build unsigned message\n");

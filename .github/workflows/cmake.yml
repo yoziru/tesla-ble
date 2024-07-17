@@ -22,7 +22,6 @@ jobs:
 
   build-and-run-example:
     name: Build and Run Example
-    needs: build-project
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

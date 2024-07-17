@@ -19,3 +19,18 @@ jobs:
 
       - name: Configure and Build Project
         uses: threeal/cmake-action@main
+
+  build-and-run-example:
+    name: Build and Run Example
+    needs: build-project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.7/build
+
+      - name: Build and run example
+        run: |
+          mkdir -p build-example && cd build-example
+          cmake ../examples/simple
+          cmake --build .
+          ./simple

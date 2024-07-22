@@ -114,8 +114,8 @@ namespace TeslaBLE
                                        Signatures_SessionInfo *output);
     static int parsePayloadUnsignedMessage(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
                                            VCSEC_UnsignedMessage *output);
-    static int parsePayloadCarServerAction(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
-                                           CarServer_Action *output);
+    static int parsePayloadCarServerResponse(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+                                           CarServer_Response *output);
 
     int buildEphemeralKeyMessage(UniversalMessage_Domain domain,
                                  pb_byte_t *output_buffer,

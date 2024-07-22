@@ -5,7 +5,7 @@ CarServer.Ping.local_timestamp type:FT_IGNORE
 CarServer.Ping.last_remote_timestamp type:FT_IGNORE
 
 # CarServer.EraseUserDataAction.reason type:FT_IGNORE
-# CarServer.ResultReason.reason.plain_text type:FT_IGNORE
+CarServer.ResultReason.plain_text max_size:100 type:FT_STATIC
 
 # CarServer.EncryptedData.ciphertext type:FT_IGNORE
 # CarServer.EncryptedData.tag type:FT_IGNORE

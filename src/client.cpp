@@ -690,12 +690,12 @@ namespace TeslaBLE
     return 0;
   }
 
-  int Client::parsePayloadCarServerAction(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
-                                          CarServer_Action *output)
+  int Client::parsePayloadCarServerResponse(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+                                          CarServer_Response *output)
   {
     pb_istream_t stream = pb_istream_from_buffer(input_buffer->bytes, input_buffer->size);
     bool status =
-        pb_decode(&stream, CarServer_Action_fields, output);
+        pb_decode(&stream, CarServer_Response_fields, output);
     if (!status)
     {
       printf("Decoding failed: %s\n", PB_GET_ERROR(&stream));

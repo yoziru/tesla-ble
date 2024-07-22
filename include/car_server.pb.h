@@ -59,7 +59,7 @@ typedef struct _CarServer_EraseUserDataAction {
 typedef struct _CarServer_ResultReason {
     pb_size_t which_reason;
     union {
-        pb_callback_t plain_text;
+        char plain_text[100];
     } reason;
 } CarServer_ResultReason;
 
@@ -546,7 +546,7 @@ extern "C" {
 #define CarServer_EraseUserDataAction_init_default {{{NULL}, NULL}}
 #define CarServer_Response_init_default          {false, CarServer_ActionStatus_init_default, 0, {Signatures_SessionInfo_init_default}}
 #define CarServer_ActionStatus_init_default      {_CarServer_OperationStatus_E_MIN, false, CarServer_ResultReason_init_default}
-#define CarServer_ResultReason_init_default      {0, {{{NULL}, NULL}}}
+#define CarServer_ResultReason_init_default      {0, {""}}
 #define CarServer_EncryptedData_init_default     {0, {{NULL}, NULL}, {{NULL}, NULL}}
 #define CarServer_ChargingSetLimitAction_init_default {0}
 #define CarServer_ChargingStartStopAction_init_default {0, {CarServer_Void_init_default}}
@@ -602,7 +602,7 @@ extern "C" {
 #define CarServer_EraseUserDataAction_init_zero  {{{NULL}, NULL}}
 #define CarServer_Response_init_zero             {false, CarServer_ActionStatus_init_zero, 0, {Signatures_SessionInfo_init_zero}}
 #define CarServer_ActionStatus_init_zero         {_CarServer_OperationStatus_E_MIN, false, CarServer_ResultReason_init_zero}
-#define CarServer_ResultReason_init_zero         {0, {{{NULL}, NULL}}}
+#define CarServer_ResultReason_init_zero         {0, {""}}
 #define CarServer_EncryptedData_init_zero        {0, {{NULL}, NULL}, {{NULL}, NULL}}
 #define CarServer_ChargingSetLimitAction_init_zero {0}
 #define CarServer_ChargingStartStopAction_init_zero {0, {CarServer_Void_init_zero}}
@@ -948,8 +948,8 @@ X(a, STATIC,   OPTIONAL, MESSAGE,  result_reason,     2)
 #define CarServer_ActionStatus_result_reason_MSGTYPE CarServer_ResultReason
 
 #define CarServer_ResultReason_FIELDLIST(X, a) \
-X(a, CALLBACK, ONEOF,    STRING,   (reason,plain_text,reason.plain_text),   1)
-#define CarServer_ResultReason_CALLBACK pb_default_field_callback
+X(a, STATIC,   ONEOF,    STRING,   (reason,plain_text,reason.plain_text),   1)
+#define CarServer_ResultReason_CALLBACK NULL
 #define CarServer_ResultReason_DEFAULT NULL
 
 #define CarServer_EncryptedData_FIELDLIST(X, a) \
@@ -1442,8 +1442,6 @@ extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAction_msg;
 /* CarServer_VehicleAction_size depends on runtime parameters */
 /* CarServer_EraseUserDataAction_size depends on runtime parameters */
 /* CarServer_Response_size depends on runtime parameters */
-/* CarServer_ActionStatus_size depends on runtime parameters */
-/* CarServer_ResultReason_size depends on runtime parameters */
 /* CarServer_EncryptedData_size depends on runtime parameters */
 /* CarServer_DrivingClearSpeedLimitPinAction_size depends on runtime parameters */
 /* CarServer_DrivingSpeedLimitAction_size depends on runtime parameters */
@@ -1458,7 +1456,8 @@ extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAction_msg;
 /* CarServer_AutoSeatClimateAction_size depends on runtime parameters */
 /* CarServer_SetVehicleNameAction_size depends on runtime parameters */
 /* CarServer_VehicleControlSetPinToDriveAction_size depends on runtime parameters */
-#define CARSERVER_CAR_SERVER_PB_H_MAX_SIZE       CarServer_ScheduledDepartureAction_size
+#define CARSERVER_CAR_SERVER_PB_H_MAX_SIZE       CarServer_ActionStatus_size
+#define CarServer_ActionStatus_size              105
 #define CarServer_AutoSeatClimateAction_CarSeat_size 4
 #define CarServer_ChargePortDoorClose_size       0
 #define CarServer_ChargePortDoorOpen_size        0
@@ -1481,6 +1480,7 @@ extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAction_msg;
 #define CarServer_MediaPreviousTrack_size        0
 #define CarServer_MediaUpdateVolume_size         6
 #define CarServer_Ping_size                      11
+#define CarServer_ResultReason_size              101
 #define CarServer_ScheduledChargingAction_size   13
 #define CarServer_ScheduledDepartureAction_size  32
 #define CarServer_SetCabinOverheatProtectionAction_size 4

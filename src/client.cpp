@@ -918,7 +918,7 @@ namespace TeslaBLE
    * @param output_length Size of the output buffer
    * @return int result code 0 for successful
    */
-  int Client::buildEphemeralKeyMessage(UniversalMessage_Domain domain,
+  int Client::buildSessionInfoRequestMessage(UniversalMessage_Domain domain,
                                        pb_byte_t *output_buffer,
                                        size_t *output_length)
   {

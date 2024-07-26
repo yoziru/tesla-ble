@@ -117,7 +117,7 @@ namespace TeslaBLE
     static int parsePayloadCarServerResponse(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
                                            CarServer_Response *output);
 
-    int buildEphemeralKeyMessage(UniversalMessage_Domain domain,
+    int buildSessionInfoRequestMessage(UniversalMessage_Domain domain,
                                  pb_byte_t *output_buffer,
                                  size_t *output_length);
 

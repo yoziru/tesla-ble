@@ -94,7 +94,7 @@ namespace TeslaBLE
              PB_GET_ERROR(&unsigned_message_size_stream));
       return 1;
     }
-    printf("Bytes written: %zu\n", unsigned_message_size_stream.bytes_written);
+    // printf("Bytes written: %zu\n", unsigned_message_size_stream.bytes_written);
     if (unsigned_message_size_stream.bytes_written == 0)
     {
       printf("\033[1;31mNo bytes written\033[0m\n");
@@ -104,7 +104,7 @@ namespace TeslaBLE
     // printf("Message size: %hhu\n", *output_length);
 
     // now encode proper
-    printf("Encoding message\n");
+    // printf("Encoding message\n");
     pb_ostream_t unsigned_message_stream = pb_ostream_from_buffer(output_buffer, *output_length);
     bool status_encode_bytes = pb_encode(&unsigned_message_stream, fields, src_struct);
     if (!status_encode_bytes)

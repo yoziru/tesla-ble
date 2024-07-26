@@ -238,14 +238,6 @@ namespace TeslaBLE
       return 1;
     }
 
-    // Debug: Print the public key
-    printf("Public key:\n");
-    for (size_t i = 0; i < public_key_size; i++)
-    {
-      printf("%02x", public_key_buffer[i]);
-    }
-    printf("\n");
-
     mbedtls_ecdh_init(&this->ecdh_context_);
 
     return_code = mbedtls_ecdh_get_params(
@@ -257,12 +249,6 @@ namespace TeslaBLE
       printf("ECDH Get Params (private) error: -0x%04x\n\n", (unsigned int)-return_code);
       return 1;
     }
-    printf("Private key :\n");
-    for (size_t i = 0; i < 32; i++)
-    {
-      printf("%02lx", mbedtls_pk_ec(this->private_key_context_)->private_d.private_p[i]);
-    }
-    printf("\n");
 
     return_code = mbedtls_ecdh_get_params(&this->ecdh_context_, &tesla_key,
                                           MBEDTLS_ECDH_THEIRS);
@@ -285,28 +271,15 @@ namespace TeslaBLE
       printf("ECDH calc secret error: -0x%04x\n\n", (unsigned int)-return_code);
       return 1;
     }
-    printf("Shared secret before hash: ");
-    for (size_t i = 0; i < shared_secret_olen; i++)
-    {
-      printf("%02x", shared_secret[i]);
-    }
-    printf("\n");
 
     // Now hash the shared secret
-    printf("shared_secret_olen: %u\n", shared_secret_olen);
+    // printf("shared_secret_olen: %u\n", shared_secret_olen);
     return_code = mbedtls_sha1(shared_secret, shared_secret_olen, shared_secret_sha1);
     if (return_code != 0)
     {
       printf("SHA 1 error: -0x%04x\n\n", (unsigned int)-return_code);
       return 1;
     }
-
-    printf("Shared secret: ");
-    for (int i = 0; i < sizeof shared_secret_sha1; i++)
-    {
-      printf("%02x", shared_secret_sha1[i]);
-    }
-    printf("\n");
 
     if (isInfotainment)
     {
@@ -352,13 +325,6 @@ namespace TeslaBLE
     pb_byte_t *shared_secret = domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT ? this->shared_secret_infotainment_sha1_ : this->shared_secret_vcsec_sha1_;
     size_t shared_secret_size = this->SHARED_KEY_SIZE_BYTES;
 
-    // check SHA-1 shared secret should be 16 bytes
-    printf("Shared secret: ");
-    for (size_t i = 0; i < shared_secret_size; i++)
-    {
-      printf("%02x", shared_secret[i]);
-    }
-    printf("\n");
     if (shared_secret_size != this->SHARED_KEY_SIZE_BYTES)
     {
       printf("\033[1;31mError: Shared secret SHA1 is not 16 bytes (actual size = %u)\033[0m\n", shared_secret_size);
@@ -394,13 +360,6 @@ namespace TeslaBLE
     // Use the hash as the AAD for AES-GCM
     mbedtls_gcm_update_ad(&aes_context, ad_hash, sizeof(ad_hash));
 
-    // Encrypt the plaintext
-    printf("Plaintext: ");
-    for (size_t i = 0; i < input_buffer_length; i++)
-    {
-      printf("%02x", input_buffer[i]);
-    }
-    printf("\n");
     return_code = mbedtls_gcm_update(&aes_context, input_buffer, input_buffer_length,
                                      output_buffer, output_buffer_length, output_length);
     if (return_code != 0)
@@ -422,28 +381,6 @@ namespace TeslaBLE
     }
 
     mbedtls_gcm_free(&aes_context);
-
-    // Debug output
-    printf("Nonce: ");
-    for (int i = 0; i < sizeof(this->nonce_); i++)
-    {
-      printf("%02x", this->nonce_[i]);
-    }
-    printf("\n");
-
-    printf("Ciphertext: ");
-    for (size_t i = 0; i < *output_length; i++)
-    {
-      printf("%02x", output_buffer[i]);
-    }
-    printf("\n");
-
-    printf("Tag: ");
-    for (size_t i = 0; i < tag_length; i++)
-    {
-      printf("%02x", signature_buffer[i]);
-    }
-    printf("\n");
 
     return 0;
   }
@@ -506,13 +443,6 @@ namespace TeslaBLE
                                     size_t *output_length)
   {
     printf("Building whitelist message\n");
-    printf("Public key size: %d\n", this->public_key_size_);
-    printf("Public key: ");
-    for (int i = 0; i < this->public_key_size_; i++)
-    {
-      printf("%02x", this->public_key_[i]);
-    }
-    printf("\n");
 
     VCSEC_PermissionChange permissions_action =
         VCSEC_PermissionChange_init_default;
@@ -536,7 +466,7 @@ namespace TeslaBLE
         VCSEC_UnsignedMessage_WhitelistOperation_tag;
     payload.sub_message.WhitelistOperation = whitelist;
 
-    printf("Encoding whitelist message\n");
+    // printf("Encoding whitelist message\n");
     pb_byte_t payload_buffer[80];
     size_t payload_length;
     int return_code = pb_encode_fields(payload_buffer, &payload_length, VCSEC_UnsignedMessage_fields, &payload);
@@ -546,14 +476,7 @@ namespace TeslaBLE
       return 1;
     }
 
-    printf("Encoded whitelist message :");
-    for (int i = 0; i < payload_length; i++)
-    {
-      printf("%02x", payload_buffer[i]);
-    }
-    printf("\n");
-
-    printf("Building VCSEC to VCSEC message\n");
+    // printf("Building VCSEC to VCSEC message\n");
     VCSEC_ToVCSECMessage vcsec_message = VCSEC_ToVCSECMessage_init_default;
     VCSEC_SignedMessage signed_message = VCSEC_SignedMessage_init_default;
     vcsec_message.has_signedMessage = true;
@@ -565,7 +488,7 @@ namespace TeslaBLE
     signed_message.protobufMessageAsBytes.size = payload_length;
     vcsec_message.signedMessage = signed_message;
 
-    printf("Encoding VCSEC to VCSEC message\n");
+    // printf("Encoding VCSEC to VCSEC message\n");
     pb_byte_t vcsec_encode_buffer[86];
     size_t vcsec_encode_buffer_size;
     return_code = pb_encode_fields(vcsec_encode_buffer, &vcsec_encode_buffer_size, VCSEC_ToVCSECMessage_fields, &vcsec_message);
@@ -574,15 +497,8 @@ namespace TeslaBLE
       printf("Failed to encode VCSEC to VCSEC message\n");
       return 1;
     }
-    printf("Encoded VCSEC to VCSEC message length: %d\n", vcsec_encode_buffer_size);
-    printf("Encoded VCSEC to VCSEC message :");
-    for (int i = 0; i < vcsec_encode_buffer_size; i++)
-    {
-      printf("%02x", vcsec_encode_buffer[i]);
-    }
-    printf("\n");
 
-    printf("Prepending length\n");
+    // printf("Prepending length\n");
     this->prependLength(vcsec_encode_buffer, vcsec_encode_buffer_size,
                         output_buffer, output_length);
     return 0;
@@ -717,28 +633,15 @@ namespace TeslaBLE
   {
     size_t index = 0;
 
-    // Helper function for debug printing
-    auto debug_print = [](const char *label, const uint8_t *data, size_t length)
-    {
-      printf("%s: ", label);
-      for (size_t i = 0; i < length; i++)
-      {
-        printf("%02x", data[i]);
-      }
-      printf("\n");
-    };
-
     // Signature type
     output_buffer[index++] = Signatures_Tag_TAG_SIGNATURE_TYPE;
     output_buffer[index++] = 0x01;
     output_buffer[index++] = signature_type;
-    debug_print("Signature type", output_buffer, 3);
 
     // Domain
     output_buffer[index++] = Signatures_Tag_TAG_DOMAIN;
     output_buffer[index++] = 0x01;
     output_buffer[index++] = domain;
-    debug_print("Domain", output_buffer + 3, 3);
 
     // Personalization (VIN)
     size_t vin_length = strlen(VIN);
@@ -746,34 +649,28 @@ namespace TeslaBLE
     output_buffer[index++] = vin_length;
     memcpy(output_buffer + index, VIN, vin_length);
     index += vin_length;
-    debug_print("VIN", output_buffer + 6, vin_length + 2);
 
     // Epoch
     output_buffer[index++] = Signatures_Tag_TAG_EPOCH;
     output_buffer[index++] = 0x10; // Assuming epoch is always 16 bytes
     memcpy(output_buffer + index, epoch, 16);
     index += 16;
-    debug_print("Epoch", output_buffer + index - 18, 18);
 
     // Expires at
-    printf("Expires at: %ld\n", expires_at);
     output_buffer[index++] = Signatures_Tag_TAG_EXPIRES_AT;
     output_buffer[index++] = 0x04;
     output_buffer[index++] = (expires_at >> 24) & 0xFF;
     output_buffer[index++] = (expires_at >> 16) & 0xFF;
     output_buffer[index++] = (expires_at >> 8) & 0xFF;
     output_buffer[index++] = expires_at & 0xFF;
-    debug_print("Expires at", output_buffer + index - 6, 6);
 
     // Counter
-    printf("Counter: %ld\n", counter);
     output_buffer[index++] = Signatures_Tag_TAG_COUNTER;
     output_buffer[index++] = 0x04;
     output_buffer[index++] = (counter >> 24) & 0xFF;
     output_buffer[index++] = (counter >> 16) & 0xFF;
     output_buffer[index++] = (counter >> 8) & 0xFF;
     output_buffer[index++] = counter & 0xFF;
-    debug_print("Counter", output_buffer + index - 6, 6);
 
     // Terminal byte
     output_buffer[index++] = Signatures_Tag_TAG_END;
@@ -785,14 +682,6 @@ namespace TeslaBLE
     // }
 
     *output_length = index;
-
-    // Final debug output
-    printf("Complete AD Buffer: ");
-    for (size_t i = 0; i < index; i++)
-    {
-      printf("%02x", output_buffer[i]);
-    }
-    printf("\n");
 
     return 0;
   }
@@ -1031,13 +920,6 @@ namespace TeslaBLE
       printf("\033[1;31mFailed to encode car action message\033[0m\n");
       return 1;
     }
-    printf("payload length: %zu\n", payload_length);
-    printf("payload: ");
-    for (int i = 0; i < payload_length; i++)
-    {
-      printf("%02x", payload_buffer[i]);
-    }
-    printf("\n");
 
     // build universal message
     return this->buildUniversalMessageWithPayload(

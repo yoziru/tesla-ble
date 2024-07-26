@@ -1,6 +1,4 @@
 #include <chrono>
-#include <cstdio>
-#include <cstring>
 #include <pb.h>
 
 #include "peer.h"
@@ -23,18 +21,15 @@ namespace TeslaBLE
   }
   void Peer::setExpiresAt(const uint32_t *expires_at)
   {
-    printf("Expires at: %lu\n", *expires_at);
     this->expires_at_ = *expires_at;
   }
   uint32_t Peer::generateExpiresAt(int seconds)
   {
     uint32_t expiresAt = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() + std::chrono::seconds(seconds)) - this->time_zero_;
-    printf("Generated expiration time: %lu\n", expiresAt);
     return expiresAt;
   }
   void Peer::setTimeZero(const uint32_t *time_zero)
   {
-    printf("TimeZero: %lu\n", *time_zero);
     this->time_zero_ = *time_zero;
   }
   void Peer::setIsAuthenticated(bool isAuthenticated)

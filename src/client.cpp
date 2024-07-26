@@ -395,8 +395,6 @@ namespace TeslaBLE
     mbedtls_ecp_keypair_free(&this->tesla_key_infotainment_);
     mbedtls_ecdh_free(&this->ecdh_context_);
     mbedtls_ctr_drbg_free(&this->drbg_context_);
-    // mbedtls_ecp_point_free(&Q);
-    // mbedtls_mpi_free(&d);
   }
 
   /*
@@ -710,9 +708,6 @@ namespace TeslaBLE
     universal_message.has_from_destination = true;
     universal_message.from_destination = from_destination;
 
-    // char routing_address[33];
-    // strcpy(routing_address, "2c907bd76c640d360b3027dc7404efde");
-
     universal_message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
     if (encryptPayload)
     {
@@ -827,7 +822,6 @@ namespace TeslaBLE
 
     universal_message.which_payload = UniversalMessage_RoutableMessage_session_info_request_tag;
     UniversalMessage_SessionInfoRequest session_info_request = UniversalMessage_SessionInfoRequest_init_default;
-    // printf("public key size: %d\n", this->public_key_size_);
     memcpy(session_info_request.public_key.bytes, this->public_key_, this->public_key_size_);
     session_info_request.public_key.size = this->public_key_size_;
     universal_message.payload.session_info_request = session_info_request;
@@ -838,7 +832,6 @@ namespace TeslaBLE
     {
       uuid[i] = rand() % 256;
     }
-    // mbedtls_ctr_drbg_random(&this->drbg_context_, uuid, sizeof(uuid));
     memcpy(universal_message.uuid, uuid, sizeof(uuid));
 
     size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;

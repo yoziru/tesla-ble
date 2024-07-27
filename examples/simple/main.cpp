@@ -8,6 +8,7 @@
 #include <universal_message.pb.h>
 #include <vcsec.pb.h>
 
+#include "errors.h"
 #include "log.cpp"
 
 // mock data from PROTOCOL.md examples
@@ -55,7 +56,8 @@ int main()
 
   if (return_code != 0)
   {
-    printf("Failed to build whitelist message\n");
+    LOG_ERROR("Failed to build whitelist message: %s\033[0m\n",
+           TeslaBLE::TeslaBLE_Status_to_string(return_code));
     return -1;
   }
   printf("Whitelist message length: %d\n", whitelist_message_length);
@@ -74,7 +76,8 @@ int main()
   return_code = client.parseUniversalMessage(received_bytes_vcsec, sizeof(received_bytes_vcsec), &received_message_vcsec);
   if (return_code != 0)
   {
-    printf("Failed to parse received message VSSEC\n");
+    LOG_ERROR("Failed to parse received message VSSE: %s\033[0m\n",
+           TeslaBLE::TeslaBLE_Status_to_string(return_code));
     return -1;
   }
   log_routable_message(&received_message_vcsec);

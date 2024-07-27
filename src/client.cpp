@@ -28,6 +28,7 @@
 #include "vcsec.pb.h"
 #include "peer.h"
 #include "tb_utils.h"
+#include "errors.h"
 
 namespace TeslaBLE
 {
@@ -67,7 +68,7 @@ namespace TeslaBLE
                                             &entropy_context, nullptr, 0);
     if (return_code != 0)
     {
-      printf("Last error was: -0x%04x\n\n", (unsigned int)-return_code);
+      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
 
@@ -77,7 +78,7 @@ namespace TeslaBLE
 
     if (return_code != 0)
     {
-      printf("Last error was: -0x%04x\n\n", (unsigned int)-return_code);
+      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
 
@@ -87,7 +88,7 @@ namespace TeslaBLE
 
     if (return_code != 0)
     {
-      printf("Last error was: -0x%04x\n\n", (unsigned int)-return_code);
+      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
 
@@ -112,7 +113,7 @@ namespace TeslaBLE
                                             &entropy_context, nullptr, 0);
     if (return_code != 0)
     {
-      printf("Last error was: -0x%04x\n\n", (unsigned int)-return_code);
+      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
 
@@ -123,7 +124,7 @@ namespace TeslaBLE
 
     if (return_code != 0)
     {
-      printf("Last error was: -0x%04x\n\n", (unsigned int)-return_code);
+      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
 
@@ -146,7 +147,7 @@ namespace TeslaBLE
 
     if (return_code != 0)
     {
-      printf("Failed to write private key\n");
+      LOG_ERROR("Failed to write private key");
       return 1;
     }
 
@@ -177,7 +178,7 @@ namespace TeslaBLE
 
     if (return_code != 0)
     {
-      printf("Last error was: -0x%04x\n\n", (unsigned int)-return_code);
+      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
     return this->GenerateKeyId();
@@ -194,7 +195,7 @@ namespace TeslaBLE
     int return_code = mbedtls_sha1(this->public_key_, this->public_key_size_, buffer);
     if (return_code != 0)
     {
-      printf("SHA1 KeyId hash error: -0x%04x\n\n", (unsigned int)-return_code);
+      LOG_ERROR("SHA1 KeyId hash error: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
 
@@ -226,7 +227,7 @@ namespace TeslaBLE
     int return_code = mbedtls_ecp_group_load(&tesla_key.private_grp, MBEDTLS_ECP_DP_SECP256R1);
     if (return_code != 0)
     {
-      printf("Group load error: -0x%04x\n", (unsigned int)-return_code);
+      LOG_ERROR("Group load error: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
 
@@ -234,7 +235,7 @@ namespace TeslaBLE
                                                 public_key_buffer, public_key_size);
     if (return_code != 0)
     {
-      printf("Point read error: -0x%04x\n", (unsigned int)-return_code);
+      LOG_ERROR("Point read error: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
 
@@ -246,7 +247,7 @@ namespace TeslaBLE
 
     if (return_code != 0)
     {
-      printf("ECDH Get Params (private) error: -0x%04x\n\n", (unsigned int)-return_code);
+      LOG_ERROR("ECDH Get Params (private) error: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
 
@@ -255,7 +256,7 @@ namespace TeslaBLE
 
     if (return_code != 0)
     {
-      printf("ECDH Get Params (tesla) error: -0x%04x\n\n", (unsigned int)-return_code);
+      LOG_ERROR("ECDH Get Params (tesla) error: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
 
@@ -268,7 +269,7 @@ namespace TeslaBLE
 
     if (return_code != 0)
     {
-      printf("ECDH calc secret error: -0x%04x\n\n", (unsigned int)-return_code);
+      LOG_ERROR("ECDH calc secret error: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
 
@@ -277,7 +278,7 @@ namespace TeslaBLE
     return_code = mbedtls_sha1(shared_secret, shared_secret_olen, shared_secret_sha1);
     if (return_code != 0)
     {
-      printf("SHA 1 error: -0x%04x\n\n", (unsigned int)-return_code);
+      LOG_ERROR("SHA 1 error: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
 
@@ -315,8 +316,8 @@ namespace TeslaBLE
   {
     if (!mbedtls_pk_can_do(&this->private_key_context_, MBEDTLS_PK_ECKEY))
     {
-      printf("\033[1;31mError: Private key is not initialized\033[0m\n");
-      return 1;
+      LOG_ERROR("[Encrypt] Private key is not initialized");
+      return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
     }
 
     mbedtls_gcm_context aes_context;
@@ -327,16 +328,16 @@ namespace TeslaBLE
 
     if (shared_secret_size != this->SHARED_KEY_SIZE_BYTES)
     {
-      printf("\033[1;31mError: Shared secret SHA1 is not 16 bytes (actual size = %u)\033[0m\n", shared_secret_size);
-      return 1;
+      LOG_ERROR("[Encrypt] Shared secret SHA1 is not 16 bytes (actual size = %u)", shared_secret_size);
+      return TeslaBLE_Status_E_ERROR_ENCRYPT;
     }
 
     // Use 128-bit key as specified in the protocol
     int return_code = mbedtls_gcm_setkey(&aes_context, MBEDTLS_CIPHER_ID_AES, shared_secret, 128);
     if (return_code != 0)
     {
-      printf("Key setting error: -0x%04x\n", (unsigned int)-return_code);
-      return 1;
+      LOG_ERROR("[Encrypt] GCM set key error: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_ENCRYPT;
     }
 
     // Generate a new nonce for each encryption
@@ -345,8 +346,8 @@ namespace TeslaBLE
     return_code = mbedtls_gcm_starts(&aes_context, MBEDTLS_GCM_ENCRYPT, this->nonce_, sizeof(this->nonce_));
     if (return_code != 0)
     {
-      printf("GCM start error: -0x%04x\n", (unsigned int)-return_code);
-      return 1;
+      LOG_ERROR("[Encrypt] GCM start error: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_ENCRYPT;
     }
 
     // Hash the AD buffer to create the AAD as per the protocol
@@ -354,8 +355,8 @@ namespace TeslaBLE
     return_code = mbedtls_sha256(ad_buffer, ad_buffer_length, ad_hash, 0);
     if (return_code != 0)
     {
-      printf("AD metadata SHA256 hash error: -0x%04x\n", (unsigned int)-return_code);
-      return 1;
+      LOG_ERROR("[Encrypt] AD metadata SHA256 hash error: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_ENCRYPT;
     }
     // Use the hash as the AAD for AES-GCM
     mbedtls_gcm_update_ad(&aes_context, ad_hash, sizeof(ad_hash));
@@ -364,8 +365,8 @@ namespace TeslaBLE
                                      output_buffer, output_buffer_length, output_length);
     if (return_code != 0)
     {
-      printf("Encryption error: -0x%04x\n", (unsigned int)-return_code);
-      return 1;
+      LOG_ERROR("[Encrypt] Encryption error in gcm_update: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_ENCRYPT;
     }
 
     size_t finish_buffer_length = 0;
@@ -376,8 +377,8 @@ namespace TeslaBLE
                                      &finish_buffer_length, signature_buffer, tag_length);
     if (return_code != 0)
     {
-      printf("Finalization error: -0x%04x\n", (unsigned int)-return_code);
-      return 1;
+      LOG_ERROR("[Encrypt] Finalization error in gcm_finish: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_ENCRYPT;
     }
 
     mbedtls_gcm_free(&aes_context);
@@ -440,7 +441,12 @@ namespace TeslaBLE
                                     pb_byte_t *output_buffer,
                                     size_t *output_length)
   {
-    printf("Building whitelist message\n");
+    // printf("Building whitelist message\n");
+    if (!mbedtls_pk_can_do(&this->private_key_context_, MBEDTLS_PK_ECKEY))
+    {
+      LOG_ERROR("[buildWhiteListMessage] Private key is not initialized");
+      return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
+    }
 
     VCSEC_PermissionChange permissions_action =
         VCSEC_PermissionChange_init_default;
@@ -470,8 +476,8 @@ namespace TeslaBLE
     int return_code = pb_encode_fields(payload_buffer, &payload_length, VCSEC_UnsignedMessage_fields, &payload);
     if (return_code != 0)
     {
-      printf("Failed to encode whitelist message\n");
-      return 1;
+      LOG_ERROR("Failed to encode whitelist message");
+      return TeslaBLE_Status_E_ERROR_PB_ENCODING;
     }
 
     // printf("Building VCSEC to VCSEC message\n");
@@ -492,8 +498,8 @@ namespace TeslaBLE
     return_code = pb_encode_fields(vcsec_encode_buffer, &vcsec_encode_buffer_size, VCSEC_ToVCSECMessage_fields, &vcsec_message);
     if (return_code != 0)
     {
-      printf("Failed to encode VCSEC to VCSEC message\n");
-      return 1;
+      LOG_ERROR("[buildWhiteListMessage] Failed to encode VCSEC to VCSEC message");
+      return TeslaBLE_Status_E_ERROR_PB_ENCODING;
     }
 
     // printf("Prepending length\n");
@@ -518,8 +524,8 @@ namespace TeslaBLE
         pb_decode(&stream, VCSEC_FromVCSECMessage_fields, output_message);
     if (!status)
     {
-      printf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-      return 1;
+      LOG_ERROR("[parseFromVCSECMessage] Decoding failed: %s", PB_GET_ERROR(&stream));
+      return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
     return 0;
@@ -534,8 +540,8 @@ namespace TeslaBLE
         pb_decode(&stream, VCSEC_InformationRequest_fields, output);
     if (!status)
     {
-      printf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-      return 1;
+      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
     return 0;
@@ -559,8 +565,8 @@ namespace TeslaBLE
         pb_decode(&stream, UniversalMessage_RoutableMessage_fields, output);
     if (!status)
     {
-      printf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-      return 1;
+      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
     return 0;
@@ -582,8 +588,8 @@ namespace TeslaBLE
         pb_decode(&stream, Signatures_SessionInfo_fields, output);
     if (!status)
     {
-      printf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-      return 1;
+      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
     return 0;
@@ -597,8 +603,8 @@ namespace TeslaBLE
         pb_decode(&stream, VCSEC_UnsignedMessage_fields, output);
     if (!status)
     {
-      printf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-      return 1;
+      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
     return 0;
@@ -612,8 +618,8 @@ namespace TeslaBLE
         pb_decode(&stream, CarServer_Response_fields, output);
     if (!status)
     {
-      printf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-      return 1;
+      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
     return 0;
@@ -725,7 +731,12 @@ namespace TeslaBLE
       size_t ad_buffer_length = 0;
       this->ConstructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, domain, this->VIN, session.epoch_, expires_at, session.counter_, ad_buffer, &ad_buffer_length);
 
-      this->Encrypt(payload, payload_length, encrypted_payload, sizeof encrypted_payload, &encrypted_output_length, signature, ad_buffer, ad_buffer_length, domain);
+      int return_code = this->Encrypt(payload, payload_length, encrypted_payload, sizeof encrypted_payload, &encrypted_output_length, signature, ad_buffer, ad_buffer_length, domain);
+      if (return_code != 0)
+      {
+        LOG_ERROR("Failed to encrypt payload");
+        return TeslaBLE_Status_E_ERROR_ENCRYPT;
+      }
 
       // payload length
       memcpy(universal_message.payload.protobuf_message_as_bytes.bytes, encrypted_payload, encrypted_output_length);
@@ -750,8 +761,8 @@ namespace TeslaBLE
         }
         if (i == 15)
         {
-          printf("Error: epoch is empty\n");
-          return 1;
+          LOG_ERROR("Epoch can not be empty with signature type AES_GCM_PERSONALIZED");
+          return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
         }
       }
 
@@ -788,8 +799,8 @@ namespace TeslaBLE
     int return_code = pb_encode_fields(output_buffer, output_length, UniversalMessage_RoutableMessage_fields, &universal_message);
     if (return_code != 0)
     {
-      printf("\033[1;31mFailed to encode universal message\033[0m\n");
-      return 1;
+      LOG_ERROR("[buildUniversalMessageWithPayload] Failed to encode universal message");
+      return TeslaBLE_Status_E_ERROR_PB_ENCODING;
     }
     return 0;
   }
@@ -839,8 +850,8 @@ namespace TeslaBLE
     int return_code = pb_encode_fields(universal_encode_buffer, &universal_encode_buffer_size, UniversalMessage_RoutableMessage_fields, &universal_message);
     if (return_code != 0)
     {
-      printf("\033[1;31mFailed to encode universal message\033[0m\n");
-      return 1;
+      LOG_ERROR("[buildSessionInfoRequest] Failed to encode universal message");
+      return TeslaBLE_Status_E_ERROR_PB_ENCODING;
     }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
                         output_buffer, output_length);
@@ -863,13 +874,13 @@ namespace TeslaBLE
   {
     pb_byte_t payload_buffer[100];
     size_t payload_length;
-    printf("message: %p\n", message);
-    printf("message.which_sub_message: %d\n", message->which_sub_message);
+    // printf("message: %p\n", message);
+    // printf("message.which_sub_message: %d\n", message->which_sub_message);
     int return_code = pb_encode_fields(payload_buffer, &payload_length, VCSEC_UnsignedMessage_fields, message);
     if (return_code != 0)
     {
-      printf("\033[1;31mFailed to encode unsigned message\033[0m\n");
-      return 1;
+      LOG_ERROR("[buildUnsignedMessagePayload] Failed to encode unsigned message");
+      return TeslaBLE_Status_E_ERROR_PB_ENCODING;
     }
 
     // build universal message
@@ -893,7 +904,7 @@ namespace TeslaBLE
     int status = this->buildUnsignedMessagePayload(&payload, universal_encode_buffer, &universal_encode_buffer_size, false);
     if (status != 0)
     {
-      printf("Failed to build unsigned message\n");
+      LOG_ERROR("[buildKeySummary] Failed to build unsigned message\n");
       return status;
     }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
@@ -910,8 +921,8 @@ namespace TeslaBLE
     int return_code = pb_encode_fields(payload_buffer, &payload_length, CarServer_Action_fields, action);
     if (return_code != 0)
     {
-      printf("\033[1;31mFailed to encode car action message\033[0m\n");
-      return 1;
+      LOG_ERROR("Failed to encode car action message");
+      return TeslaBLE_Status_E_ERROR_PB_ENCODING;
     }
 
     // build universal message
@@ -943,7 +954,7 @@ namespace TeslaBLE
     int status = this->buildCarActionToMessage(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
     {
-      printf("Failed to build car action message\n");
+      LOG_ERROR("Failed to build car action message");
       return status;
     }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
@@ -970,7 +981,7 @@ namespace TeslaBLE
     int status = this->buildCarActionToMessage(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
     {
-      printf("Failed to build car action message\n");
+      LOG_ERROR("Failed to build car action message");
       return status;
     }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
@@ -997,7 +1008,7 @@ namespace TeslaBLE
     int status = this->buildCarActionToMessage(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
     {
-      printf("Failed to build car action message\n");
+      LOG_ERROR("Failed to build car action message");
       return status;
     }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
@@ -1032,7 +1043,7 @@ namespace TeslaBLE
     int status = this->buildCarActionToMessage(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
     {
-      printf("Failed to build car action message\n");
+      LOG_ERROR("Failed to build car action message");
       return status;
     }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
@@ -1059,7 +1070,7 @@ namespace TeslaBLE
     int status = this->buildCarActionToMessage(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
     {
-      printf("Failed to build car action message\n");
+      LOG_ERROR("Failed to build car action message");
       return status;
     }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
@@ -1079,7 +1090,7 @@ namespace TeslaBLE
     int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer, &universal_encode_buffer_size, true);
     if (status != 0)
     {
-      printf("Failed to build unsigned message\n");
+      LOG_ERROR("Failed to build unsigned message");
       return status;
     }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
@@ -1097,7 +1108,7 @@ namespace TeslaBLE
 
     if (key_slot != 0xFFFFFFFF)
     {
-      printf("Adding key slot info");
+      // printf("Adding key slot info");
       information_request.which_key = VCSEC_InformationRequest_slot_tag;
       information_request.key.slot = key_slot;
     }
@@ -1112,7 +1123,7 @@ namespace TeslaBLE
     int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer, &universal_encode_buffer_size, false);
     if (status != 0)
     {
-      printf("Failed to build unsigned message\n");
+      LOG_ERROR("Failed to build unsigned message");
       return status;
     }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,

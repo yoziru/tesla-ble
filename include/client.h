@@ -5,6 +5,8 @@
 #ifdef ESP_PLATFORM
 #define MBEDTLS_CONFIG_FILE "mbedtls/esp_config.h"
 #endif
+
+#define LOG_ERROR(...) printf("\033[1;31m[E] "); printf(__VA_ARGS__); printf("\033[0m\n")
 #include <string>
 
 #include "mbedtls/ctr_drbg.h"

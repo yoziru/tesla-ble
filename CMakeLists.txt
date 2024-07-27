@@ -37,6 +37,7 @@ find_package(Nanopb REQUIRED)
 add_library(TeslaBLE
         STATIC
         src/client.cpp
+        src/errors.cpp
         src/peer.cpp
         src/tb_utils.cpp
         src/car_server.pb.c
@@ -66,6 +67,7 @@ target_include_directories(
 
 target_link_libraries(TeslaBLE PUBLIC mbedcrypto mbedtls mbedx509)
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/client.h)
+set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/errors.h)
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/peer.h)
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/tb_utils.h)
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/car_server.pb.h)

@@ -10,7 +10,18 @@
 #include "esp_log.h"
 #define LOG_ERROR(...) ESP_LOGE("TeslaBLE", __VA_ARGS__)
 #else
-#define LOG_ERROR(...) printf("\033[1;31m[E] "); printf(__VA_ARGS__); printf("\033[0m\n")
+#include <cstdio>
+#include <cstdarg>
+
+inline void LOG_ERROR(const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    printf("\033[1;31m[E] ");
+    vprintf(format, args);
+    printf("\033[0m\n");
+    va_end(args);
+}
 #endif
 #include <string>
 

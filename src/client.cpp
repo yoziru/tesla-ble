@@ -717,6 +717,20 @@ namespace TeslaBLE
     universal_message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
     if (encryptPayload)
     {
+      // raise an error on empty / default epoch (e.g. epoch == 00000000000000000000000000000000)
+      for (int i = 0; i < 16; i++)
+      {
+        if (session.epoch_[i] != 0)
+        {
+          break;
+        }
+        if (i == 15)
+        {
+          LOG_ERROR("Epoch can not be empty with signature type AES_GCM_PERSONALIZED");
+          return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+        }
+      }
+
       pb_byte_t signature[16];
       // encrypt the payload
       pb_byte_t encrypted_payload[100];
@@ -751,20 +765,6 @@ namespace TeslaBLE
       signer_identity.identity_type.public_key.size = this->public_key_size_;
       signature_data.has_signer_identity = true;
       signature_data.signer_identity = signer_identity;
-
-      // raise an error on empty / default epoch (e.g. epoch == 00000000000000000000000000000000)
-      for (int i = 0; i < 16; i++)
-      {
-        if (session.epoch_[i] != 0)
-        {
-          break;
-        }
-        if (i == 15)
-        {
-          LOG_ERROR("Epoch can not be empty with signature type AES_GCM_PERSONALIZED");
-          return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
-        }
-      }
 
       Signatures_AES_GCM_Personalized_Signature_Data aes_gcm_signature_data = Signatures_AES_GCM_Personalized_Signature_Data_init_default;
       signature_data.which_sig_type = Signatures_SignatureData_AES_GCM_Personalized_data_tag;

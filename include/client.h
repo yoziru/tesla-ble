@@ -18,11 +18,8 @@
 
 namespace TeslaBLE
 {
-
   class Client
   {
-    static const int SHARED_KEY_SIZE_BYTES = 16;
-
   public:
     Client()
         : private_key_context_(std::make_unique<mbedtls_pk_context>()),
@@ -62,90 +59,116 @@ namespace TeslaBLE
 
     void setConnectionID(const pb_byte_t *connectionID);
 
-    int loadPrivateKey(const uint8_t *private_key_buffer, size_t key_size);
+    int loadPrivateKey(
+        const uint8_t *private_key_buffer,
+        size_t key_size);
 
-    int getPrivateKey(pb_byte_t *output_buffer, size_t output_buffer_length,
-                      size_t *output_length);
-    int getPublicKey(pb_byte_t *output_buffer, size_t *output_buffer_length);
+    int getPrivateKey(
+        pb_byte_t *output_buffer,
+        size_t output_buffer_length,
+        size_t *output_length);
 
-    int buildWhiteListMessage(Keys_Role role,
-                              VCSEC_KeyFormFactor form_factor,
-                              pb_byte_t *output_buffer,
-                              size_t *output_length);
+    int getPublicKey(
+        pb_byte_t *output_buffer,
+        size_t *output_buffer_length);
 
-    static int parseFromVCSECMessage(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
-                                     VCSEC_FromVCSECMessage *output);
+    int buildWhiteListMessage(
+        Keys_Role role,
+        VCSEC_KeyFormFactor form_factor,
+        pb_byte_t *output_buffer,
+        size_t *output_length);
 
-    static int parseUniversalMessage(pb_byte_t *input_buffer,
-                                     size_t input_size,
-                                     UniversalMessage_RoutableMessage *output);
+    static int parseFromVCSECMessage(
+        UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+        VCSEC_FromVCSECMessage *output);
 
-    static int parseUniversalMessageBLE(pb_byte_t *input_buffer,
-                                        size_t input_buffer_length,
-                                        UniversalMessage_RoutableMessage *output);
+    static int parseUniversalMessage(
+        pb_byte_t *input_buffer,
+        size_t input_size,
+        UniversalMessage_RoutableMessage *output);
+
+    static int parseUniversalMessageBLE(
+        pb_byte_t *input_buffer,
+        size_t input_buffer_length,
+        UniversalMessage_RoutableMessage *output);
+
     static int parseVCSECInformationRequest(
         UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
         VCSEC_InformationRequest *output);
 
-    static int parsePayloadSessionInfo(UniversalMessage_RoutableMessage_session_info_t *input_buffer,
-                                       Signatures_SessionInfo *output);
-    static int parsePayloadUnsignedMessage(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
-                                           VCSEC_UnsignedMessage *output);
-    static int parsePayloadCarServerResponse(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
-                                             CarServer_Response *output);
+    static int parsePayloadSessionInfo(
+        UniversalMessage_RoutableMessage_session_info_t *input_buffer,
+        Signatures_SessionInfo *output);
 
-    int buildSessionInfoRequestMessage(UniversalMessage_Domain domain,
-                                       pb_byte_t *output_buffer,
-                                       size_t *output_length);
+    static int parsePayloadUnsignedMessage(
+        UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+        VCSEC_UnsignedMessage *output);
 
-    int buildKeySummary(pb_byte_t *output_buffer,
-                        size_t *output_length);
+    static int parsePayloadCarServerResponse(
+        UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+        CarServer_Response *output);
 
-    int buildUnsignedMessagePayload(VCSEC_UnsignedMessage *message,
-                                    pb_byte_t *output_buffer,
-                                    size_t *output_length,
-                                    bool encryptPayload = false);
+    int buildSessionInfoRequestMessage(
+        UniversalMessage_Domain domain,
+        pb_byte_t *output_buffer,
+        size_t *output_length);
 
-    int buildCarServerActionPayload(CarServer_Action *action,
-                                    pb_byte_t *output_buffer,
-                                    size_t *output_length);
+    int buildKeySummary(
+        pb_byte_t *output_buffer,
+        size_t *output_length);
 
-    int buildUniversalMessageWithPayload(pb_byte_t *payload,
-                                         size_t payload_length,
-                                         UniversalMessage_Domain domain,
-                                         pb_byte_t *output_buffer,
-                                         size_t *output_length,
-                                         bool encryptPayload = false);
+    int buildUnsignedMessagePayload(
+        VCSEC_UnsignedMessage *message,
+        pb_byte_t *output_buffer,
+        size_t *output_length,
+        bool encryptPayload = false);
 
-    int buildVCSECActionMessage(const VCSEC_RKEAction_E action,
-                                pb_byte_t *output_buffer, size_t *output_length);
-    int buildVCSECInformationRequestMessage(VCSEC_InformationRequestType request_type,
-                                            pb_byte_t *output_buffer,
-                                            size_t *output_length,
-                                            uint32_t key_slot = 0);
+    int buildCarServerActionPayload(
+        CarServer_Action *action,
+        pb_byte_t *output_buffer,
+        size_t *output_length);
 
-    int buildCarServerActionMessage(const CarServer_VehicleAction *vehicle_action,
-                                    pb_byte_t *output_buffer,
-                                    size_t *output_length);
+    int buildUniversalMessageWithPayload(
+        pb_byte_t *payload,
+        size_t payload_length,
+        UniversalMessage_Domain domain,
+        pb_byte_t *output_buffer,
+        size_t *output_length,
+        bool encryptPayload = false);
 
-    int buildChargingAmpsMessage(int32_t amps,
-                                 pb_byte_t *output_buffer,
-                                 size_t *output_length);
+    int buildVCSECInformationRequestMessage(
+        VCSEC_InformationRequestType request_type,
+        pb_byte_t *output_buffer,
+        size_t *output_length,
+        uint32_t key_slot = 0);
+    int buildVCSECActionMessage(
+        const VCSEC_RKEAction_E action,
+        pb_byte_t *output_buffer, size_t *output_length);
 
-    int buildChargingSetLimitMessage(int32_t percent,
-                                     pb_byte_t *output_buffer,
-                                     size_t *output_length);
+    int buildCarServerActionMessage(
+        const CarServer_VehicleAction *vehicle_action,
+        pb_byte_t *output_buffer,
+        size_t *output_length);
 
-    int buildHVACMessage(bool isOn,
-                         pb_byte_t *output_buffer,
-                         size_t *output_length);
+    int buildChargingAmpsMessage(
+        int32_t amps,
+        pb_byte_t *output_buffer,
+        size_t *output_length);
 
-    int buildWakeVehicleMessage(pb_byte_t *output_buffer,
-                                size_t *output_length);
+    int buildChargingSetLimitMessage(
+        int32_t percent,
+        pb_byte_t *output_buffer,
+        size_t *output_length);
 
-    int buildChargingSwitchMessage(bool isOn,
-                                   pb_byte_t *output_buffer,
-                                   size_t *output_length);
+    int buildHVACMessage(
+        bool isOn,
+        pb_byte_t *output_buffer,
+        size_t *output_length);
+
+    int buildChargingSwitchMessage(
+        bool isOn,
+        pb_byte_t *output_buffer,
+        size_t *output_length);
 
     Peer *getPeer(UniversalMessage_Domain domain)
     {
@@ -160,32 +183,27 @@ namespace TeslaBLE
       return nullptr;
     }
 
-  private:
-    unsigned char key_id_[4];
-    unsigned char public_key_[MBEDTLS_ECP_MAX_BYTES];
-    size_t public_key_size_;
-
-    // pb_byte_t epoch_[16];
-    pb_byte_t nonce_[12];
-    // uint32_t counter_ = 1;
-    // uint32_t expires_at_ = 0;
-    pb_byte_t connectionID[16] = {0x0A, 0x79, 0x62, 0xc1, 0x0d, 0x38, 0xb6, 0x1d, 0xd2, 0xa7, 0x72, 0x27, 0x80, 0xa4, 0xf0, 0x96};
-    const char *VIN = "";
-
-    static void prependLength(const pb_byte_t *input_buffer,
-                              size_t input_buffer_length,
-                              pb_byte_t *output_buffer,
-                              size_t *output_buffer_length);
-
-    int generatePublicKey();
-
-    int GenerateKeyId();
-
   protected:
     std::shared_ptr<mbedtls_pk_context> private_key_context_;
     std::shared_ptr<mbedtls_ecdh_context> ecdh_context_;
     std::shared_ptr<mbedtls_ctr_drbg_context> drbg_context_;
     std::unique_ptr<Peer> session_vcsec_;
     std::unique_ptr<Peer> session_infotainment_;
+
+    unsigned char public_key_id_[4];
+    unsigned char public_key_[MBEDTLS_ECP_MAX_BYTES];
+    size_t public_key_size_;
+    pb_byte_t connectionID[16];
+    const char *VIN = "";
+
+    static void prependLength(
+        const pb_byte_t *input_buffer,
+        size_t input_buffer_length,
+        pb_byte_t *output_buffer,
+        size_t *output_buffer_length);
+
+    int generatePublicKey();
+
+    int GenerateKeyId();
   };
 } // namespace TeslaBLE

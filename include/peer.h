@@ -33,24 +33,30 @@ namespace TeslaBLE
     }
 
     bool isInitialized() const;
+    bool hasValidEpoch() const;
+    bool isAuthenticated() const { return this->is_authenticated_; };
+    bool isPrivateKeyInitialized() const;
+
     uint32_t generateExpiresAt(int seconds) const;
     void generateNonce(pb_byte_t *nonce) const;
 
     uint32_t getTimeZero() const { return this->time_zero_; };
     uint32_t getCounter() const { return this->counter_; };
     const pb_byte_t *getEpoch() const;
-    void logEpoch() const;
-
-    bool getIsAuthenticated() const { return this->is_authenticated_; };
 
     void incrementCounter();
     void setCounter(uint32_t counter);
     int setEpoch(const pb_byte_t *epoch);
     void setIsAuthenticated(bool is_authenticated);
     void setTimeZero(uint32_t time_zero);
+    void setPrivateKeyContext(std::shared_ptr<mbedtls_pk_context> private_key_context)
+    {
+      this->private_key_context_ = private_key_context;
+    }
 
-    int loadTeslaKey(const uint8_t *public_key_buffer,
-                     size_t public_key_size);
+    int loadTeslaKey(
+        const uint8_t *public_key_buffer,
+        size_t public_key_size);
     int updateSession(Signatures_SessionInfo *session_info);
     int ConstructADBuffer(
         Signatures_SignatureType signature_type,
@@ -58,23 +64,14 @@ namespace TeslaBLE
         uint32_t expires_at,
         pb_byte_t *output_buffer,
         size_t *output_length) const;
-    int Encrypt(pb_byte_t *input_buffer, size_t input_buffer_length,
-                pb_byte_t *output_buffer, size_t output_buffer_length,
-                size_t *output_length, pb_byte_t *signature_buffer,
-                pb_byte_t *ad_buffer, size_t ad_buffer_length,
-                pb_byte_t nonce[12]) const;
+    int Encrypt(
+        pb_byte_t *input_buffer, size_t input_buffer_length,
+        pb_byte_t *output_buffer, size_t output_buffer_length,
+        size_t *output_length, pb_byte_t *signature_buffer,
+        pb_byte_t *ad_buffer, size_t ad_buffer_length,
+        pb_byte_t nonce[12]) const;
 
-    void setPrivateKeyContext(std::shared_ptr<mbedtls_pk_context> private_key_context)
-    {
-      this->private_key_context_ = private_key_context;
-    }
-
-    bool isPrivateKeyInitialized() const
-    {
-      return private_key_context_ && mbedtls_pk_can_do(private_key_context_.get(), MBEDTLS_PK_ECKEY);
-    }
-
-  private:
+  protected:
     std::mutex update_mutex_;
     UniversalMessage_Domain domain;
 

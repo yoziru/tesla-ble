@@ -180,7 +180,7 @@ namespace TeslaBLE
     }
 
     // we only need the first 4 bytes
-    memcpy(this->key_id_, buffer, 4);
+    memcpy(this->public_key_id_, buffer, 4);
     return 0;
   }
   /*
@@ -425,12 +425,9 @@ namespace TeslaBLE
     universal_message.has_to_destination = true;
     universal_message.to_destination = to_destination;
 
-    LOG_INFO("Building message for domain: %d", domain);
+    LOG_DEBUG("Building message for domain: %d", domain);
     auto session = this->getPeer(domain);
 
-    LOG_INFO("Using session: %s", domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT ? "INFOTAINMENT" : "VCSEC");
-    session->logEpoch();
-    LOG_INFO("TRYING VSSEC LOG");
     session->incrementCounter();
 
     UniversalMessage_Destination from_destination = UniversalMessage_Destination_init_default;
@@ -444,7 +441,7 @@ namespace TeslaBLE
     {
       if (!session->isInitialized())
       {
-        LOG_ERROR("Session not initialized (missing epoch)");
+        LOG_ERROR("Session not initialized");
         return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
       }
 
@@ -460,15 +457,6 @@ namespace TeslaBLE
       // field of AES-GCM.
       // std::string epoch_hex;
       const pb_byte_t *epoch = session->getEpoch();
-      char epoch_hex[33];
-      for (int i = 0; i < 16; i++)
-      {
-        snprintf(epoch_hex + (i * 2), 3, "%02x", epoch[i]);
-      }
-      epoch_hex[32] = '\0';
-      LOG_INFO("Epoch before ConstructADBuffer: %s", epoch_hex);
-      LOG_INFO("Counter: %" PRIu32, session->getCounter());
-      LOG_INFO("TimeZero: %" PRIu32, session->getTimeZero());
 
       pb_byte_t ad_buffer[56];
       size_t ad_buffer_length = 0;
@@ -504,14 +492,6 @@ namespace TeslaBLE
       signature_data.sig_type.AES_GCM_Personalized_data.expires_at = expires_at;
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.nonce, nonce, sizeof nonce);
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.epoch, epoch, 16);
-      // log the epoch
-      char epoch_hex2[33];
-      for (int i = 0; i < 16; i++)
-      {
-        snprintf(epoch_hex2 + (i * 2), 3, "%02x", signature_data.sig_type.AES_GCM_Personalized_data.epoch[i]);
-      }
-      epoch_hex2[32] = '\0';
-      LOG_INFO("Epoch in AES TAG: %s", epoch_hex2);
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.tag, signature, sizeof signature);
 
       universal_message.which_sub_sigData = UniversalMessage_RoutableMessage_signature_data_tag;
@@ -868,12 +848,6 @@ namespace TeslaBLE
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
                         output_buffer, output_length);
     return 0;
-  }
-
-  int Client::buildWakeVehicleMessage(pb_byte_t *output_buffer,
-                                      size_t *output_length)
-  {
-    return buildVCSECActionMessage(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, output_buffer, output_length);
   }
 } // namespace TeslaBLE
 // #endif // MBEDTLS_CONFIG_FILE

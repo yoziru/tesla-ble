@@ -23,18 +23,62 @@ namespace TeslaBLE
 {
   bool Peer::isInitialized() const
   {
-    // // make sure epoch is not empty
-    // bool is_empty = true;
-    // for (int i = 0; i < 16; i++)
-    // {
-    //   if (this->epoch_[i] != 0)
-    //   {
-    //     is_empty = false;
-    //     break;
-    //   }
-    // }
-    // return !is_empty;
+    if (this->private_key_context_ == nullptr)
+    {
+      LOG_ERROR("Private key context is null");
+      return false;
+    }
+
+    if (this->ecdh_context_ == nullptr)
+    {
+      LOG_ERROR("ECDH context is null");
+      return false;
+    }
+
+    if (this->drbg_context_ == nullptr)
+    {
+      LOG_ERROR("DRBG context is null");
+      return false;
+    }
+
+    if (!this->isPrivateKeyInitialized())
+    {
+      LOG_ERROR("Private key is not initialized");
+      return false;
+    }
+
+    if (!this->isAuthenticated())
+    {
+      LOG_ERROR("Peer is not authenticated");
+      return false;
+    }
+
+    if (!this->hasValidEpoch())
+    {
+      LOG_ERROR("Peer has invalid epoch");
+      return false;
+    }
+
     return true;
+  }
+
+  bool Peer::isPrivateKeyInitialized() const
+  {
+    return private_key_context_ && mbedtls_pk_can_do(private_key_context_.get(), MBEDTLS_PK_ECKEY);
+  }
+
+  bool Peer::hasValidEpoch() const
+  {
+    // make sure epoch is not all zeros
+    for (int i = 0; i < 16; i++)
+    {
+      if (this->epoch_[i] != 0)
+      {
+        return true;
+      }
+    }
+    LOG_ERROR("Epoch is empty");
+    return false;
   }
 
   void Peer::setCounter(const uint32_t counter)
@@ -49,59 +93,13 @@ namespace TeslaBLE
 
   int Peer::setEpoch(const pb_byte_t *epoch)
   {
-    // log epoch as hex
-    char epoch_hex[33];
-    for (int i = 0; i < 16; i++)
-    {
-      snprintf(epoch_hex + (i * 2), 3, "%02x", epoch[i]);
-    }
-    epoch_hex[32] = '\0';
-    LOG_INFO("Setting epoch to: %s", epoch_hex);
-
-    if (epoch == nullptr)
-    {
-      LOG_ERROR("Epoch is null");
-      return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
-    }
-
-    // Check for empty epoch
-    bool is_empty = true;
-    for (int i = 0; i < 16; i++)
-    {
-      if (epoch[i] != 0)
-      {
-        is_empty = false;
-        break;
-      }
-    }
     memcpy(this->epoch_, epoch, 16);
-
-    // Log the epoch after setting it
-    char epoch_hex_after[33];
-    for (int i = 0; i < 16; i++)
-    {
-      snprintf(epoch_hex_after + (i * 2), 3, "%02x", this->epoch_[i]);
-    }
-    epoch_hex_after[32] = '\0';
-    LOG_INFO("Epoch set to: %s", epoch_hex_after);
-
     return 0;
   }
 
   const pb_byte_t *Peer::getEpoch() const
   {
     return this->epoch_;
-  }
-
-  void Peer::logEpoch() const
-  {
-    char epoch_hex[33];
-    for (int i = 0; i < 16; i++)
-    {
-      snprintf(epoch_hex + (i * 2), 3, "%02x", this->epoch_[i]);
-    }
-    epoch_hex[32] = '\0';
-    LOG_INFO("Epoch logged: %s", epoch_hex);
   }
 
   uint32_t Peer::generateExpiresAt(int seconds) const
@@ -132,7 +130,7 @@ namespace TeslaBLE
     size_t shared_secret_olen;
     pb_byte_t shared_secret_sha1[20];
 
-    LOG_INFO("Initializing keypair");
+    LOG_DEBUG("Initializing keypair");
     mbedtls_ecp_keypair_init(&tesla_key);
     int return_code = mbedtls_ecp_group_load(&tesla_key.private_grp, MBEDTLS_ECP_DP_SECP256R1);
     if (return_code != 0)
@@ -141,7 +139,7 @@ namespace TeslaBLE
       return 1;
     }
 
-    LOG_INFO("Reading public key");
+    LOG_DEBUG("Reading public key");
     return_code = mbedtls_ecp_point_read_binary(&tesla_key.private_grp, &tesla_key.private_Q,
                                                 public_key_buffer, public_key_size);
     if (return_code != 0)
@@ -150,10 +148,10 @@ namespace TeslaBLE
       return 1;
     }
 
-    LOG_INFO("Initializing ECDH context");
+    LOG_DEBUG("Initializing ECDH context");
     mbedtls_ecdh_init(this->ecdh_context_.get());
 
-    LOG_INFO("Generating keypair");
+    LOG_DEBUG("Generating keypair");
     return_code = mbedtls_ecdh_get_params(
         this->ecdh_context_.get(), mbedtls_pk_ec(*this->private_key_context_),
         MBEDTLS_ECDH_OURS);
@@ -163,7 +161,7 @@ namespace TeslaBLE
       return 1;
     }
 
-    LOG_INFO("Generating shared secret");
+    LOG_DEBUG("Generating shared secret");
     return_code = mbedtls_ecdh_get_params(
         this->ecdh_context_.get(), &tesla_key, MBEDTLS_ECDH_THEIRS);
     if (return_code != 0)
@@ -203,9 +201,7 @@ namespace TeslaBLE
   int Peer::updateSession(Signatures_SessionInfo *session_info)
   {
     std::lock_guard<std::mutex> guard(this->update_mutex_);
-    LOG_INFO("Updating session..");
-    LOG_INFO("Counter: %" PRIu32, session_info->counter);
-    LOG_INFO("Clock time: %" PRIu32, session_info->clock_time);
+    LOG_DEBUG("Updating session..");
     if (session_info == nullptr)
     {
       LOG_ERROR("Session info is null");
@@ -219,15 +215,6 @@ namespace TeslaBLE
       return status;
     }
 
-    // Log the epoch after setting it
-    char epoch_hex_after[33];
-    for (int i = 0; i < 16; i++)
-    {
-      snprintf(epoch_hex_after + (i * 2), 3, "%02x", this->epoch_[i]);
-    }
-    epoch_hex_after[32] = '\0';
-    LOG_INFO("Epoch set in updateSession: %s", epoch_hex_after);
-
     this->setCounter(session_info->counter);
 
     uint32_t generated_at = std::time(nullptr);
@@ -235,7 +222,7 @@ namespace TeslaBLE
     this->setTimeZero(time_zero);
 
     // load the public key
-    LOG_INFO("Loading Tesla key");
+    LOG_DEBUG("Loading Tesla key");
     int return_code = this->loadTeslaKey(session_info->publicKey.bytes, session_info->publicKey.size);
     if (return_code != 0)
     {
@@ -279,13 +266,6 @@ namespace TeslaBLE
     index += vin_length;
 
     // Epoch
-    char epoch_hex[33];
-    for (int i = 0; i < 16; i++)
-    {
-      snprintf(epoch_hex + (i * 2), 3, "%02x", this->epoch_[i]);
-    }
-    epoch_hex[32] = '\0';
-    LOG_INFO("[ConstructADBuffer] Epoch: %s", epoch_hex);
     output_buffer[index++] = Signatures_Tag_TAG_EPOCH;
     output_buffer[index++] = 0x10; // Assuming epoch is always 16 bytes
     memcpy(output_buffer + index, &this->epoch_, 16);
@@ -422,8 +402,8 @@ namespace TeslaBLE
     }
     signature_buffer_hex[tag_length * 2] = '\0';
 
-    LOG_INFO("[Encrypt] Nonce: %s, Ciphertext: %s, Tag: %s",
-             nonce_hex, output_buffer_hex, signature_buffer_hex);
+    LOG_DEBUG("[Encrypt] Nonce: %s, Ciphertext: %s, Tag: %s",
+              nonce_hex, output_buffer_hex, signature_buffer_hex);
 
     return 0;
   }

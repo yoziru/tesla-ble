@@ -53,7 +53,6 @@ namespace TeslaBLE
     mbedtls_entropy_context entropy_context;
     mbedtls_entropy_init(&entropy_context);
 
-
     // Use existing shared pointers, don't create new ones
     mbedtls_pk_free(private_key_context_.get());
     mbedtls_pk_init(private_key_context_.get());
@@ -97,7 +96,6 @@ namespace TeslaBLE
   {
     mbedtls_entropy_context entropy_context;
     mbedtls_entropy_init(&entropy_context);
-
 
     // Use existing shared pointers, don't create new ones
     mbedtls_pk_free(private_key_context_.get());
@@ -654,9 +652,9 @@ namespace TeslaBLE
     return 0;
   }
 
-  int Client::buildCarActionToMessage(CarServer_Action *action,
-                                      pb_byte_t *output_buffer,
-                                      size_t *output_length)
+  int Client::buildCarServerActionPayload(CarServer_Action *action,
+                                          pb_byte_t *output_buffer,
+                                          size_t *output_length)
   {
     pb_byte_t payload_buffer[100];
     size_t payload_length = 0;
@@ -693,7 +691,7 @@ namespace TeslaBLE
 
     size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarActionToMessage(&action, universal_encode_buffer, &universal_encode_buffer_size);
+    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
     {
       LOG_ERROR("Failed to build car action message");
@@ -720,7 +718,7 @@ namespace TeslaBLE
 
     size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarActionToMessage(&action, universal_encode_buffer, &universal_encode_buffer_size);
+    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
     {
       LOG_ERROR("Failed to build car action message");
@@ -747,7 +745,7 @@ namespace TeslaBLE
 
     size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarActionToMessage(&action, universal_encode_buffer, &universal_encode_buffer_size);
+    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
     {
       LOG_ERROR("Failed to build car action message");
@@ -782,7 +780,7 @@ namespace TeslaBLE
 
     size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarActionToMessage(&action, universal_encode_buffer, &universal_encode_buffer_size);
+    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
     {
       LOG_ERROR("Failed to build car action message");
@@ -809,7 +807,7 @@ namespace TeslaBLE
 
     size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarActionToMessage(&action, universal_encode_buffer, &universal_encode_buffer_size);
+    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
     {
       LOG_ERROR("Failed to build car action message");

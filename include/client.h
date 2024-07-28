@@ -106,9 +106,9 @@ namespace TeslaBLE
                                     size_t *output_length,
                                     bool encryptPayload = false);
 
-    int buildCarActionToMessage(CarServer_Action *action,
-                                pb_byte_t *output_buffer,
-                                size_t *output_length);
+    int buildCarServerActionPayload(CarServer_Action *action,
+                                    pb_byte_t *output_buffer,
+                                    size_t *output_length);
 
     int buildUniversalMessageWithPayload(pb_byte_t *payload,
                                          size_t payload_length,

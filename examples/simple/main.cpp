@@ -91,7 +91,10 @@ int main()
   }
   log_session_info(&session_info_vcsec);
 
-  return_code = client.session_vcsec_.updateSession(&session_info_vcsec);
+  UniversalMessage_Domain domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
+  TeslaBLE::Peer &session = domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT ? client.session_infotainment_ : client.session_vcsec_;
+
+  return_code = session.updateSession(&session_info_vcsec);
   if (return_code != 0)
   {
     printf("Failed to update session VSSEC\n");
@@ -104,12 +107,7 @@ int main()
     printf("Session not authenticated\n");
     return 1;
   }
-  return_code = client.loadTeslaKey(false, session_info_vcsec.publicKey.bytes, session_info_vcsec.publicKey.size);
-  if (return_code != 0)
-  {
-    printf("Failed load vssec tesla key\n");
-    return 1;
-  }
+
   printf("Loaded VCSEC Tesla key\n");
   printf("VCSEC Public key: ");
   for (int i = 0; i < session_info_vcsec.publicKey.size; i++)
@@ -201,7 +199,6 @@ int main()
     printf("Session not authenticated\n");
     return 1;
   }
-  client.loadTeslaKey(true, session_info.publicKey.bytes, session_info.publicKey.size);
 
   printf("Parsed INFOTAINMENT session info response\n");
   printf("Received new counter from the car: %" PRIu32, client.session_infotainment_.getCounter());
@@ -229,13 +226,6 @@ int main()
   printf("\n");
 
   printf("Loading public key from car\n");
-  // convert pb Failed to parse incoming message
-  int result_code = client.loadTeslaKey(true, session_info.publicKey.bytes, session_info.publicKey.size);
-  if (result_code != 0)
-  {
-    printf("Failed load tesla key\n");
-    return 1;
-  }
 
   // 8f3d244b50b07a9842cac108c928b5e7
   // pb_byte_t connection_id[16] = {0x8f, 0x3d, 0x24, 0x4b, 0x50, 0xb0, 0x7a, 0x98, 0x42, 0xca, 0xc1, 0x08, 0xc9, 0x28, 0xb5, 0xe7};

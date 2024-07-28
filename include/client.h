@@ -23,12 +23,8 @@ namespace TeslaBLE
 
   private:
     mbedtls_pk_context private_key_context_;
-    mbedtls_ecp_keypair tesla_key_vcsec_;
-    mbedtls_ecp_keypair tesla_key_infotainment_;
     mbedtls_ecdh_context ecdh_context_;
     mbedtls_ctr_drbg_context drbg_context_;
-    pb_byte_t shared_secret_infotainment_sha1_[SHARED_KEY_SIZE_BYTES];
-    pb_byte_t shared_secret_vcsec_sha1_[SHARED_KEY_SIZE_BYTES];
     unsigned char key_id_[4];
     unsigned char public_key_[MBEDTLS_ECP_MAX_BYTES];
     size_t public_key_size_;
@@ -49,29 +45,22 @@ namespace TeslaBLE
 
     int GenerateKeyId();
 
-    int ConstructADBuffer(Signatures_SignatureType signature_type,
-                          UniversalMessage_Domain domain,
-                          const char *VIN,
-                          pb_byte_t *epoch,
-                          uint32_t expires_at,
-                          uint32_t counter,
-                          pb_byte_t *output_buffer,
-                          size_t *output_length);
-
-    int Encrypt(pb_byte_t *input_buffer, size_t input_buffer_length,
-                pb_byte_t *output_buffer, size_t output_buffer_length,
-                size_t *output_length, pb_byte_t *signature_buffer,
-                pb_byte_t *ad_buffer, size_t ad_buffer_length,
-                UniversalMessage_Domain domain);
-
   public:
-    Peer session_vcsec_;
-    Peer session_infotainment_;
+    Peer session_vcsec_{
+        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        &private_key_context_,
+        &ecdh_context_,
+        &drbg_context_};
+
+    Peer session_infotainment_{
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        &private_key_context_,
+        &ecdh_context_,
+        &drbg_context_};
+
     static const int MAX_BLE_MESSAGE_SIZE = 1024;
 
     int createPrivateKey();
-
-    void generateNonce();
 
     void setVIN(const char *vin);
 
@@ -82,8 +71,6 @@ namespace TeslaBLE
     int getPrivateKey(pb_byte_t *output_buffer, size_t output_buffer_length,
                       size_t *output_length);
     int getPublicKey(pb_byte_t *output_buffer, size_t *output_buffer_length);
-
-    int loadTeslaKey(bool isInfotainment, const uint8_t *public_key_buffer, size_t key_size);
 
     void cleanup();
 
@@ -111,11 +98,11 @@ namespace TeslaBLE
     static int parsePayloadUnsignedMessage(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
                                            VCSEC_UnsignedMessage *output);
     static int parsePayloadCarServerResponse(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
-                                           CarServer_Response *output);
+                                             CarServer_Response *output);
 
     int buildSessionInfoRequestMessage(UniversalMessage_Domain domain,
-                                 pb_byte_t *output_buffer,
-                                 size_t *output_length);
+                                       pb_byte_t *output_buffer,
+                                       size_t *output_length);
 
     int buildKeySummary(pb_byte_t *output_buffer,
                         size_t *output_length);

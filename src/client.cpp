@@ -42,15 +42,6 @@ namespace TeslaBLE
     memcpy(this->connectionID, connection_id, 16);
   }
 
-  void Client::generateNonce()
-  {
-    // random 12 bytes using rand()
-    for (int i = 0; i < 12; i++)
-    {
-      this->nonce_[i] = rand() % 256;
-    }
-  }
-
   /*
    * This will create a new private key, public key
    * and generates the key_id
@@ -127,6 +118,9 @@ namespace TeslaBLE
       LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
       return 1;
     }
+
+    session_vcsec_.setPrivateKeyContext(&private_key_context_);
+    session_infotainment_.setPrivateKeyContext(&private_key_context_);
 
     return this->generatePublicKey();
   }
@@ -205,196 +199,11 @@ namespace TeslaBLE
   }
 
   /*
-   * This will load the cars public key and
-   * generates the shared secret
-   *
-   * @param public_key_buffer Pointer to where the public key buffer
-   * @param public_key_size Size of the cars public key
-   * @return int result code 0 for successful
-   */
-  int Client::loadTeslaKey(bool isInfotainment,
-                           const uint8_t *public_key_buffer,
-                           size_t public_key_size)
-  {
-    mbedtls_ecp_keypair &tesla_key = isInfotainment ? this->tesla_key_infotainment_
-                                                    : this->tesla_key_vcsec_;
-    pb_byte_t shared_secret[MBEDTLS_ECP_MAX_BYTES];
-    size_t shared_secret_olen;
-    pb_byte_t shared_secret_sha1[20];
-
-    mbedtls_ecp_keypair_init(&tesla_key);
-
-    int return_code = mbedtls_ecp_group_load(&tesla_key.private_grp, MBEDTLS_ECP_DP_SECP256R1);
-    if (return_code != 0)
-    {
-      LOG_ERROR("Group load error: -0x%04x", (unsigned int)-return_code);
-      return 1;
-    }
-
-    return_code = mbedtls_ecp_point_read_binary(&tesla_key.private_grp, &tesla_key.private_Q,
-                                                public_key_buffer, public_key_size);
-    if (return_code != 0)
-    {
-      LOG_ERROR("Point read error: -0x%04x", (unsigned int)-return_code);
-      return 1;
-    }
-
-    mbedtls_ecdh_init(&this->ecdh_context_);
-
-    return_code = mbedtls_ecdh_get_params(
-        &this->ecdh_context_, mbedtls_pk_ec(this->private_key_context_),
-        MBEDTLS_ECDH_OURS);
-
-    if (return_code != 0)
-    {
-      LOG_ERROR("ECDH Get Params (private) error: -0x%04x", (unsigned int)-return_code);
-      return 1;
-    }
-
-    return_code = mbedtls_ecdh_get_params(&this->ecdh_context_, &tesla_key,
-                                          MBEDTLS_ECDH_THEIRS);
-
-    if (return_code != 0)
-    {
-      LOG_ERROR("ECDH Get Params (tesla) error: -0x%04x", (unsigned int)-return_code);
-      return 1;
-    }
-
-    // pb_byte_t temp_shared_secret[MBEDTLS_ECP_MAX_BYTES];
-    // size_t temp_shared_secret_length = 0;
-    return_code =
-        mbedtls_ecdh_calc_secret(&this->ecdh_context_, &shared_secret_olen,
-                                 shared_secret, sizeof(shared_secret),
-                                 mbedtls_ctr_drbg_random, &this->drbg_context_);
-
-    if (return_code != 0)
-    {
-      LOG_ERROR("ECDH calc secret error: -0x%04x", (unsigned int)-return_code);
-      return 1;
-    }
-
-    // Now hash the shared secret
-    // printf("shared_secret_olen: %u\n", shared_secret_olen);
-    return_code = mbedtls_sha1(shared_secret, shared_secret_olen, shared_secret_sha1);
-    if (return_code != 0)
-    {
-      LOG_ERROR("SHA 1 error: -0x%04x", (unsigned int)-return_code);
-      return 1;
-    }
-
-    if (isInfotainment)
-    {
-      memcpy(this->shared_secret_infotainment_sha1_, shared_secret_sha1, this->SHARED_KEY_SIZE_BYTES); // we only need the first 16 bytes
-    }
-    else
-    {
-      memcpy(this->shared_secret_vcsec_sha1_, shared_secret_sha1, this->SHARED_KEY_SIZE_BYTES); // we only need the first 16 bytes
-    }
-
-    Peer &session = isInfotainment ? this->session_infotainment_ : this->session_vcsec_;
-    session.setIsAuthenticated(true);
-
-    return 0;
-  }
-
-  /*
-   * This will load the cars public key and
-   * generates the shared secret
-   *
-   * @param input_buffer Pointer to the input buffer
-   * @param input_buffer_length Size of the input buffer
-   * @param output_buffer Pointer to the output buffer
-   * @param output_buffer_length Size of the output buffer
-   * @param output_length Pointer to size_t that will store the written length
-   * @param signature_buffer Pointer to the signature buffer
-   * @return int result code 0 for successful
-   */
-  int Client::Encrypt(pb_byte_t *input_buffer, size_t input_buffer_length,
-                      pb_byte_t *output_buffer, size_t output_buffer_length,
-                      size_t *output_length, pb_byte_t *signature_buffer,
-                      pb_byte_t *ad_buffer, size_t ad_buffer_length,
-                      UniversalMessage_Domain domain)
-  {
-    if (!mbedtls_pk_can_do(&this->private_key_context_, MBEDTLS_PK_ECKEY))
-    {
-      LOG_ERROR("[Encrypt] Private key is not initialized");
-      return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
-    }
-
-    mbedtls_gcm_context aes_context;
-    mbedtls_gcm_init(&aes_context);
-
-    pb_byte_t *shared_secret = domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT ? this->shared_secret_infotainment_sha1_ : this->shared_secret_vcsec_sha1_;
-    size_t shared_secret_size = this->SHARED_KEY_SIZE_BYTES;
-
-    if (shared_secret_size != this->SHARED_KEY_SIZE_BYTES)
-    {
-      LOG_ERROR("[Encrypt] Shared secret SHA1 is not 16 bytes (actual size = %u)", shared_secret_size);
-      return TeslaBLE_Status_E_ERROR_ENCRYPT;
-    }
-
-    // Use 128-bit key as specified in the protocol
-    int return_code = mbedtls_gcm_setkey(&aes_context, MBEDTLS_CIPHER_ID_AES, shared_secret, 128);
-    if (return_code != 0)
-    {
-      LOG_ERROR("[Encrypt] GCM set key error: -0x%04x", (unsigned int)-return_code);
-      return TeslaBLE_Status_E_ERROR_ENCRYPT;
-    }
-
-    // Generate a new nonce for each encryption
-    this->generateNonce();
-
-    return_code = mbedtls_gcm_starts(&aes_context, MBEDTLS_GCM_ENCRYPT, this->nonce_, sizeof(this->nonce_));
-    if (return_code != 0)
-    {
-      LOG_ERROR("[Encrypt] GCM start error: -0x%04x", (unsigned int)-return_code);
-      return TeslaBLE_Status_E_ERROR_ENCRYPT;
-    }
-
-    // Hash the AD buffer to create the AAD as per the protocol
-    unsigned char ad_hash[32]; // SHA256 produces a 32-byte hash
-    return_code = mbedtls_sha256(ad_buffer, ad_buffer_length, ad_hash, 0);
-    if (return_code != 0)
-    {
-      LOG_ERROR("[Encrypt] AD metadata SHA256 hash error: -0x%04x", (unsigned int)-return_code);
-      return TeslaBLE_Status_E_ERROR_ENCRYPT;
-    }
-    // Use the hash as the AAD for AES-GCM
-    mbedtls_gcm_update_ad(&aes_context, ad_hash, sizeof(ad_hash));
-
-    return_code = mbedtls_gcm_update(&aes_context, input_buffer, input_buffer_length,
-                                     output_buffer, output_buffer_length, output_length);
-    if (return_code != 0)
-    {
-      LOG_ERROR("[Encrypt] Encryption error in gcm_update: -0x%04x", (unsigned int)-return_code);
-      return TeslaBLE_Status_E_ERROR_ENCRYPT;
-    }
-
-    size_t finish_buffer_length = 0;
-    pb_byte_t finish_buffer[15]; // output_size never needs to be more than 15.
-    // Finalize the encryption and get the tag
-    size_t tag_length = 16; // AES-GCM typically uses a 16-byte tag
-    return_code = mbedtls_gcm_finish(&aes_context, finish_buffer, sizeof(finish_buffer),
-                                     &finish_buffer_length, signature_buffer, tag_length);
-    if (return_code != 0)
-    {
-      LOG_ERROR("[Encrypt] Finalization error in gcm_finish: -0x%04x", (unsigned int)-return_code);
-      return TeslaBLE_Status_E_ERROR_ENCRYPT;
-    }
-
-    mbedtls_gcm_free(&aes_context);
-
-    return 0;
-  }
-
-  /*
    * This will clean up the contexts used
    */
   void Client::cleanup()
   {
     mbedtls_pk_free(&this->private_key_context_);
-    mbedtls_ecp_keypair_free(&this->tesla_key_vcsec_);
-    mbedtls_ecp_keypair_free(&this->tesla_key_infotainment_);
     mbedtls_ecdh_free(&this->ecdh_context_);
     mbedtls_ctr_drbg_free(&this->drbg_context_);
   }
@@ -626,71 +435,6 @@ namespace TeslaBLE
     return 0;
   }
 
-  int Client::ConstructADBuffer(
-      Signatures_SignatureType signature_type,
-      UniversalMessage_Domain domain,
-      const char *VIN,
-      pb_byte_t *epoch,
-      uint32_t expires_at,
-      uint32_t counter,
-      pb_byte_t *output_buffer,
-      size_t *output_length)
-  {
-    size_t index = 0;
-
-    // Signature type
-    output_buffer[index++] = Signatures_Tag_TAG_SIGNATURE_TYPE;
-    output_buffer[index++] = 0x01;
-    output_buffer[index++] = signature_type;
-
-    // Domain
-    output_buffer[index++] = Signatures_Tag_TAG_DOMAIN;
-    output_buffer[index++] = 0x01;
-    output_buffer[index++] = domain;
-
-    // Personalization (VIN)
-    size_t vin_length = strlen(VIN);
-    output_buffer[index++] = Signatures_Tag_TAG_PERSONALIZATION;
-    output_buffer[index++] = vin_length;
-    memcpy(output_buffer + index, VIN, vin_length);
-    index += vin_length;
-
-    // Epoch
-    output_buffer[index++] = Signatures_Tag_TAG_EPOCH;
-    output_buffer[index++] = 0x10; // Assuming epoch is always 16 bytes
-    memcpy(output_buffer + index, epoch, 16);
-    index += 16;
-
-    // Expires at
-    output_buffer[index++] = Signatures_Tag_TAG_EXPIRES_AT;
-    output_buffer[index++] = 0x04;
-    output_buffer[index++] = (expires_at >> 24) & 0xFF;
-    output_buffer[index++] = (expires_at >> 16) & 0xFF;
-    output_buffer[index++] = (expires_at >> 8) & 0xFF;
-    output_buffer[index++] = expires_at & 0xFF;
-
-    // Counter
-    output_buffer[index++] = Signatures_Tag_TAG_COUNTER;
-    output_buffer[index++] = 0x04;
-    output_buffer[index++] = (counter >> 24) & 0xFF;
-    output_buffer[index++] = (counter >> 16) & 0xFF;
-    output_buffer[index++] = (counter >> 8) & 0xFF;
-    output_buffer[index++] = counter & 0xFF;
-
-    // Terminal byte
-    output_buffer[index++] = Signatures_Tag_TAG_END;
-
-    // // ad buffer needs to be multiple of 16
-    // while (index % 16 != 0)
-    // {
-    //   output_buffer[index++] = 0x00;
-    // }
-
-    *output_length = index;
-
-    return 0;
-  }
-
   int Client::buildUniversalMessageWithPayload(pb_byte_t *payload,
                                                size_t payload_length,
                                                UniversalMessage_Domain domain,
@@ -706,7 +450,11 @@ namespace TeslaBLE
     universal_message.has_to_destination = true;
     universal_message.to_destination = to_destination;
 
+    LOG_INFO("Building message for domain: %d", domain);
     Peer &session = domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT ? this->session_infotainment_ : this->session_vcsec_;
+    LOG_INFO("Using session: %s", domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT ? "INFOTAINMENT" : "VCSEC");
+    session.logEpoch();
+
     session.incrementCounter();
 
     UniversalMessage_Destination from_destination = UniversalMessage_Destination_init_default;
@@ -718,37 +466,10 @@ namespace TeslaBLE
     universal_message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
     if (encryptPayload)
     {
-      auto epoch = session.getEpoch();
-      // got epoch
-      // log epoch as hex
-      char epoch_hex[33];
-      for (int i = 0; i < 16; i++)
+      if (!session.isInitialized())
       {
-        snprintf(epoch_hex + (i * 2), 3, "%02x", epoch[i]);
-      }
-      epoch_hex[32] = '\0';
-      LOG_DEBUG("Epoch: %s", epoch_hex);
-
-      // raise an error on empty / default epoch (e.g. epoch == 00000000000000000000000000000000)
-      if (epoch == nullptr)
-      {
-        LOG_ERROR("Epoch can not be empty");
+        LOG_ERROR("Session not initialized (missing epoch)");
         return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
-      }
-      else
-      {
-        for (int i = 0; i < 16; i++)
-        {
-          if (epoch[i] != 0)
-          {
-            break;
-          }
-          if (i == 15)
-          {
-            LOG_ERROR("Epoch can not be empty");
-            return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
-          }
-        }
       }
 
       pb_byte_t signature[16];
@@ -761,11 +482,26 @@ namespace TeslaBLE
       // Next, we construct the serialized metadata string from values in the table
       // below. The metadata string is used as the associated authenticated data (AAD)
       // field of AES-GCM.
+      // std::string epoch_hex;
+      const pb_byte_t *epoch = session.getEpoch();
+      char epoch_hex[33];
+      for (int i = 0; i < 16; i++)
+      {
+          snprintf(epoch_hex + (i * 2), 3, "%02x", epoch[i]);
+      }
+      epoch_hex[32] = '\0';
+      LOG_INFO("Epoch before ConstructADBuffer: %s", epoch_hex);
+      LOG_INFO("Counter: %" PRIu32, session.getCounter());
+      LOG_INFO("TimeZero: %" PRIu32, session.getTimeZero());
+
       pb_byte_t ad_buffer[56];
       size_t ad_buffer_length = 0;
-      this->ConstructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, domain, this->VIN, epoch, expires_at, session.getCounter(), ad_buffer, &ad_buffer_length);
+      session.ConstructADBuffer(
+          Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+          this->VIN, expires_at, ad_buffer, &ad_buffer_length);
 
-      int return_code = this->Encrypt(payload, payload_length, encrypted_payload, sizeof encrypted_payload, &encrypted_output_length, signature, ad_buffer, ad_buffer_length, domain);
+      pb_byte_t nonce[12];
+      int return_code = session.Encrypt(payload, payload_length, encrypted_payload, sizeof encrypted_payload, &encrypted_output_length, signature, ad_buffer, ad_buffer_length, nonce);
       if (return_code != 0)
       {
         LOG_ERROR("Failed to encrypt payload");
@@ -790,8 +526,16 @@ namespace TeslaBLE
       signature_data.which_sig_type = Signatures_SignatureData_AES_GCM_Personalized_data_tag;
       signature_data.sig_type.AES_GCM_Personalized_data.counter = session.getCounter();
       signature_data.sig_type.AES_GCM_Personalized_data.expires_at = expires_at;
-      memcpy(signature_data.sig_type.AES_GCM_Personalized_data.nonce, this->nonce_, sizeof this->nonce_);
+      memcpy(signature_data.sig_type.AES_GCM_Personalized_data.nonce, nonce, sizeof nonce);
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.epoch, epoch, 16);
+      // log the epoch
+      char epoch_hex2[33];
+      for (int i = 0; i < 16; i++)
+      {
+          snprintf(epoch_hex2 + (i * 2), 3, "%02x", signature_data.sig_type.AES_GCM_Personalized_data.epoch[i]);
+      }
+      epoch_hex2[32] = '\0';
+      LOG_INFO("Epoch in AES TAG: %s", epoch_hex2);
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.tag, signature, sizeof signature);
 
       universal_message.which_sub_sigData = UniversalMessage_RoutableMessage_signature_data_tag;

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <pb.h>
 #include <mutex>
+#include <memory>
 
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/ecdh.h"

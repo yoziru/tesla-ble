@@ -120,7 +120,7 @@ static const char *domain_to_string(UniversalMessage_Domain domain)
 }
 
 static void log_destination(const char *direction,
-                     const UniversalMessage_Destination *dest)
+                            const UniversalMessage_Destination *dest)
 {
   printf("Destination: %s\n", direction);
   printf("  which_sub_destination: %d\n", dest->which_sub_destination);

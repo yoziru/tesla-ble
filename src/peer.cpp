@@ -47,9 +47,9 @@ namespace TeslaBLE
       return false;
     }
 
-    if (!this->isAuthenticated())
+    if (!this->isValid())
     {
-      LOG_ERROR("Peer is not authenticated");
+      LOG_ERROR("Session is not valid");
       return false;
     }
 
@@ -193,7 +193,7 @@ namespace TeslaBLE
     }
 
     memcpy(this->shared_secret_sha1_, shared_secret_sha1, this->SHARED_KEY_SIZE_BYTES); // we only need the first 16 bytes
-    this->setIsAuthenticated(true);
+    this->setIsValid(true);
     mbedtls_ecp_keypair_free(&tesla_key);
     return 0;
   }
@@ -230,13 +230,13 @@ namespace TeslaBLE
       return return_code;
     }
 
-    this->setIsAuthenticated(true);
+    this->setIsValid(true);
     return 0;
   }
 
-  void Peer::setIsAuthenticated(bool is_authenticated)
+  void Peer::setIsValid(bool is_valid)
   {
-    this->is_authenticated_ = is_authenticated;
+    this->is_valid_ = is_valid;
   }
 
   int Peer::ConstructADBuffer(

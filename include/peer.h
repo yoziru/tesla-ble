@@ -34,7 +34,7 @@ namespace TeslaBLE
 
     bool isInitialized() const;
     bool hasValidEpoch() const;
-    bool isAuthenticated() const { return this->is_authenticated_; };
+    bool isValid() const { return this->is_valid_; };
     bool isPrivateKeyInitialized() const;
 
     uint32_t generateExpiresAt(int seconds) const;
@@ -47,7 +47,7 @@ namespace TeslaBLE
     void incrementCounter();
     void setCounter(uint32_t counter);
     int setEpoch(const pb_byte_t *epoch);
-    void setIsAuthenticated(bool is_authenticated);
+    void setIsValid(bool is_valid);
     void setTimeZero(uint32_t time_zero);
     void setPrivateKeyContext(std::shared_ptr<mbedtls_pk_context> private_key_context)
     {
@@ -78,7 +78,7 @@ namespace TeslaBLE
     pb_byte_t epoch_[16];
     uint32_t counter_ = 0;
     uint32_t time_zero_ = 0;
-    bool is_authenticated_ = false;
+    bool is_valid_ = false;
 
     pb_byte_t shared_secret_sha1_[SHARED_KEY_SIZE_BYTES];
     std::shared_ptr<mbedtls_pk_context> private_key_context_;

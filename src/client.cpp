@@ -291,7 +291,8 @@ namespace TeslaBLE
       memcpy(this->shared_secret_vcsec_sha1_, shared_secret_sha1, this->SHARED_KEY_SIZE_BYTES); // we only need the first 16 bytes
     }
 
-    (isInfotainment ? this->session_infotainment_ : this->session_vcsec_).setIsAuthenticated(true);
+    Peer &session = isInfotainment ? this->session_infotainment_ : this->session_vcsec_;
+    session.setIsAuthenticated(true);
 
     return 0;
   }
@@ -611,7 +612,7 @@ namespace TeslaBLE
   }
 
   int Client::parsePayloadCarServerResponse(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
-                                          CarServer_Response *output)
+                                            CarServer_Response *output)
   {
     pb_istream_t stream = pb_istream_from_buffer(input_buffer->bytes, input_buffer->size);
     bool status =
@@ -814,8 +815,8 @@ namespace TeslaBLE
    * @return int result code 0 for successful
    */
   int Client::buildSessionInfoRequestMessage(UniversalMessage_Domain domain,
-                                       pb_byte_t *output_buffer,
-                                       size_t *output_length)
+                                             pb_byte_t *output_buffer,
+                                             size_t *output_length)
   {
     UniversalMessage_RoutableMessage universal_message = UniversalMessage_RoutableMessage_init_default;
 
@@ -1116,7 +1117,6 @@ namespace TeslaBLE
     VCSEC_UnsignedMessage unsigned_message = VCSEC_UnsignedMessage_init_default;
     unsigned_message.which_sub_message = VCSEC_UnsignedMessage_InformationRequest_tag;
     unsigned_message.sub_message.InformationRequest = information_request;
-
 
     size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];

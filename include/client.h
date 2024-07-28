@@ -1,28 +1,5 @@
-#ifndef TESLA_BLE_CLIENT_H
-#define TESLA_BLE_CLIENT_H
-// https://github.com/platformio/platform-espressif32/issues/957
-// specifically set when compiling with ESP-IDF
-#ifdef ESP_PLATFORM
-#define MBEDTLS_CONFIG_FILE "mbedtls/esp_config.h"
-#endif
+#pragma once
 
-#ifdef ESP_PLATFORM
-#include "esp_log.h"
-#define LOG_ERROR(...) ESP_LOGE("TeslaBLE", __VA_ARGS__)
-#else
-#include <cstdio>
-#include <cstdarg>
-
-inline void LOG_ERROR(const char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    printf("\033[1;31m[E] ");
-    vprintf(format, args);
-    printf("\033[0m\n");
-    va_end(args);
-}
-#endif
 #include <string>
 
 #include "mbedtls/ctr_drbg.h"
@@ -31,6 +8,7 @@ inline void LOG_ERROR(const char* format, ...)
 #include "mbedtls/sha1.h"
 #include <chrono>
 
+#include "defs.h"
 #include "peer.h"
 #include "car_server.pb.h"
 #include "universal_message.pb.h"
@@ -190,4 +168,3 @@ namespace TeslaBLE
   };
 } // namespace TeslaBLE
 // #endif // MBEDTLS_CONFIG_FILE
-#endif // TESLA_BLE_CLIENT_H

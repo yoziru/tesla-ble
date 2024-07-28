@@ -57,7 +57,7 @@ int main()
   if (return_code != 0)
   {
     LOG_ERROR("Failed to build whitelist message: %s\033[0m\n",
-           TeslaBLE::TeslaBLE_Status_to_string(return_code));
+              TeslaBLE::TeslaBLE_Status_to_string(return_code));
     return -1;
   }
   printf("Whitelist message length: %d\n", whitelist_message_length);
@@ -77,7 +77,7 @@ int main()
   if (return_code != 0)
   {
     LOG_ERROR("Failed to parse received message VSSE: %s\033[0m\n",
-           TeslaBLE::TeslaBLE_Status_to_string(return_code));
+              TeslaBLE::TeslaBLE_Status_to_string(return_code));
     return -1;
   }
   log_routable_message(&received_message_vcsec);
@@ -91,14 +91,19 @@ int main()
   }
   log_session_info(&session_info_vcsec);
 
-  uint32_t generated_at_vcsec = std::time(nullptr);
-  uint32_t time_zero_vcsec = generated_at_vcsec - session_info_vcsec.clock_time;
-  client.session_vcsec_.setCounter(&session_info_vcsec.counter);
-  client.session_vcsec_.setExpiresAt(&session_info_vcsec.clock_time);
-  client.session_vcsec_.setEpoch(session_info_vcsec.epoch);
-  client.session_vcsec_.setTimeZero(&time_zero_vcsec);
-  client.session_vcsec_.setIsAuthenticated(true);
-  printf("Session authenticated: %s\n", client.session_vcsec_.isAuthenticated ? "true" : "false");
+  return_code = client.session_vcsec_.updateSession(&session_info_vcsec);
+  if (return_code != 0)
+  {
+    printf("Failed to update session VSSEC\n");
+    return -1;
+  }
+
+  printf("Session authenticated: %s\n", client.session_vcsec_.getIsAuthenticated() ? "true" : "false");
+  if (!client.session_vcsec_.getIsAuthenticated())
+  {
+    printf("Session not authenticated\n");
+    return 1;
+  }
   return_code = client.loadTeslaKey(false, session_info_vcsec.publicKey.bytes, session_info_vcsec.publicKey.size);
   if (return_code != 0)
   {
@@ -114,14 +119,13 @@ int main()
   printf("\n");
 
   printf("Parsed VCSEC session info response\n");
-  printf("Received new counter from the car: %" PRIu32, client.session_vcsec_.counter_);
-  printf("\n");
-  printf("Received new expires at from the car: %" PRIu32, client.session_vcsec_.expires_at_);
+  printf("Received new counter from the car: %" PRIu32, client.session_vcsec_.getCounter());
   printf("\n");
   printf("Epoch: ");
-  for (int i = 0; i < sizeof(client.session_vcsec_.epoch_); i++)
+  auto epoch_vcsec = client.session_vcsec_.getEpoch();
+  for (int i = 0; i < 16; i++)
   {
-    printf("%02X", client.session_vcsec_.epoch_[i]);
+    printf("%02X", epoch_vcsec[i]);
   }
   printf("\n");
 
@@ -184,18 +188,23 @@ int main()
   }
   log_session_info(&session_info);
 
-  uint32_t generated_at = std::time(nullptr);
-  uint32_t time_zero = generated_at - session_info.clock_time;
-  client.session_infotainment_.setCounter(&session_info.counter);
-  client.session_infotainment_.setExpiresAt(&session_info.clock_time);
-  client.session_infotainment_.setEpoch(session_info.epoch);
-  client.session_infotainment_.setTimeZero(&time_zero);
-  client.session_infotainment_.setIsAuthenticated(true);
-  printf("Session authenticated: %s\n", client.session_infotainment_.isAuthenticated ? "true" : "false");
+  return_code = client.session_infotainment_.updateSession(&session_info);
+  if (return_code != 0)
+  {
+    printf("Failed to update session INFOTAINMENT\n");
+    return -1;
+  }
+
+  printf("Session authenticated: %s\n", client.session_infotainment_.getIsAuthenticated() ? "true" : "false");
+  if (!client.session_infotainment_.getIsAuthenticated())
+  {
+    printf("Session not authenticated\n");
+    return 1;
+  }
   client.loadTeslaKey(true, session_info.publicKey.bytes, session_info.publicKey.size);
 
   printf("Parsed INFOTAINMENT session info response\n");
-  printf("Received new counter from the car: %" PRIu32, client.session_infotainment_.counter_);
+  printf("Received new counter from the car: %" PRIu32, client.session_infotainment_.getCounter());
   printf("\n");
   printf("Received new counter from the car (hex): ");
   for (int i = 0; i < sizeof(session_info.counter); i++)
@@ -211,12 +220,11 @@ int main()
   }
   printf("\n");
 
-  printf("Received new expires at from the car: %" PRIu32, client.session_infotainment_.expires_at_);
-  printf("\n");
   printf("Epoch: ");
-  for (int i = 0; i < sizeof(client.session_infotainment_.epoch_); i++)
+  auto epoch = client.session_infotainment_.getEpoch();
+  for (int i = 0; i < 16; i++)
   {
-    printf("%02X", client.session_infotainment_.epoch_[i]);
+    printf("%02X", epoch[i]);
   }
   printf("\n");
 

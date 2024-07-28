@@ -1,5 +1,4 @@
-#ifndef TESLA_BLE_TB_UTILS_H
-#define TESLA_BLE_TB_UTILS_H
+#pragma once
 
 #include <string>
 #include "pb.h"
@@ -12,4 +11,3 @@ namespace TeslaBLE
       const pb_msgdesc_t *fields,
       const void *src_struct);
 } // namespace TeslaBLE
-#endif // TESLA_BLE_TB_UTILS_H

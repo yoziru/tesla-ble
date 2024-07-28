@@ -718,17 +718,36 @@ namespace TeslaBLE
     universal_message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
     if (encryptPayload)
     {
-      // raise an error on empty / default epoch (e.g. epoch == 00000000000000000000000000000000)
+      auto epoch = session.getEpoch();
+      // got epoch
+      // log epoch as hex
+      char epoch_hex[33];
       for (int i = 0; i < 16; i++)
       {
-        if (session.epoch_[i] != 0)
+        snprintf(epoch_hex + (i * 2), 3, "%02x", epoch[i]);
+      }
+      epoch_hex[32] = '\0';
+      LOG_DEBUG("Epoch: %s", epoch_hex);
+
+      // raise an error on empty / default epoch (e.g. epoch == 00000000000000000000000000000000)
+      if (epoch == nullptr)
+      {
+        LOG_ERROR("Epoch can not be empty");
+        return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+      }
+      else
+      {
+        for (int i = 0; i < 16; i++)
         {
-          break;
-        }
-        if (i == 15)
-        {
-          LOG_ERROR("Epoch can not be empty with signature type AES_GCM_PERSONALIZED");
-          return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+          if (epoch[i] != 0)
+          {
+            break;
+          }
+          if (i == 15)
+          {
+            LOG_ERROR("Epoch can not be empty");
+            return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+          }
         }
       }
 
@@ -744,7 +763,7 @@ namespace TeslaBLE
       // field of AES-GCM.
       pb_byte_t ad_buffer[56];
       size_t ad_buffer_length = 0;
-      this->ConstructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, domain, this->VIN, session.epoch_, expires_at, session.counter_, ad_buffer, &ad_buffer_length);
+      this->ConstructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, domain, this->VIN, epoch, expires_at, session.getCounter(), ad_buffer, &ad_buffer_length);
 
       int return_code = this->Encrypt(payload, payload_length, encrypted_payload, sizeof encrypted_payload, &encrypted_output_length, signature, ad_buffer, ad_buffer_length, domain);
       if (return_code != 0)
@@ -769,10 +788,10 @@ namespace TeslaBLE
 
       Signatures_AES_GCM_Personalized_Signature_Data aes_gcm_signature_data = Signatures_AES_GCM_Personalized_Signature_Data_init_default;
       signature_data.which_sig_type = Signatures_SignatureData_AES_GCM_Personalized_data_tag;
-      signature_data.sig_type.AES_GCM_Personalized_data.counter = session.counter_;
+      signature_data.sig_type.AES_GCM_Personalized_data.counter = session.getCounter();
       signature_data.sig_type.AES_GCM_Personalized_data.expires_at = expires_at;
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.nonce, this->nonce_, sizeof this->nonce_);
-      memcpy(signature_data.sig_type.AES_GCM_Personalized_data.epoch, session.epoch_, sizeof session.epoch_);
+      memcpy(signature_data.sig_type.AES_GCM_Personalized_data.epoch, epoch, 16);
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.tag, signature, sizeof signature);
 
       universal_message.which_sub_sigData = UniversalMessage_RoutableMessage_signature_data_tag;

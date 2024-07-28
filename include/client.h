@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <memory> // Add this for std::shared_ptr
 
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/ecdh.h"
@@ -17,46 +18,41 @@
 
 namespace TeslaBLE
 {
+
   class Client
   {
     static const int SHARED_KEY_SIZE_BYTES = 16;
 
-  private:
-    mbedtls_pk_context private_key_context_;
-    mbedtls_ecdh_context ecdh_context_;
-    mbedtls_ctr_drbg_context drbg_context_;
-    unsigned char key_id_[4];
-    unsigned char public_key_[MBEDTLS_ECP_MAX_BYTES];
-    size_t public_key_size_;
-
-    // pb_byte_t epoch_[16];
-    pb_byte_t nonce_[12];
-    // uint32_t counter_ = 1;
-    // uint32_t expires_at_ = 0;
-    pb_byte_t connectionID[16] = {0x0A, 0x79, 0x62, 0xc1, 0x0d, 0x38, 0xb6, 0x1d, 0xd2, 0xa7, 0x72, 0x27, 0x80, 0xa4, 0xf0, 0x96};
-    const char *VIN = "";
-
-    static void prependLength(const pb_byte_t *input_buffer,
-                              size_t input_buffer_length,
-                              pb_byte_t *output_buffer,
-                              size_t *output_buffer_length);
-
-    int generatePublicKey();
-
-    int GenerateKeyId();
-
   public:
-    Peer session_vcsec_{
-        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
-        &private_key_context_,
-        &ecdh_context_,
-        &drbg_context_};
+    Client()
+        : private_key_context_(std::make_unique<mbedtls_pk_context>()),
+          ecdh_context_(std::make_unique<mbedtls_ecdh_context>()),
+          drbg_context_(std::make_unique<mbedtls_ctr_drbg_context>()),
+          session_vcsec_(std::make_unique<Peer>(
+              UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+              private_key_context_,
+              ecdh_context_,
+              drbg_context_)),
+          session_infotainment_(std::make_unique<Peer>(
+              UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+              private_key_context_,
+              ecdh_context_,
+              drbg_context_))
+    {
+      mbedtls_pk_init(private_key_context_.get());
+      mbedtls_ecdh_init(ecdh_context_.get());
+      mbedtls_ctr_drbg_init(drbg_context_.get());
+    }
 
-    Peer session_infotainment_{
-        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
-        &private_key_context_,
-        &ecdh_context_,
-        &drbg_context_};
+    ~Client()
+    {
+      if (private_key_context_)
+        mbedtls_pk_free(private_key_context_.get());
+      if (ecdh_context_)
+        mbedtls_ecdh_free(ecdh_context_.get());
+      if (drbg_context_)
+        mbedtls_ctr_drbg_free(drbg_context_.get());
+    }
 
     static const int MAX_BLE_MESSAGE_SIZE = 1024;
 
@@ -71,8 +67,6 @@ namespace TeslaBLE
     int getPrivateKey(pb_byte_t *output_buffer, size_t output_buffer_length,
                       size_t *output_length);
     int getPublicKey(pb_byte_t *output_buffer, size_t *output_buffer_length);
-
-    void cleanup();
 
     int buildWhiteListMessage(Keys_Role role,
                               VCSEC_KeyFormFactor form_factor,
@@ -152,6 +146,46 @@ namespace TeslaBLE
     int buildChargingSwitchMessage(bool isOn,
                                    pb_byte_t *output_buffer,
                                    size_t *output_length);
+
+    Peer *getPeer(UniversalMessage_Domain domain)
+    {
+      if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)
+      {
+        return session_vcsec_.get();
+      }
+      else if (domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT)
+      {
+        return session_infotainment_.get();
+      }
+      return nullptr;
+    }
+
+  private:
+    unsigned char key_id_[4];
+    unsigned char public_key_[MBEDTLS_ECP_MAX_BYTES];
+    size_t public_key_size_;
+
+    // pb_byte_t epoch_[16];
+    pb_byte_t nonce_[12];
+    // uint32_t counter_ = 1;
+    // uint32_t expires_at_ = 0;
+    pb_byte_t connectionID[16] = {0x0A, 0x79, 0x62, 0xc1, 0x0d, 0x38, 0xb6, 0x1d, 0xd2, 0xa7, 0x72, 0x27, 0x80, 0xa4, 0xf0, 0x96};
+    const char *VIN = "";
+
+    static void prependLength(const pb_byte_t *input_buffer,
+                              size_t input_buffer_length,
+                              pb_byte_t *output_buffer,
+                              size_t *output_buffer_length);
+
+    int generatePublicKey();
+
+    int GenerateKeyId();
+
+  protected:
+    std::shared_ptr<mbedtls_pk_context> private_key_context_;
+    std::shared_ptr<mbedtls_ecdh_context> ecdh_context_;
+    std::shared_ptr<mbedtls_ctr_drbg_context> drbg_context_;
+    std::unique_ptr<Peer> session_vcsec_;
+    std::unique_ptr<Peer> session_infotainment_;
   };
 } // namespace TeslaBLE
-// #endif // MBEDTLS_CONFIG_FILE

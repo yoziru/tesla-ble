@@ -92,17 +92,17 @@ int main()
   log_session_info(&session_info_vcsec);
 
   UniversalMessage_Domain domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
-  TeslaBLE::Peer &session = domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT ? client.session_infotainment_ : client.session_vcsec_;
+  auto session = client.getPeer(domain);
 
-  return_code = session.updateSession(&session_info_vcsec);
+  return_code = session->updateSession(&session_info_vcsec);
   if (return_code != 0)
   {
     printf("Failed to update session VSSEC\n");
     return -1;
   }
 
-  printf("Session authenticated: %s\n", client.session_vcsec_.getIsAuthenticated() ? "true" : "false");
-  if (!client.session_vcsec_.getIsAuthenticated())
+  printf("Session authenticated: %s\n", session->getIsAuthenticated() ? "true" : "false");
+  if (!session->getIsAuthenticated())
   {
     printf("Session not authenticated\n");
     return 1;
@@ -117,10 +117,10 @@ int main()
   printf("\n");
 
   printf("Parsed VCSEC session info response\n");
-  printf("Received new counter from the car: %" PRIu32, client.session_vcsec_.getCounter());
+  printf("Received new counter from the car: %" PRIu32, session->getCounter());
   printf("\n");
   printf("Epoch: ");
-  auto epoch_vcsec = client.session_vcsec_.getEpoch();
+  auto epoch_vcsec = session->getEpoch();
   for (int i = 0; i < 16; i++)
   {
     printf("%02X", epoch_vcsec[i]);
@@ -186,22 +186,23 @@ int main()
   }
   log_session_info(&session_info);
 
-  return_code = client.session_infotainment_.updateSession(&session_info);
+  session = client.getPeer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+  return_code = session->updateSession(&session_info);
   if (return_code != 0)
   {
     printf("Failed to update session INFOTAINMENT\n");
     return -1;
   }
 
-  printf("Session authenticated: %s\n", client.session_infotainment_.getIsAuthenticated() ? "true" : "false");
-  if (!client.session_infotainment_.getIsAuthenticated())
+  printf("Session authenticated: %s\n", session->getIsAuthenticated() ? "true" : "false");
+  if (!session->getIsAuthenticated())
   {
     printf("Session not authenticated\n");
     return 1;
   }
 
   printf("Parsed INFOTAINMENT session info response\n");
-  printf("Received new counter from the car: %" PRIu32, client.session_infotainment_.getCounter());
+  printf("Received new counter from the car: %" PRIu32, session->getCounter());
   printf("\n");
   printf("Received new counter from the car (hex): ");
   for (int i = 0; i < sizeof(session_info.counter); i++)
@@ -218,7 +219,7 @@ int main()
   printf("\n");
 
   printf("Epoch: ");
-  auto epoch = client.session_infotainment_.getEpoch();
+  auto epoch = session->getEpoch();
   for (int i = 0; i < 16; i++)
   {
     printf("%02X", epoch[i]);

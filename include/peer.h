@@ -22,9 +22,9 @@ namespace TeslaBLE
 
   public:
     Peer(UniversalMessage_Domain domain,
-         mbedtls_pk_context *private_key_context,
-         mbedtls_ecdh_context *ecdh_context,
-         mbedtls_ctr_drbg_context *drbg_context)
+         std::shared_ptr<mbedtls_pk_context> private_key_context,
+         std::shared_ptr<mbedtls_ecdh_context> ecdh_context,
+         std::shared_ptr<mbedtls_ctr_drbg_context> drbg_context)
         : domain(domain),
           private_key_context_(private_key_context),
           ecdh_context_(ecdh_context),
@@ -64,12 +64,14 @@ namespace TeslaBLE
                 pb_byte_t *ad_buffer, size_t ad_buffer_length,
                 pb_byte_t nonce[12]) const;
 
-    void setPrivateKeyContext(mbedtls_pk_context *private_key_context) {
-        this->private_key_context_ = private_key_context;
+    void setPrivateKeyContext(std::shared_ptr<mbedtls_pk_context> private_key_context)
+    {
+      this->private_key_context_ = private_key_context;
     }
 
-    bool isPrivateKeyInitialized() const {
-        return private_key_context_ != nullptr && mbedtls_pk_can_do(private_key_context_, MBEDTLS_PK_ECKEY);
+    bool isPrivateKeyInitialized() const
+    {
+      return private_key_context_ && mbedtls_pk_can_do(private_key_context_.get(), MBEDTLS_PK_ECKEY);
     }
 
   private:
@@ -82,9 +84,9 @@ namespace TeslaBLE
     bool is_authenticated_ = false;
 
     pb_byte_t shared_secret_sha1_[SHARED_KEY_SIZE_BYTES];
-    mbedtls_pk_context *private_key_context_ = nullptr;
-    mbedtls_ecdh_context *ecdh_context_;
-    mbedtls_ctr_drbg_context *drbg_context_;
+    std::shared_ptr<mbedtls_pk_context> private_key_context_;
+    std::shared_ptr<mbedtls_ecdh_context> ecdh_context_;
+    std::shared_ptr<mbedtls_ctr_drbg_context> drbg_context_;
   };
   ;
 

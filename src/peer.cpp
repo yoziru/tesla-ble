@@ -151,11 +151,11 @@ namespace TeslaBLE
     }
 
     LOG_INFO("Initializing ECDH context");
-    mbedtls_ecdh_init(this->ecdh_context_);
+    mbedtls_ecdh_init(this->ecdh_context_.get());
 
     LOG_INFO("Generating keypair");
     return_code = mbedtls_ecdh_get_params(
-        this->ecdh_context_, mbedtls_pk_ec(*this->private_key_context_),
+        this->ecdh_context_.get(), mbedtls_pk_ec(*this->private_key_context_),
         MBEDTLS_ECDH_OURS);
     if (return_code != 0)
     {
@@ -165,7 +165,7 @@ namespace TeslaBLE
 
     LOG_INFO("Generating shared secret");
     return_code = mbedtls_ecdh_get_params(
-        this->ecdh_context_, &tesla_key, MBEDTLS_ECDH_THEIRS);
+        this->ecdh_context_.get(), &tesla_key, MBEDTLS_ECDH_THEIRS);
     if (return_code != 0)
     {
       LOG_ERROR("ECDH Get Params (tesla) error: -0x%04x", (unsigned int)-return_code);
@@ -175,9 +175,9 @@ namespace TeslaBLE
     // pb_byte_t temp_shared_secret[MBEDTLS_ECP_MAX_BYTES];
     // size_t temp_shared_secret_length = 0;
     return_code =
-        mbedtls_ecdh_calc_secret(this->ecdh_context_, &shared_secret_olen,
+        mbedtls_ecdh_calc_secret(this->ecdh_context_.get(), &shared_secret_olen,
                                  shared_secret, sizeof(shared_secret),
-                                 mbedtls_ctr_drbg_random, this->drbg_context_);
+                                 mbedtls_ctr_drbg_random, this->drbg_context_.get());
 
     if (return_code != 0)
     {
@@ -396,33 +396,35 @@ namespace TeslaBLE
 
     mbedtls_gcm_free(&aes_context);
 
-    // print(f"Nonce: {nonce.hex()}, Ciphertext: {ct[:-16].hex()}, Tag: {ct[-16:].hex()}")
+    // Log encrypted data (nonce, ciphertext, and tag)
     char nonce_hex[25];
-    snprintf(nonce_hex, 25, "%02x", nonce[0]);
-    for (int i = 1; i < 12; i++)
+    char output_buffer_hex[output_buffer_length * 2 + 1];
+    char signature_buffer_hex[tag_length * 2 + 1];
+
+    // Convert nonce to hex
+    for (int i = 0; i < 12; i++)
     {
-      snprintf(nonce_hex + (i * 2), 25, "%02x", nonce[i]);
+      snprintf(nonce_hex + (i * 2), 3, "%02x", nonce[i]);
     }
     nonce_hex[24] = '\0';
 
-    char output_buffer_hex[output_buffer_length * 2 + 1];
-    snprintf(output_buffer_hex, output_buffer_length * 2 + 1, "%02x", output_buffer[0]);
-    for (int i = 1; i < *output_length; i++)
+    // Convert output buffer to hex
+    for (size_t i = 0; i < *output_length; i++)
     {
-      snprintf(output_buffer_hex + (i * 2), output_buffer_length * 2 + 1, "%02x", output_buffer[i]);
+      snprintf(output_buffer_hex + (i * 2), 3, "%02x", output_buffer[i]);
     }
-    output_buffer_hex[output_buffer_length * 2] = '\0';
+    output_buffer_hex[*output_length * 2] = '\0';
 
-    char signature_buffer_hex[tag_length * 2 + 1];
-    snprintf(signature_buffer_hex, tag_length * 2 + 1, "%02x", signature_buffer[0]);
-    for (int i = 1; i < tag_length; i++)
+    // Convert signature buffer to hex
+    for (size_t i = 0; i < tag_length; i++)
     {
-      snprintf(signature_buffer_hex + (i * 2), tag_length * 2 + 1, "%02x", signature_buffer[i]);
+      snprintf(signature_buffer_hex + (i * 2), 3, "%02x", signature_buffer[i]);
     }
     signature_buffer_hex[tag_length * 2] = '\0';
 
     LOG_INFO("[Encrypt] Nonce: %s, Ciphertext: %s, Tag: %s",
              nonce_hex, output_buffer_hex, signature_buffer_hex);
+
     return 0;
   }
 } // namespace TeslaBLE

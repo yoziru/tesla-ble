@@ -52,10 +52,16 @@ namespace TeslaBLE
   {
     mbedtls_entropy_context entropy_context;
     mbedtls_entropy_init(&entropy_context);
-    mbedtls_pk_init(&this->private_key_context_);
-    mbedtls_ctr_drbg_init(&this->drbg_context_);
 
-    int return_code = mbedtls_ctr_drbg_seed(&drbg_context_, mbedtls_entropy_func,
+
+    // Use existing shared pointers, don't create new ones
+    mbedtls_pk_free(private_key_context_.get());
+    mbedtls_pk_init(private_key_context_.get());
+
+    mbedtls_ctr_drbg_free(drbg_context_.get());
+    mbedtls_ctr_drbg_init(drbg_context_.get());
+
+    int return_code = mbedtls_ctr_drbg_seed(drbg_context_.get(), mbedtls_entropy_func,
                                             &entropy_context, nullptr, 0);
     if (return_code != 0)
     {
@@ -64,7 +70,7 @@ namespace TeslaBLE
     }
 
     return_code = mbedtls_pk_setup(
-        &this->private_key_context_,
+        private_key_context_.get(),
         mbedtls_pk_info_from_type((mbedtls_pk_type_t)MBEDTLS_PK_ECKEY));
 
     if (return_code != 0)
@@ -74,8 +80,8 @@ namespace TeslaBLE
     }
 
     return_code = mbedtls_ecp_gen_key(
-        MBEDTLS_ECP_DP_SECP256R1, mbedtls_pk_ec(this->private_key_context_),
-        mbedtls_ctr_drbg_random, &this->drbg_context_);
+        MBEDTLS_ECP_DP_SECP256R1, mbedtls_pk_ec(*private_key_context_.get()),
+        mbedtls_ctr_drbg_random, drbg_context_.get());
 
     if (return_code != 0)
     {
@@ -86,21 +92,21 @@ namespace TeslaBLE
     return this->generatePublicKey();
   }
 
-  /*
-   * This will load an existing private key
-   * and generates the public key and key_id
-   *
-   * @return int result code 0 for successful
-   */
   int Client::loadPrivateKey(const uint8_t *private_key_buffer,
                              size_t private_key_length)
   {
     mbedtls_entropy_context entropy_context;
     mbedtls_entropy_init(&entropy_context);
-    mbedtls_pk_init(&this->private_key_context_);
-    mbedtls_ctr_drbg_init(&this->drbg_context_);
 
-    int return_code = mbedtls_ctr_drbg_seed(&drbg_context_, mbedtls_entropy_func,
+
+    // Use existing shared pointers, don't create new ones
+    mbedtls_pk_free(private_key_context_.get());
+    mbedtls_pk_init(private_key_context_.get());
+
+    mbedtls_ctr_drbg_free(drbg_context_.get());
+    mbedtls_ctr_drbg_init(drbg_context_.get());
+
+    int return_code = mbedtls_ctr_drbg_seed(drbg_context_.get(), mbedtls_entropy_func,
                                             &entropy_context, nullptr, 0);
     if (return_code != 0)
     {
@@ -110,8 +116,8 @@ namespace TeslaBLE
 
     pb_byte_t password[0];
     return_code = mbedtls_pk_parse_key(
-        &this->private_key_context_, private_key_buffer, private_key_length,
-        password, 0, mbedtls_ctr_drbg_random, &this->drbg_context_);
+        private_key_context_.get(), private_key_buffer, private_key_length,
+        password, 0, mbedtls_ctr_drbg_random, drbg_context_.get());
 
     if (return_code != 0)
     {
@@ -119,25 +125,17 @@ namespace TeslaBLE
       return 1;
     }
 
-    session_vcsec_.setPrivateKeyContext(&private_key_context_);
-    session_infotainment_.setPrivateKeyContext(&private_key_context_);
+    session_vcsec_->setPrivateKeyContext(private_key_context_);
+    session_infotainment_->setPrivateKeyContext(private_key_context_);
 
     return this->generatePublicKey();
   }
 
-  /*
-   * This will return the private key in the pem format
-   *
-   * @param output_buffer Pointer of the buffer where should be written to
-   * @param output_buffer_length Size of the output buffer
-   * @param output_length Pointer to size_t that will store the written length
-   * @return int result code 0 for successful
-   */
   int Client::getPrivateKey(pb_byte_t *output_buffer,
                             size_t output_buffer_length, size_t *output_length)
   {
     int return_code = mbedtls_pk_write_key_pem(
-        &this->private_key_context_, output_buffer, output_buffer_length);
+        private_key_context_.get(), output_buffer, output_buffer_length);
 
     if (return_code != 0)
     {
@@ -157,16 +155,11 @@ namespace TeslaBLE
     return 0;
   }
 
-  /*
-   * This generates the public key from the private key
-   *
-   * @return int result code 0 for successful
-   */
   int Client::generatePublicKey()
   {
     int return_code = mbedtls_ecp_point_write_binary(
-        &mbedtls_pk_ec(this->private_key_context_)->private_grp,
-        &mbedtls_pk_ec(this->private_key_context_)->private_Q,
+        &mbedtls_pk_ec(*private_key_context_.get())->private_grp,
+        &mbedtls_pk_ec(*private_key_context_.get())->private_Q,
         MBEDTLS_ECP_PF_UNCOMPRESSED, &this->public_key_size_, this->public_key_,
         sizeof(this->public_key_));
 
@@ -178,11 +171,6 @@ namespace TeslaBLE
     return this->GenerateKeyId();
   }
 
-  /*
-   * This generates the key id from the public key
-   *
-   * @return int result code 0 for successful
-   */
   int Client::GenerateKeyId()
   {
     pb_byte_t buffer[20];
@@ -197,17 +185,6 @@ namespace TeslaBLE
     memcpy(this->key_id_, buffer, 4);
     return 0;
   }
-
-  /*
-   * This will clean up the contexts used
-   */
-  void Client::cleanup()
-  {
-    mbedtls_pk_free(&this->private_key_context_);
-    mbedtls_ecdh_free(&this->ecdh_context_);
-    mbedtls_ctr_drbg_free(&this->drbg_context_);
-  }
-
   /*
    * This prepends the size of the message to the
    * front of the message
@@ -252,7 +229,7 @@ namespace TeslaBLE
                                     size_t *output_length)
   {
     // printf("Building whitelist message\n");
-    if (!mbedtls_pk_can_do(&this->private_key_context_, MBEDTLS_PK_ECKEY))
+    if (!mbedtls_pk_can_do(this->private_key_context_.get(), MBEDTLS_PK_ECKEY))
     {
       LOG_ERROR("[buildWhiteListMessage] Private key is not initialized");
       return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
@@ -451,11 +428,12 @@ namespace TeslaBLE
     universal_message.to_destination = to_destination;
 
     LOG_INFO("Building message for domain: %d", domain);
-    Peer &session = domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT ? this->session_infotainment_ : this->session_vcsec_;
-    LOG_INFO("Using session: %s", domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT ? "INFOTAINMENT" : "VCSEC");
-    session.logEpoch();
+    auto session = this->getPeer(domain);
 
-    session.incrementCounter();
+    LOG_INFO("Using session: %s", domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT ? "INFOTAINMENT" : "VCSEC");
+    session->logEpoch();
+    LOG_INFO("TRYING VSSEC LOG");
+    session->incrementCounter();
 
     UniversalMessage_Destination from_destination = UniversalMessage_Destination_init_default;
     from_destination.which_sub_destination = UniversalMessage_Destination_routing_address_tag;
@@ -466,7 +444,7 @@ namespace TeslaBLE
     universal_message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
     if (encryptPayload)
     {
-      if (!session.isInitialized())
+      if (!session->isInitialized())
       {
         LOG_ERROR("Session not initialized (missing epoch)");
         return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
@@ -477,31 +455,31 @@ namespace TeslaBLE
       pb_byte_t encrypted_payload[100];
       size_t encrypted_output_length = 0;
 
-      uint32_t expires_at = session.generateExpiresAt(5);
+      uint32_t expires_at = session->generateExpiresAt(5);
 
       // Next, we construct the serialized metadata string from values in the table
       // below. The metadata string is used as the associated authenticated data (AAD)
       // field of AES-GCM.
       // std::string epoch_hex;
-      const pb_byte_t *epoch = session.getEpoch();
+      const pb_byte_t *epoch = session->getEpoch();
       char epoch_hex[33];
       for (int i = 0; i < 16; i++)
       {
-          snprintf(epoch_hex + (i * 2), 3, "%02x", epoch[i]);
+        snprintf(epoch_hex + (i * 2), 3, "%02x", epoch[i]);
       }
       epoch_hex[32] = '\0';
       LOG_INFO("Epoch before ConstructADBuffer: %s", epoch_hex);
-      LOG_INFO("Counter: %" PRIu32, session.getCounter());
-      LOG_INFO("TimeZero: %" PRIu32, session.getTimeZero());
+      LOG_INFO("Counter: %" PRIu32, session->getCounter());
+      LOG_INFO("TimeZero: %" PRIu32, session->getTimeZero());
 
       pb_byte_t ad_buffer[56];
       size_t ad_buffer_length = 0;
-      session.ConstructADBuffer(
+      session->ConstructADBuffer(
           Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
           this->VIN, expires_at, ad_buffer, &ad_buffer_length);
 
       pb_byte_t nonce[12];
-      int return_code = session.Encrypt(payload, payload_length, encrypted_payload, sizeof encrypted_payload, &encrypted_output_length, signature, ad_buffer, ad_buffer_length, nonce);
+      int return_code = session->Encrypt(payload, payload_length, encrypted_payload, sizeof encrypted_payload, &encrypted_output_length, signature, ad_buffer, ad_buffer_length, nonce);
       if (return_code != 0)
       {
         LOG_ERROR("Failed to encrypt payload");
@@ -524,7 +502,7 @@ namespace TeslaBLE
 
       Signatures_AES_GCM_Personalized_Signature_Data aes_gcm_signature_data = Signatures_AES_GCM_Personalized_Signature_Data_init_default;
       signature_data.which_sig_type = Signatures_SignatureData_AES_GCM_Personalized_data_tag;
-      signature_data.sig_type.AES_GCM_Personalized_data.counter = session.getCounter();
+      signature_data.sig_type.AES_GCM_Personalized_data.counter = session->getCounter();
       signature_data.sig_type.AES_GCM_Personalized_data.expires_at = expires_at;
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.nonce, nonce, sizeof nonce);
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.epoch, epoch, 16);
@@ -532,7 +510,7 @@ namespace TeslaBLE
       char epoch_hex2[33];
       for (int i = 0; i < 16; i++)
       {
-          snprintf(epoch_hex2 + (i * 2), 3, "%02x", signature_data.sig_type.AES_GCM_Personalized_data.epoch[i]);
+        snprintf(epoch_hex2 + (i * 2), 3, "%02x", signature_data.sig_type.AES_GCM_Personalized_data.epoch[i]);
       }
       epoch_hex2[32] = '\0';
       LOG_INFO("Epoch in AES TAG: %s", epoch_hex2);

@@ -15,6 +15,8 @@ static const char *const TAG = "tesla_ble";
 
 #include <cstdio>
 #include <cstring>
+#include <iostream>
+
 #define RESET_COLOR "\x1B[0m"
 #define INFO_COLOR "\x1B[1;34m"
 #define DEBUG_COLOR "\x1B[1;30m"
@@ -29,7 +31,11 @@ template <typename... Args>
 void log(const char *type, const char *color, const char *s, Args... args)
 {
     printf("%s%s - ", color, type);
-    printf(s, args...);
+    printf("%s", s);  // Print s as a string, not as a format string
+    if constexpr (sizeof...(args) > 0) {
+        printf(": ");
+        printf(s, args...);  // Only use format specifiers for additional arguments
+    }
     printf("%s\n", RESET_COLOR);
 }
 

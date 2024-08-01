@@ -31,10 +31,11 @@ template <typename... Args>
 void log(const char *type, const char *color, const char *s, Args... args)
 {
     printf("%s%s - ", color, type);
-    printf("%s", s);  // Print s as a string, not as a format string
     if constexpr (sizeof...(args) > 0) {
-        printf(": ");
+        // printf(": ");
         printf(s, args...);  // Only use format specifiers for additional arguments
+    } else {
+        printf("%s", s);
     }
     printf("%s\n", RESET_COLOR);
 }

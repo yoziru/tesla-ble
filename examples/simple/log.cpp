@@ -133,9 +133,9 @@ static void log_destination(const char *direction,
     // dest->sub_destination.routing_address
     // print routing_address as hex
     printf("  routing_address: ");
-    for (int i = 0; i < sizeof(dest->sub_destination.routing_address); i++)
+    for (int i = 0; i < dest->sub_destination.routing_address.size; i++)
     {
-      printf("%02X", dest->sub_destination.routing_address[i]);
+      printf("%02X", dest->sub_destination.routing_address.bytes[i]);
     }
     printf("\n");
     break;
@@ -277,9 +277,9 @@ static void log_routable_message(const UniversalMessage_RoutableMessage *msg)
 
   // print uuid
   printf("  uuid: ");
-  for (int i = 0; i < sizeof(msg->uuid); i++)
+  for (int i = 0; i < msg->uuid.size; i++)
   {
-    printf("%02X", msg->uuid[i]);
+    printf("%02X", msg->uuid.bytes[i]);
   }
   printf("\n");
   printf("  flags: %" PRIu32, msg->flags);

@@ -432,7 +432,8 @@ namespace TeslaBLE
 
     UniversalMessage_Destination from_destination = UniversalMessage_Destination_init_default;
     from_destination.which_sub_destination = UniversalMessage_Destination_routing_address_tag;
-    memcpy(from_destination.sub_destination.routing_address, this->connectionID, sizeof(this->connectionID));
+    memcpy(from_destination.sub_destination.routing_address.bytes, this->connectionID, sizeof(this->connectionID));
+    from_destination.sub_destination.routing_address.size = sizeof(this->connectionID);
     universal_message.has_from_destination = true;
     universal_message.from_destination = from_destination;
 
@@ -514,7 +515,8 @@ namespace TeslaBLE
     {
       uuid[i] = rand() % 256;
     }
-    memcpy(universal_message.uuid, uuid, sizeof(uuid));
+    memcpy(universal_message.uuid.bytes, uuid, sizeof(uuid));
+    universal_message.uuid.size = sizeof(uuid);
 
     int return_code = pb_encode_fields(output_buffer, output_length, UniversalMessage_RoutableMessage_fields, &universal_message);
     if (return_code != 0)
@@ -547,7 +549,8 @@ namespace TeslaBLE
 
     UniversalMessage_Destination from_destination = UniversalMessage_Destination_init_default;
     from_destination.which_sub_destination = UniversalMessage_Destination_routing_address_tag;
-    memcpy(from_destination.sub_destination.routing_address, this->connectionID, sizeof(this->connectionID));
+    memcpy(from_destination.sub_destination.routing_address.bytes, this->connectionID, sizeof(this->connectionID));
+    from_destination.sub_destination.routing_address.size = sizeof(this->connectionID);
     universal_message.has_from_destination = true;
     universal_message.from_destination = from_destination;
 
@@ -563,7 +566,8 @@ namespace TeslaBLE
     {
       uuid[i] = rand() % 256;
     }
-    memcpy(universal_message.uuid, uuid, sizeof(uuid));
+    memcpy(universal_message.uuid.bytes, uuid, sizeof(uuid));
+    universal_message.uuid.size = sizeof(uuid);
 
     size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];

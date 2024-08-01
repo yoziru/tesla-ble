@@ -55,11 +55,12 @@ typedef enum _UniversalMessage_Flags {
 } UniversalMessage_Flags;
 
 /* Struct definitions */
+typedef PB_BYTES_ARRAY_T(16) UniversalMessage_Destination_routing_address_t;
 typedef struct _UniversalMessage_Destination {
     pb_size_t which_sub_destination;
     union {
         UniversalMessage_Domain domain;
-        pb_byte_t routing_address[16];
+        UniversalMessage_Destination_routing_address_t routing_address;
     } sub_destination;
 } UniversalMessage_Destination;
 
@@ -78,6 +79,7 @@ typedef struct _UniversalMessage_SessionInfoRequest {
 typedef PB_BYTES_ARRAY_T(100) UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t;
 typedef PB_BYTES_ARRAY_T(100) UniversalMessage_RoutableMessage_session_info_t;
 typedef PB_BYTES_ARRAY_T(16) UniversalMessage_RoutableMessage_request_uuid_t;
+typedef PB_BYTES_ARRAY_T(16) UniversalMessage_RoutableMessage_uuid_t;
 typedef struct _UniversalMessage_RoutableMessage {
     bool has_to_destination;
     UniversalMessage_Destination to_destination;
@@ -96,7 +98,7 @@ typedef struct _UniversalMessage_RoutableMessage {
         Signatures_SignatureData signature_data;
     } sub_sigData;
     UniversalMessage_RoutableMessage_request_uuid_t request_uuid;
-    pb_byte_t uuid[16];
+    UniversalMessage_RoutableMessage_uuid_t uuid;
     uint32_t flags;
 } UniversalMessage_RoutableMessage;
 
@@ -134,11 +136,11 @@ extern "C" {
 #define UniversalMessage_Destination_init_default {0, {_UniversalMessage_Domain_MIN}}
 #define UniversalMessage_MessageStatus_init_default {_UniversalMessage_OperationStatus_E_MIN, _UniversalMessage_MessageFault_E_MIN}
 #define UniversalMessage_SessionInfoRequest_init_default {{0, {0}}, {0, {0}}}
-#define UniversalMessage_RoutableMessage_init_default {false, UniversalMessage_Destination_init_default, false, UniversalMessage_Destination_init_default, 0, {{0, {0}}}, false, UniversalMessage_MessageStatus_init_default, 0, {Signatures_SignatureData_init_default}, {0, {0}}, {0}, 0}
+#define UniversalMessage_RoutableMessage_init_default {false, UniversalMessage_Destination_init_default, false, UniversalMessage_Destination_init_default, 0, {{0, {0}}}, false, UniversalMessage_MessageStatus_init_default, 0, {Signatures_SignatureData_init_default}, {0, {0}}, {0, {0}}, 0}
 #define UniversalMessage_Destination_init_zero   {0, {_UniversalMessage_Domain_MIN}}
 #define UniversalMessage_MessageStatus_init_zero {_UniversalMessage_OperationStatus_E_MIN, _UniversalMessage_MessageFault_E_MIN}
 #define UniversalMessage_SessionInfoRequest_init_zero {{0, {0}}, {0, {0}}}
-#define UniversalMessage_RoutableMessage_init_zero {false, UniversalMessage_Destination_init_zero, false, UniversalMessage_Destination_init_zero, 0, {{0, {0}}}, false, UniversalMessage_MessageStatus_init_zero, 0, {Signatures_SignatureData_init_zero}, {0, {0}}, {0}, 0}
+#define UniversalMessage_RoutableMessage_init_zero {false, UniversalMessage_Destination_init_zero, false, UniversalMessage_Destination_init_zero, 0, {{0, {0}}}, false, UniversalMessage_MessageStatus_init_zero, 0, {Signatures_SignatureData_init_zero}, {0, {0}}, {0, {0}}, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define UniversalMessage_Destination_domain_tag  1
@@ -161,7 +163,7 @@ extern "C" {
 /* Struct field encoding specification for nanopb */
 #define UniversalMessage_Destination_FIELDLIST(X, a) \
 X(a, STATIC,   ONEOF,    UENUM,    (sub_destination,domain,sub_destination.domain),   1) \
-X(a, STATIC,   ONEOF,    FIXED_LENGTH_BYTES, (sub_destination,routing_address,sub_destination.routing_address),   2)
+X(a, STATIC,   ONEOF,    BYTES,    (sub_destination,routing_address,sub_destination.routing_address),   2)
 #define UniversalMessage_Destination_CALLBACK NULL
 #define UniversalMessage_Destination_DEFAULT NULL
 
@@ -186,7 +188,7 @@ X(a, STATIC,   ONEOF,    MESSAGE,  (sub_sigData,signature_data,sub_sigData.signa
 X(a, STATIC,   ONEOF,    MESSAGE,  (payload,session_info_request,payload.session_info_request),  14) \
 X(a, STATIC,   ONEOF,    BYTES,    (payload,session_info,payload.session_info),  15) \
 X(a, STATIC,   SINGULAR, BYTES,    request_uuid,     50) \
-X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, uuid,             51) \
+X(a, STATIC,   SINGULAR, BYTES,    uuid,             51) \
 X(a, STATIC,   SINGULAR, UINT32,   flags,            52)
 #define UniversalMessage_RoutableMessage_CALLBACK NULL
 #define UniversalMessage_RoutableMessage_DEFAULT NULL

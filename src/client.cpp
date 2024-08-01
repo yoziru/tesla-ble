@@ -256,7 +256,7 @@ namespace TeslaBLE
     payload.sub_message.WhitelistOperation = whitelist;
 
     // printf("Encoding whitelist message\n");
-    pb_byte_t payload_buffer[80];
+    pb_byte_t payload_buffer[VCSEC_UnsignedMessage_size];
     size_t payload_length;
     int return_code = pb_encode_fields(payload_buffer, &payload_length, VCSEC_UnsignedMessage_fields, &payload);
     if (return_code != 0)
@@ -278,7 +278,7 @@ namespace TeslaBLE
     vcsec_message.signedMessage = signed_message;
 
     // printf("Encoding VCSEC to VCSEC message\n");
-    pb_byte_t vcsec_encode_buffer[86];
+    pb_byte_t vcsec_encode_buffer[VCSEC_ToVCSECMessage_size];
     size_t vcsec_encode_buffer_size;
     return_code = pb_encode_fields(vcsec_encode_buffer, &vcsec_encode_buffer_size, VCSEC_ToVCSECMessage_fields, &vcsec_message);
     if (return_code != 0)
@@ -569,7 +569,7 @@ namespace TeslaBLE
     memcpy(universal_message.uuid.bytes, uuid, sizeof(uuid));
     universal_message.uuid.size = sizeof(uuid);
 
-    size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
     int return_code = pb_encode_fields(universal_encode_buffer, &universal_encode_buffer_size, UniversalMessage_RoutableMessage_fields, &universal_message);
     if (return_code != 0)
@@ -596,7 +596,7 @@ namespace TeslaBLE
                                           size_t *output_length,
                                           bool encryptPayload)
   {
-    pb_byte_t payload_buffer[100];
+    pb_byte_t payload_buffer[VCSEC_UnsignedMessage_size];
     size_t payload_length;
     // printf("message: %p\n", message);
     // printf("message.which_sub_message: %d\n", message->which_sub_message);
@@ -623,7 +623,7 @@ namespace TeslaBLE
     payload.which_sub_message = VCSEC_UnsignedMessage_InformationRequest_tag;
     payload.sub_message.InformationRequest = informationRequest;
 
-    size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
     int status = this->buildUnsignedMessagePayload(&payload, universal_encode_buffer, &universal_encode_buffer_size, false);
     if (status != 0)
@@ -640,7 +640,7 @@ namespace TeslaBLE
                                           pb_byte_t *output_buffer,
                                           size_t *output_length)
   {
-    pb_byte_t payload_buffer[100];
+    pb_byte_t payload_buffer[UniversalMessage_RoutableMessage_size];
     size_t payload_length = 0;
     int return_code = pb_encode_fields(payload_buffer, &payload_length, CarServer_Action_fields, action);
     if (return_code != 0)
@@ -673,7 +673,7 @@ namespace TeslaBLE
     action.which_action_msg = CarServer_Action_vehicleAction_tag;
     action.action_msg.vehicleAction = *vehicle_action;
 
-    size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
     int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
@@ -700,7 +700,7 @@ namespace TeslaBLE
     vehicle_action.vehicle_action_msg.setChargingAmpsAction = set_charging_amps_action;
     action.action_msg.vehicleAction = vehicle_action;
 
-    size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
     int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
@@ -727,7 +727,7 @@ namespace TeslaBLE
     vehicle_action.vehicle_action_msg.chargingSetLimitAction = charging_set_limit_action;
     action.action_msg.vehicleAction = vehicle_action;
 
-    size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
     int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
@@ -762,7 +762,7 @@ namespace TeslaBLE
     vehicle_action.vehicle_action_msg.chargingStartStopAction = vehicle_action_msg;
     action.action_msg.vehicleAction = vehicle_action;
 
-    size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
     int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
@@ -789,7 +789,7 @@ namespace TeslaBLE
     vehicle_action.vehicle_action_msg.hvacAutoAction = vehicle_action_msg;
     action.action_msg.vehicleAction = vehicle_action;
 
-    size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
     int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
     if (status != 0)
@@ -809,7 +809,7 @@ namespace TeslaBLE
     unsigned_message.which_sub_message = VCSEC_UnsignedMessage_RKEAction_tag;
     unsigned_message.sub_message.RKEAction = action;
 
-    size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
     int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer, &universal_encode_buffer_size, true);
     if (status != 0)
@@ -841,7 +841,7 @@ namespace TeslaBLE
     unsigned_message.which_sub_message = VCSEC_UnsignedMessage_InformationRequest_tag;
     unsigned_message.sub_message.InformationRequest = information_request;
 
-    size_t universal_encode_buffer_size = this->MAX_BLE_MESSAGE_SIZE - 2;
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
     int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer, &universal_encode_buffer_size, false);
     if (status != 0)

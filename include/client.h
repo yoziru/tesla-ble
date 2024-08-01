@@ -51,8 +51,6 @@ namespace TeslaBLE
         mbedtls_ctr_drbg_free(drbg_context_.get());
     }
 
-    static const int MAX_BLE_MESSAGE_SIZE = 1024;
-
     int createPrivateKey();
 
     void setVIN(const char *vin);

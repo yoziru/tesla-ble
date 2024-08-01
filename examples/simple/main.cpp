@@ -56,7 +56,7 @@ int main()
   LOG_DEBUG("Private key length: %d\n", private_key_length);
   LOG_DEBUG("Private key: %s", bytes_to_hex_string(private_key_buffer, private_key_length).c_str());
 
-  unsigned char whitelist_message_buffer[client.MAX_BLE_MESSAGE_SIZE];
+  unsigned char whitelist_message_buffer[VCSEC_ToVCSECMessage_size];
   size_t whitelist_message_length;
   // support for wake command added to CHARGING_MANAGER_ROLE in 2024.20.x (not sure?)
   // https://github.com/teslamotors/vehicle-command/issues/232#issuecomment-2181503570
@@ -121,7 +121,7 @@ int main()
 
   // build wake command
   LOG_INFO("Building wake command");
-  unsigned char action_message_buffer[client.MAX_BLE_MESSAGE_SIZE];
+  unsigned char action_message_buffer[UniversalMessage_RoutableMessage_size];
   size_t action_message_buffer_length = 0;
   return_code = client.buildVCSECActionMessage(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, action_message_buffer, &action_message_buffer_length);
   if (return_code != 0)
@@ -134,7 +134,7 @@ int main()
 
   // build information request status
   LOG_INFO("Building information request status");
-  pb_byte_t info_request_status_buffer[client.MAX_BLE_MESSAGE_SIZE];
+  pb_byte_t info_request_status_buffer[UniversalMessage_RoutableMessage_size];
   size_t info_request_status_length = 0;
   return_code = client.buildVCSECInformationRequestMessage(VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS, info_request_status_buffer, &info_request_status_length);
   if (return_code != 0)
@@ -197,7 +197,7 @@ int main()
   client.setConnectionID(connection_id);
 
   LOG_INFO("Building charging amps message");
-  pb_byte_t charging_amps_message_buffer[client.MAX_BLE_MESSAGE_SIZE];
+  pb_byte_t charging_amps_message_buffer[UniversalMessage_RoutableMessage_size];
   size_t charging_amps_message_length;
   return_code = client.buildChargingAmpsMessage(12, charging_amps_message_buffer, &charging_amps_message_length);
   if (return_code != 0)
@@ -209,7 +209,7 @@ int main()
   LOG_INFO("ChargingAmpsMessage hex: %s", bytes_to_hex_string(charging_amps_message_buffer, charging_amps_message_length).c_str());
 
   LOG_INFO("Set charging limit message");
-  pb_byte_t charging_limit_message_buffer[client.MAX_BLE_MESSAGE_SIZE];
+  pb_byte_t charging_limit_message_buffer[UniversalMessage_RoutableMessage_size];
   size_t charging_limit_message_length;
   return_code = client.buildChargingSetLimitMessage(95, charging_limit_message_buffer, &charging_limit_message_length);
   if (return_code != 0)
@@ -221,7 +221,7 @@ int main()
   LOG_INFO("ChargingSetLimitMessage hex: %s", bytes_to_hex_string(charging_limit_message_buffer, charging_limit_message_length).c_str());
 
   LOG_INFO("Turn on HVAC limit message");
-  pb_byte_t hvac_on_message_buffer[client.MAX_BLE_MESSAGE_SIZE];
+  pb_byte_t hvac_on_message_buffer[UniversalMessage_RoutableMessage_size];
   size_t hvac_on_message_length;
   return_code = client.buildHVACMessage(true, hvac_on_message_buffer, &hvac_on_message_length);
   if (return_code != 0)

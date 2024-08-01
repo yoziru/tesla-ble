@@ -53,7 +53,7 @@ int main()
   {
     LOG_ERROR("Failed to get private key");
   }
-  LOG_DEBUG("Private key length: %d\n", private_key_length);
+  LOG_DEBUG("Private key length: %d", private_key_length);
   LOG_DEBUG("Private key: %s", bytes_to_hex_string(private_key_buffer, private_key_length).c_str());
 
   unsigned char whitelist_message_buffer[client.MAX_BLE_MESSAGE_SIZE];
@@ -65,11 +65,11 @@ int main()
 
   if (return_code != 0)
   {
-    LOG_ERROR("Failed to build whitelist message: %s\033[0m\n",
+    LOG_ERROR("Failed to build whitelist message: %s",
               TeslaBLE::TeslaBLE_Status_to_string(return_code));
     return -1;
   }
-  LOG_DEBUG("Whitelist message length: %d\n", whitelist_message_length);
+  LOG_DEBUG("Whitelist message length: %d", whitelist_message_length);
   LOG_DEBUG("Whitelist message hex: %s", bytes_to_hex_string(whitelist_message_buffer, whitelist_message_length).c_str());
 
   // mock received_message from VSSEC
@@ -81,7 +81,7 @@ int main()
   return_code = client.parseUniversalMessage(received_bytes_vcsec, sizeof(received_bytes_vcsec), &received_message_vcsec);
   if (return_code != 0)
   {
-    LOG_ERROR("Failed to parse received message VSSE: %s\033[0m\n",
+    LOG_ERROR("Failed to parse received message VSSE: %s",
               TeslaBLE::TeslaBLE_Status_to_string(return_code));
     return -1;
   }
@@ -106,7 +106,7 @@ int main()
     return -1;
   }
 
-  LOG_INFO("Session initialized: %s\n", session->isInitialized() ? "true" : "false");
+  LOG_INFO("Session initialized: %s", session->isInitialized() ? "true" : "false");
   if (!session->isInitialized())
   {
     LOG_ERROR("Session not initialized");
@@ -129,7 +129,7 @@ int main()
     LOG_ERROR("Failed to build action message ");
     return -1;
   }
-  LOG_DEBUG("Action message length: %d\n", action_message_buffer_length);
+  LOG_DEBUG("Action message length: %d", action_message_buffer_length);
   LOG_INFO("Action message hex: %s", bytes_to_hex_string(action_message_buffer, action_message_buffer_length).c_str());
 
   // build information request status
@@ -142,7 +142,7 @@ int main()
     LOG_ERROR("Failed to build action message ");
     return -1;
   }
-  LOG_DEBUG("VCSEC InfoRequest status length: %d\n", info_request_status_length);
+  LOG_DEBUG("VCSEC InfoRequest status length: %d", info_request_status_length);
   LOG_INFO("VCSEC InfoRequest status hex: %s", bytes_to_hex_string(info_request_status_buffer, info_request_status_length).c_str());
 
   // mock received message from INFOTAINMENT
@@ -178,7 +178,7 @@ int main()
     return -1;
   }
 
-  LOG_INFO("Session initialized: %s\n", session->isInitialized() ? "true" : "false");
+  LOG_INFO("Session initialized: %s", session->isInitialized() ? "true" : "false");
   if (!session->isInitialized())
   {
     LOG_ERROR("Session not initialized");
@@ -205,7 +205,7 @@ int main()
     LOG_ERROR("Failed to build charging amps message");
     return -1;
   }
-  LOG_DEBUG("ChargingAmpsMessage length: %d\n", charging_amps_message_length);
+  LOG_DEBUG("ChargingAmpsMessage length: %d", charging_amps_message_length);
   LOG_INFO("ChargingAmpsMessage hex: %s", bytes_to_hex_string(charging_amps_message_buffer, charging_amps_message_length).c_str());
 
   LOG_INFO("Set charging limit message");
@@ -217,7 +217,7 @@ int main()
     LOG_ERROR("Failed to build charging limit message");
     return -1;
   }
-  LOG_DEBUG("ChargingSetLimitMessage length: %d\n", charging_limit_message_length);
+  LOG_DEBUG("ChargingSetLimitMessage length: %d", charging_limit_message_length);
   LOG_INFO("ChargingSetLimitMessage hex: %s", bytes_to_hex_string(charging_limit_message_buffer, charging_limit_message_length).c_str());
 
   LOG_INFO("Turn on HVAC limit message");
@@ -229,6 +229,6 @@ int main()
     LOG_ERROR("Failed to build HVAC message");
     return -1;
   }
-  LOG_DEBUG("HVAC length: %d\n", hvac_on_message_length);
+  LOG_DEBUG("HVAC length: %d", hvac_on_message_length);
   LOG_INFO("HVAC hex: %s", bytes_to_hex_string(hvac_on_message_buffer, hvac_on_message_length).c_str());
 }

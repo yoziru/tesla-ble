@@ -813,7 +813,7 @@ namespace TeslaBLE
     vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag;
     CarServer_HvacSteeringWheelHeaterAction vehicle_action_msg = CarServer_HvacSteeringWheelHeaterAction_init_default;
     vehicle_action_msg.power_on = isOn;
-    vehicle_action.vehicle_action_msg.HvacSteeringWheelHeaterAction = vehicle_action_msg;
+    vehicle_action.vehicle_action_msg.hvacSteeringWheelHeaterAction = vehicle_action_msg;
     action.action_msg.vehicleAction = vehicle_action;
 
     size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;

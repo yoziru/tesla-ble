@@ -163,6 +163,11 @@ namespace TeslaBLE
         pb_byte_t *output_buffer,
         size_t *output_length);
 
+    int buildHVACSteeringHeaterMessage(
+        bool isOn,
+        pb_byte_t *output_buffer,
+        size_t *output_length);
+
     int buildChargingSwitchMessage(
         bool isOn,
         pb_byte_t *output_buffer,

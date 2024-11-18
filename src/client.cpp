@@ -829,7 +829,6 @@ namespace TeslaBLE
     return 0;
   }
 
-    
   int Client::buildHVACSteeringHeaterMessage(bool isOn,
                                pb_byte_t *output_buffer,
                                size_t *output_length)
@@ -856,7 +855,6 @@ namespace TeslaBLE
                         output_buffer, output_length);  
     return 0;
   }
-
 
   int Client::buildVCSECActionMessage(const VCSEC_RKEAction_E action, pb_byte_t *output_buffer,
                                       size_t *output_length)

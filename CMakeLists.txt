@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 include(FetchContent)
 project(TeslaBLE
-        VERSION 2.2.1
+        VERSION 2.3.0
         DESCRIPTION "CPP Tesla BLE Library"
         LANGUAGES CXX C
 )
@@ -16,7 +16,7 @@ set(BUILD_EXAMPLES ON)
 FetchContent_Declare(
         nanopb
         GIT_REPOSITORY https://github.com/nanopb/nanopb.git
-        GIT_TAG 0.4.8
+        GIT_TAG 0.4.9.1
         GIT_SHALLOW    TRUE
 )
 FetchContent_Declare(

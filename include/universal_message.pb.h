@@ -51,7 +51,8 @@ typedef enum _UniversalMessage_MessageFault_E {
 } UniversalMessage_MessageFault_E;
 
 typedef enum _UniversalMessage_Flags {
-    UniversalMessage_Flags_FLAG_USER_COMMAND = 0
+    UniversalMessage_Flags_FLAG_USER_COMMAND = 0,
+    UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE = 1
 } UniversalMessage_Flags;
 
 /* Struct definitions */
@@ -121,8 +122,8 @@ extern "C" {
 #define _UniversalMessage_MessageFault_E_ARRAYSIZE ((UniversalMessage_MessageFault_E)(UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_COMMAND_REQUIRES_ACCOUNT_CREDENTIALS+1))
 
 #define _UniversalMessage_Flags_MIN UniversalMessage_Flags_FLAG_USER_COMMAND
-#define _UniversalMessage_Flags_MAX UniversalMessage_Flags_FLAG_USER_COMMAND
-#define _UniversalMessage_Flags_ARRAYSIZE ((UniversalMessage_Flags)(UniversalMessage_Flags_FLAG_USER_COMMAND+1))
+#define _UniversalMessage_Flags_MAX UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE
+#define _UniversalMessage_Flags_ARRAYSIZE ((UniversalMessage_Flags)(UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE+1))
 
 #define UniversalMessage_Destination_sub_destination_domain_ENUMTYPE UniversalMessage_Domain
 
@@ -210,11 +211,15 @@ extern const pb_msgdesc_t UniversalMessage_RoutableMessage_msg;
 #define UniversalMessage_RoutableMessage_fields &UniversalMessage_RoutableMessage_msg
 
 /* Maximum encoded size of messages (where known) */
-#define UNIVERSALMESSAGE_UNIVERSAL_MESSAGE_PB_H_MAX_SIZE UniversalMessage_RoutableMessage_size
+#if defined(Signatures_SignatureData_size)
+#endif
 #define UniversalMessage_Destination_size        18
 #define UniversalMessage_MessageStatus_size      4
-#define UniversalMessage_RoutableMessage_size    329
 #define UniversalMessage_SessionInfoRequest_size 101
+#if defined(Signatures_SignatureData_size)
+#define UNIVERSALMESSAGE_UNIVERSAL_MESSAGE_PB_H_MAX_SIZE UniversalMessage_RoutableMessage_size
+#define UniversalMessage_RoutableMessage_size    (200 + Signatures_SignatureData_size)
+#endif
 
 #ifdef __cplusplus
 } /* extern "C" */

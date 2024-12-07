@@ -4,12 +4,145 @@
 #ifndef PB_CARSERVER_VEHICLE_PB_H_INCLUDED
 #define PB_CARSERVER_VEHICLE_PB_H_INCLUDED
 #include <pb.h>
+#include "vcsec.pb.h"
+#include "common.pb.h"
+#include "managed_charging.pb.h"
 
 #if PB_PROTO_HEADER_VERSION != 40
 #error Regenerate this file with the current version of nanopb generator.
 #endif
 
 /* Enum definitions */
+typedef enum _CarServer_MediaSourceType {
+    /* Standard sources */
+    CarServer_MediaSourceType_MediaSourceType_None = 0,
+    CarServer_MediaSourceType_MediaSourceType_AM = 1,
+    CarServer_MediaSourceType_MediaSourceType_FM = 2,
+    CarServer_MediaSourceType_MediaSourceType_XM = 3,
+    CarServer_MediaSourceType_MediaSourceType_Slacker = 5,
+    CarServer_MediaSourceType_MediaSourceType_LocalFiles = 6,
+    CarServer_MediaSourceType_MediaSourceType_iPod = 7,
+    CarServer_MediaSourceType_MediaSourceType_Bluetooth = 8,
+    CarServer_MediaSourceType_MediaSourceType_AuxIn = 9,
+    CarServer_MediaSourceType_MediaSourceType_DAB = 10,
+    CarServer_MediaSourceType_MediaSourceType_Rdio = 11,
+    CarServer_MediaSourceType_MediaSourceType_Spotify = 12,
+    CarServer_MediaSourceType_MediaSourceType_USRadio = 13,
+    CarServer_MediaSourceType_MediaSourceType_EURadio = 14,
+    CarServer_MediaSourceType_MediaSourceType_MediaFile = 16,
+    /* Server-side sources */
+    CarServer_MediaSourceType_MediaSourceType_TuneIn = 17,
+    CarServer_MediaSourceType_MediaSourceType_Stingray = 18,
+    CarServer_MediaSourceType_MediaSourceType_SiriusXM = 19,
+    CarServer_MediaSourceType_MediaSourceType_Tidal = 20,
+    CarServer_MediaSourceType_MediaSourceType_QQMusic = 21,
+    CarServer_MediaSourceType_MediaSourceType_QQMusic2 = 22,
+    CarServer_MediaSourceType_MediaSourceType_Ximalaya = 23,
+    CarServer_MediaSourceType_MediaSourceType_OnlineRadio = 24,
+    CarServer_MediaSourceType_MediaSourceType_OnlineRadio2 = 25,
+    CarServer_MediaSourceType_MediaSourceType_NetEaseMusic = 26,
+    /* Entertainment sources */
+    CarServer_MediaSourceType_MediaSourceType_Browser = 28,
+    CarServer_MediaSourceType_MediaSourceType_Theater = 29,
+    CarServer_MediaSourceType_MediaSourceType_Game = 30,
+    CarServer_MediaSourceType_MediaSourceType_Tutorial = 31,
+    CarServer_MediaSourceType_MediaSourceType_Toybox = 32,
+    CarServer_MediaSourceType_MediaSourceType_RecentsFavorites = 33,
+    CarServer_MediaSourceType_MediaSourceType_HomeApps = 34,
+    CarServer_MediaSourceType_MediaSourceType_Search = 35
+} CarServer_MediaSourceType;
+
+typedef enum _CarServer_ChargeState_ScheduledChargingMode {
+    CarServer_ChargeState_ScheduledChargingMode_ScheduledChargingModeOff = 0,
+    CarServer_ChargeState_ScheduledChargingMode_ScheduledChargingModeStartAt = 1,
+    CarServer_ChargeState_ScheduledChargingMode_ScheduledChargingModeDepartBy = 2
+} CarServer_ChargeState_ScheduledChargingMode;
+
+typedef enum _CarServer_ChargeState_ChargePortColor_E {
+    CarServer_ChargeState_ChargePortColor_E_ChargePortColorOff = 0,
+    CarServer_ChargeState_ChargePortColor_E_ChargePortColorRed = 1,
+    CarServer_ChargeState_ChargePortColor_E_ChargePortColorGreen = 2,
+    CarServer_ChargeState_ChargePortColor_E_ChargePortColorBlue = 3,
+    CarServer_ChargeState_ChargePortColor_E_ChargePortColorWhite = 4,
+    CarServer_ChargeState_ChargePortColor_E_ChargePortColorFlashingGreen = 5,
+    CarServer_ChargeState_ChargePortColor_E_ChargePortColorFlashingAmber = 6,
+    CarServer_ChargeState_ChargePortColor_E_ChargePortColorAmber = 7,
+    CarServer_ChargeState_ChargePortColor_E_ChargePortColorRave = 8,
+    CarServer_ChargeState_ChargePortColor_E_ChargePortColorDebug = 9,
+    CarServer_ChargeState_ChargePortColor_E_ChargePortColorFlashingBlue = 10
+} CarServer_ChargeState_ChargePortColor_E;
+
+typedef enum _CarServer_ChargeState_ChargeLimitReason {
+    CarServer_ChargeState_ChargeLimitReason_ChargeLimitReasonUnknown = 0,
+    CarServer_ChargeState_ChargeLimitReason_ChargeLimitReasonNone = 1,
+    CarServer_ChargeState_ChargeLimitReason_ChargeLimitReasonEvse = 2,
+    CarServer_ChargeState_ChargeLimitReason_ChargeLimitReasonBattTempLow = 3,
+    CarServer_ChargeState_ChargeLimitReason_ChargeLimitReasonHighSoc = 4,
+    CarServer_ChargeState_ChargeLimitReason_ChargeLimitReasonCabin = 5
+} CarServer_ChargeState_ChargeLimitReason;
+
+typedef enum _CarServer_ChargeState_OutletState {
+    CarServer_ChargeState_OutletState_OutletStateOff = 0,
+    CarServer_ChargeState_OutletState_OutletStateCabinAndBed = 1,
+    CarServer_ChargeState_OutletState_OutletStateCabin = 2
+} CarServer_ChargeState_OutletState;
+
+typedef enum _CarServer_ChargeState_PowerFeedState {
+    CarServer_ChargeState_PowerFeedState_PowerFeedStateOff = 0,
+    CarServer_ChargeState_PowerFeedState_PowerFeedStateCabinAndBed = 1,
+    CarServer_ChargeState_PowerFeedState_PowerFeedStateCabin = 2
+} CarServer_ChargeState_PowerFeedState;
+
+typedef enum _CarServer_ChargeState_PowershareStatus {
+    CarServer_ChargeState_PowershareStatus_PowershareStatusInactive = 0, /* disconnected or connected, but don't know if powershare capable */
+    CarServer_ChargeState_PowershareStatus_PowershareStatusInit = 1, /* initializing */
+    CarServer_ChargeState_PowershareStatus_PowershareStatusActive = 2, /* actively powersharing */
+    CarServer_ChargeState_PowershareStatus_PowershareStatusStopped = 3, /* powersharing has stopped - either standby or faulted or blocked; look at stopReason */
+    CarServer_ChargeState_PowershareStatus_PowershareStatusHandshaking = 4, /* powersharing is handshaking */
+    CarServer_ChargeState_PowershareStatus_PowershareStatusActiveReconnectingSoon = 5 /* powersharing is active, but reconnecting soon */
+} CarServer_ChargeState_PowershareStatus;
+
+typedef enum _CarServer_ChargeState_PowershareType {
+    CarServer_ChargeState_PowershareType_PowershareTypeNone = 0,
+    CarServer_ChargeState_PowershareType_PowershareTypeLoad = 1,
+    CarServer_ChargeState_PowershareType_PowershareTypeHome = 2
+} CarServer_ChargeState_PowershareType;
+
+typedef enum _CarServer_ChargeState_PowershareStopReason {
+    CarServer_ChargeState_PowershareStopReason_PowershareStopReasonNone = 0,
+    CarServer_ChargeState_PowershareStopReason_PowershareStopReasonSOCTooLow = 1,
+    CarServer_ChargeState_PowershareStopReason_PowershareStopReasonRetry = 2,
+    CarServer_ChargeState_PowershareStopReason_PowershareStopReasonFault = 3,
+    CarServer_ChargeState_PowershareStopReason_PowershareStopReasonUser = 4,
+    CarServer_ChargeState_PowershareStopReason_PowershareStopReasonReconnecting = 5,
+    CarServer_ChargeState_PowershareStopReason_PowershareStopReasonAuthentication = 6
+} CarServer_ChargeState_PowershareStopReason;
+
+typedef enum _CarServer_ClimateState_HvacAutoRequest {
+    CarServer_ClimateState_HvacAutoRequest_HvacAutoRequestOn = 0,
+    CarServer_ClimateState_HvacAutoRequest_HvacAutoRequestOverride = 1
+} CarServer_ClimateState_HvacAutoRequest;
+
+typedef enum _CarServer_ClimateState_CabinOverheatProtection_E {
+    CarServer_ClimateState_CabinOverheatProtection_E_CabinOverheatProtectionOff = 0,
+    CarServer_ClimateState_CabinOverheatProtection_E_CabinOverheatProtectionOn = 1,
+    CarServer_ClimateState_CabinOverheatProtection_E_CabinOverheatProtectionFanOnly = 2
+} CarServer_ClimateState_CabinOverheatProtection_E;
+
+typedef enum _CarServer_ClimateState_SeatHeaterLevel_E {
+    CarServer_ClimateState_SeatHeaterLevel_E_SeatHeaterLevelOff = 0,
+    CarServer_ClimateState_SeatHeaterLevel_E_SeatHeaterLevelLow = 1,
+    CarServer_ClimateState_SeatHeaterLevel_E_SeatHeaterLevelMed = 2,
+    CarServer_ClimateState_SeatHeaterLevel_E_SeatHeaterLevelHigh = 3
+} CarServer_ClimateState_SeatHeaterLevel_E;
+
+typedef enum _CarServer_ClimateState_SeatCoolingLevel_E {
+    CarServer_ClimateState_SeatCoolingLevel_E_SeatCoolingLevelOff = 0,
+    CarServer_ClimateState_SeatCoolingLevel_E_SeatCoolingLevelLow = 1,
+    CarServer_ClimateState_SeatCoolingLevel_E_SeatCoolingLevelMed = 2,
+    CarServer_ClimateState_SeatCoolingLevel_E_SeatCoolingLevelHigh = 3
+} CarServer_ClimateState_SeatCoolingLevel_E;
+
 typedef enum _CarServer_ClimateState_CopActivationTemp {
     CarServer_ClimateState_CopActivationTemp_CopActivationTempUnspecified = 0,
     CarServer_ClimateState_CopActivationTemp_CopActivationTempLow = 1,
@@ -17,7 +150,721 @@ typedef enum _CarServer_ClimateState_CopActivationTemp {
     CarServer_ClimateState_CopActivationTemp_CopActivationTempHigh = 3
 } CarServer_ClimateState_CopActivationTemp;
 
+typedef enum _CarServer_ClimateState_COPNotRunningReason {
+    CarServer_ClimateState_COPNotRunningReason_COPNotRunningReasonNoReason = 0,
+    CarServer_ClimateState_COPNotRunningReason_COPNotRunningReasonUserInteraction = 1,
+    CarServer_ClimateState_COPNotRunningReason_COPNotRunningReasonEnergyConsumptionReached = 2,
+    CarServer_ClimateState_COPNotRunningReason_COPNotRunningReasonTimeout = 3,
+    CarServer_ClimateState_COPNotRunningReason_COPNotRunningReasonLowSolarLoad = 4,
+    CarServer_ClimateState_COPNotRunningReason_COPNotRunningReasonFault = 5,
+    CarServer_ClimateState_COPNotRunningReason_COPNotRunningReasonCabinBelowThreshold = 6
+} CarServer_ClimateState_COPNotRunningReason;
+
 /* Struct definitions */
+typedef struct _CarServer_ClosuresState_SunRoofState {
+    pb_size_t which_type;
+    union {
+        CarServer_Void Unknown;
+        CarServer_Void Calibrating;
+        CarServer_Void Closed;
+        CarServer_Void Open;
+        CarServer_Void Moving;
+        CarServer_Void Vent;
+    } type;
+} CarServer_ClosuresState_SunRoofState;
+
+typedef struct _CarServer_ClosuresState_DisplayState {
+    pb_size_t which_type;
+    union {
+        CarServer_Void Off;
+        CarServer_Void Dim;
+        CarServer_Void Accessory;
+        CarServer_Void On;
+        CarServer_Void Driving;
+        CarServer_Void Charging;
+        CarServer_Void Lock;
+        CarServer_Void Sentry;
+        CarServer_Void Dog;
+        CarServer_Void Entertainment;
+    } type;
+} CarServer_ClosuresState_DisplayState;
+
+typedef struct _CarServer_ClosuresState_SentryModeState {
+    pb_size_t which_type;
+    union {
+        CarServer_Void Off;
+        CarServer_Void Idle;
+        CarServer_Void Armed;
+        CarServer_Void Aware;
+        CarServer_Void Panic;
+        CarServer_Void Quiet;
+    } type;
+} CarServer_ClosuresState_SentryModeState;
+
+typedef struct _CarServer_ChargeScheduleState {
+    pb_callback_t charge_schedules;
+    pb_size_t which_optional_charge_schedule_window;
+    union {
+        CarServer_ChargeSchedule charge_schedule_window;
+    } optional_charge_schedule_window;
+    pb_size_t which_optional_charge_buffer;
+    union {
+        int32_t charge_buffer;
+    } optional_charge_buffer;
+    pb_size_t which_optional_max_num_charge_schedules;
+    union {
+        uint32_t max_num_charge_schedules;
+    } optional_max_num_charge_schedules;
+    pb_size_t which_optional_next_schedule;
+    union {
+        bool next_schedule;
+    } optional_next_schedule;
+    pb_size_t which_optional_show_schedule_complete_state;
+    union {
+        bool show_schedule_complete_state;
+    } optional_show_schedule_complete_state;
+} CarServer_ChargeScheduleState;
+
+typedef struct _CarServer_PreconditioningScheduleState {
+    pb_callback_t precondition_schedules;
+    pb_size_t which_optional_preconditioning_schedule_window;
+    union {
+        CarServer_PreconditionSchedule preconditioning_schedule_window;
+    } optional_preconditioning_schedule_window;
+    pb_size_t which_optional_max_num_precondition_schedules;
+    union {
+        uint32_t max_num_precondition_schedules;
+    } optional_max_num_precondition_schedules;
+    pb_size_t which_optional_next_schedule;
+    union {
+        bool next_schedule;
+    } optional_next_schedule;
+} CarServer_PreconditioningScheduleState;
+
+typedef struct _CarServer_SpeedLimitMode {
+    pb_size_t which_optional_active;
+    union {
+        bool active;
+    } optional_active;
+    pb_size_t which_optional_pin_code_set;
+    union {
+        bool pin_code_set;
+    } optional_pin_code_set;
+    pb_size_t which_optional_max_limit_mph;
+    union {
+        float max_limit_mph;
+    } optional_max_limit_mph;
+    pb_size_t which_optional_min_limit_mph;
+    union {
+        float min_limit_mph;
+    } optional_min_limit_mph;
+    pb_size_t which_optional_current_limit_mph;
+    union {
+        float current_limit_mph;
+    } optional_current_limit_mph;
+} CarServer_SpeedLimitMode;
+
+typedef struct _CarServer_ClosuresState {
+    bool has_sun_roof_state;
+    CarServer_ClosuresState_SunRoofState sun_roof_state; /* only set when sunroof installed */
+    bool has_center_display_state;
+    CarServer_ClosuresState_DisplayState center_display_state;
+    bool has_sentry_mode_state;
+    CarServer_ClosuresState_SentryModeState sentry_mode_state; /* only set when sentry mode supported */
+    bool has_speed_limit_mode;
+    CarServer_SpeedLimitMode speed_limit_mode; /* only set when speed limit mode supported */
+    pb_size_t which_optional_tonneau_state;
+    union {
+        VCSEC_ClosureState_E tonneau_state;
+    } optional_tonneau_state;
+    pb_size_t which_optional_tonneau_percent_open;
+    union {
+        uint32_t tonneau_percent_open;
+    } optional_tonneau_percent_open;
+    pb_size_t which_optional_tonneau_in_motion;
+    union {
+        bool tonneau_in_motion;
+    } optional_tonneau_in_motion;
+    pb_size_t which_optional_door_open_driver_front;
+    union {
+        bool door_open_driver_front;
+    } optional_door_open_driver_front;
+    pb_size_t which_optional_door_open_driver_rear;
+    union {
+        bool door_open_driver_rear;
+    } optional_door_open_driver_rear;
+    pb_size_t which_optional_door_open_passenger_front;
+    union {
+        bool door_open_passenger_front;
+    } optional_door_open_passenger_front;
+    pb_size_t which_optional_door_open_passenger_rear;
+    union {
+        bool door_open_passenger_rear;
+    } optional_door_open_passenger_rear;
+    pb_size_t which_optional_door_open_trunk_front;
+    union {
+        bool door_open_trunk_front;
+    } optional_door_open_trunk_front;
+    pb_size_t which_optional_door_open_trunk_rear;
+    union {
+        bool door_open_trunk_rear;
+    } optional_door_open_trunk_rear;
+    pb_size_t which_optional_window_open_driver_front;
+    union {
+        bool window_open_driver_front;
+    } optional_window_open_driver_front;
+    pb_size_t which_optional_window_open_passenger_front;
+    union {
+        bool window_open_passenger_front;
+    } optional_window_open_passenger_front;
+    pb_size_t which_optional_window_open_driver_rear;
+    union {
+        bool window_open_driver_rear;
+    } optional_window_open_driver_rear;
+    pb_size_t which_optional_window_open_passenger_rear;
+    union {
+        bool window_open_passenger_rear;
+    } optional_window_open_passenger_rear;
+    pb_size_t which_optional_sun_roof_percent_open;
+    union {
+        int32_t sun_roof_percent_open;
+    } optional_sun_roof_percent_open;
+    pb_size_t which_optional_locked;
+    union {
+        bool locked;
+    } optional_locked;
+    pb_size_t which_optional_is_user_present;
+    union {
+        bool is_user_present;
+    } optional_is_user_present;
+    pb_size_t which_optional_remote_start;
+    union {
+        bool remote_start;
+    } optional_remote_start;
+    pb_size_t which_optional_valet_mode;
+    union {
+        bool valet_mode;
+    } optional_valet_mode;
+    pb_size_t which_optional_valet_pin_needed;
+    union {
+        bool valet_pin_needed;
+    } optional_valet_pin_needed;
+    pb_size_t which_optional_sentry_mode_available;
+    union {
+        bool sentry_mode_available;
+    } optional_sentry_mode_available;
+} CarServer_ClosuresState;
+
+typedef struct _CarServer_ParentalControlsSettings {
+    pb_size_t which_optional_speed_limit_enabled;
+    union {
+        bool speed_limit_enabled;
+    } optional_speed_limit_enabled;
+    pb_size_t which_optional_max_limit_mph;
+    union {
+        float max_limit_mph;
+    } optional_max_limit_mph;
+    pb_size_t which_optional_min_limit_mph;
+    union {
+        float min_limit_mph;
+    } optional_min_limit_mph;
+    pb_size_t which_optional_current_limit_mph;
+    union {
+        float current_limit_mph;
+    } optional_current_limit_mph;
+    pb_size_t which_optional_chill_acceleration_enabled;
+    union {
+        bool chill_acceleration_enabled;
+    } optional_chill_acceleration_enabled;
+    pb_size_t which_optional_require_safety_settings_enabled;
+    union {
+        bool require_safety_settings_enabled;
+    } optional_require_safety_settings_enabled;
+    pb_size_t which_optional_curfew_enabled;
+    union {
+        bool curfew_enabled;
+    } optional_curfew_enabled;
+    pb_size_t which_optional_curfew_start_time;
+    union {
+        int32_t curfew_start_time;
+    } optional_curfew_start_time;
+    pb_size_t which_optional_curfew_end_time;
+    union {
+        int32_t curfew_end_time;
+    } optional_curfew_end_time;
+} CarServer_ParentalControlsSettings;
+
+typedef struct _CarServer_ParentalControlsState {
+    pb_size_t which_optional_parental_controls_active;
+    union {
+        bool parental_controls_active;
+    } optional_parental_controls_active;
+    pb_size_t which_optional_parental_controls_pin_set;
+    union {
+        bool parental_controls_pin_set;
+    } optional_parental_controls_pin_set;
+    bool has_parental_controls_settings;
+    CarServer_ParentalControlsSettings parental_controls_settings;
+} CarServer_ParentalControlsState;
+
+typedef struct _CarServer_SoftwareUpdateState_SoftwareUpdateStatus {
+    pb_size_t which_type;
+    union {
+        CarServer_Void Unknown;
+        CarServer_Void Installing;
+        CarServer_Void Scheduled;
+        CarServer_Void Available;
+        CarServer_Void DownloadingWifiWait;
+        CarServer_Void Downloading;
+    } type;
+} CarServer_SoftwareUpdateState_SoftwareUpdateStatus;
+
+typedef struct _CarServer_SoftwareUpdateState {
+    bool has_status;
+    CarServer_SoftwareUpdateState_SoftwareUpdateStatus status;
+    pb_size_t which_optional_scheduled_time_ms;
+    union {
+        uint64_t scheduled_time_ms;
+    } optional_scheduled_time_ms;
+    pb_size_t which_optional_warning_time_remaining_ms;
+    union {
+        uint64_t warning_time_remaining_ms;
+    } optional_warning_time_remaining_ms;
+    pb_size_t which_optional_expected_duration_sec;
+    union {
+        uint32_t expected_duration_sec;
+    } optional_expected_duration_sec;
+    pb_size_t which_optional_download_perc;
+    union {
+        uint32_t download_perc;
+    } optional_download_perc;
+    pb_size_t which_optional_install_perc;
+    union {
+        uint32_t install_perc;
+    } optional_install_perc;
+    pb_size_t which_optional_version;
+    union {
+        pb_callback_t version;
+    } optional_version;
+} CarServer_SoftwareUpdateState;
+
+typedef struct _CarServer_ChargeState_CableType {
+    pb_size_t which_type;
+    union {
+        CarServer_Void SNA;
+        CarServer_Void IEC;
+        CarServer_Void SAE;
+        CarServer_Void GB_AC;
+        CarServer_Void GB_DC;
+    } type;
+} CarServer_ChargeState_CableType;
+
+typedef struct _CarServer_ChargeState_ChargerType {
+    pb_size_t which_type;
+    union {
+        CarServer_Void SNA;
+        CarServer_Void Supercharger;
+        CarServer_Void Chademo;
+        CarServer_Void Gb;
+        CarServer_Void ACSingleWireCAN;
+        CarServer_Void Combo;
+        CarServer_Void MCSingleWireCAN;
+        CarServer_Void Other;
+        CarServer_Void Tesla;
+    } type;
+} CarServer_ChargeState_ChargerType;
+
+typedef struct _CarServer_ChargeState_ChargingState {
+    pb_size_t which_type;
+    union {
+        CarServer_Void Unknown;
+        CarServer_Void Disconnected;
+        CarServer_Void NoPower;
+        CarServer_Void Starting;
+        CarServer_Void Charging;
+        CarServer_Void Complete;
+        CarServer_Void Stopped;
+        CarServer_Void Calibrating;
+    } type;
+} CarServer_ChargeState_ChargingState;
+
+typedef struct _CarServer_ChargeState_ChargerBrand {
+    pb_size_t which_type;
+    union {
+        CarServer_Void Tesla;
+        CarServer_Void SNA;
+    } type;
+} CarServer_ChargeState_ChargerBrand;
+
+/* Conditions do not support the Charge on Solar feature. For example, the vehicle may not be located at
+ a managed charging site. */
+typedef struct _CarServer_ChargeOnSolarStateNotAllowed {
+    char dummy_field;
+} CarServer_ChargeOnSolarStateNotAllowed;
+
+/* Charge on solar is enabled and the vehicle SOC is above the lower limit, however the
+ vehicle is not charging off solar for one or more reasons.
+ We return the highest priority reason to the mobile app. */
+typedef struct _CarServer_ChargeOnSolarStateNoChargeRecommended {
+    ManagedCharging_ChargeOnSolarNoChargeReason reason;
+} CarServer_ChargeOnSolarStateNoChargeRecommended;
+
+/* Charge on solar is enabled and the conditions allow for charging on solar.
+ The SOC may be above or below the lower left charging limit. */
+typedef struct _CarServer_ChargeOnSolarStateChargingOnExcessSolar {
+    char dummy_field;
+} CarServer_ChargeOnSolarStateChargingOnExcessSolar;
+
+/* The vehicle is charging at full power on any source. */
+typedef struct _CarServer_ChargeOnSolarStateChargingOnAnything {
+    char dummy_field;
+} CarServer_ChargeOnSolarStateChargingOnAnything;
+
+/* The user disabled the charge on solar feature. */
+typedef struct _CarServer_ChargeOnSolarStateUserDisabled {
+    char dummy_field;
+} CarServer_ChargeOnSolarStateUserDisabled;
+
+/* The vehicle just entered a valid state for Charge on Solar and is waiting for an initial
+ response from the site controller. It will wait in this state for 15min before entering
+ the ChargeOnSolarError state if it does not receive a successful response from the site controller. */
+typedef struct _CarServer_ChargeOnSolarStateWaitingForServer {
+    char dummy_field;
+} CarServer_ChargeOnSolarStateWaitingForServer;
+
+/* The managed charging service has received a sustained number of error responses and the
+ ChargingManager is no longer following the charge on solar power set points. */
+typedef struct _CarServer_ChargeOnSolarStateError {
+    char dummy_field;
+} CarServer_ChargeOnSolarStateError;
+
+/* The user pressed the Stop Charging button during a Charge on Solar session. */
+typedef struct _CarServer_ChargeOnSolarStateUserStopped {
+    char dummy_field;
+} CarServer_ChargeOnSolarStateUserStopped;
+
+typedef struct _CarServer_ChargeOnSolarState {
+    pb_size_t which_state;
+    union {
+        /* Conditions do not support the Charge on Solar feature. For example, the vehicle may not be located at
+     a managed charging site. */
+        CarServer_ChargeOnSolarStateNotAllowed not_allowed;
+        /* The vehicle is receiving no charge recommended commands from the site controller. */
+        CarServer_ChargeOnSolarStateNoChargeRecommended no_charge_recommended;
+        /* The vehicle is actively following charge on solar recommended charge power. */
+        CarServer_ChargeOnSolarStateChargingOnExcessSolar charging_on_excess_solar;
+        /* The vehicle is charging at full power on any source. */
+        CarServer_ChargeOnSolarStateChargingOnAnything charging_on_anything;
+        /* The user disabled the charge on solar feature. */
+        CarServer_ChargeOnSolarStateUserDisabled user_disabled;
+        /* The vehicle just entered a valid state for Charge on Solar and is waiting for an initial
+     response from the site controller. It will wait in this state for a configured amount of time before entering
+     the ChargeOnSolarError state if it does not receive a successful response from the site controller. */
+        CarServer_ChargeOnSolarStateWaitingForServer waiting_for_server;
+        /* The managed charging service has received a sustained number of error responses and the
+     ChargingManager is no longer following the charge on solar power set points. */
+        CarServer_ChargeOnSolarStateError error;
+        /* The user pressed the Stop Charging button during a Charge on Solar session. */
+        CarServer_ChargeOnSolarStateUserStopped user_stopped;
+    } state;
+} CarServer_ChargeOnSolarState;
+
+typedef struct _CarServer_ManagedChargingState {
+    bool has_charge_on_solar_state;
+    CarServer_ChargeOnSolarState charge_on_solar_state;
+    pb_size_t which_optional_charge_on_solar_gateway_din;
+    union {
+        pb_callback_t charge_on_solar_gateway_din;
+    } optional_charge_on_solar_gateway_din;
+    pb_size_t which_optional_tesla_electric_asset_id;
+    union {
+        pb_callback_t tesla_electric_asset_id;
+    } optional_tesla_electric_asset_id;
+    pb_size_t which_optional_minutes_to_lower_limit;
+    union {
+        int32_t minutes_to_lower_limit;
+    } optional_minutes_to_lower_limit;
+} CarServer_ManagedChargingState;
+
+typedef struct _CarServer_ChargeState {
+    bool has_charging_state;
+    CarServer_ChargeState_ChargingState charging_state;
+    bool has_fast_charger_type;
+    CarServer_ChargeState_ChargerType fast_charger_type;
+    bool has_fast_charger_brand;
+    CarServer_ChargeState_ChargerBrand fast_charger_brand;
+    bool has_conn_charge_cable;
+    CarServer_ChargeState_CableType conn_charge_cable;
+    bool has_charge_port_latch;
+    CarServer_ChargePortLatchState charge_port_latch;
+    bool has_preconditioning_times;
+    CarServer_PreconditioningTimes preconditioning_times;
+    bool has_off_peak_charging_times;
+    CarServer_OffPeakChargingTimes off_peak_charging_times;
+    pb_size_t which_optional_charge_limit_soc;
+    union {
+        int32_t charge_limit_soc;
+    } optional_charge_limit_soc;
+    pb_size_t which_optional_charge_limit_soc_std;
+    union {
+        int32_t charge_limit_soc_std;
+    } optional_charge_limit_soc_std;
+    pb_size_t which_optional_charge_limit_soc_min;
+    union {
+        int32_t charge_limit_soc_min;
+    } optional_charge_limit_soc_min;
+    pb_size_t which_optional_charge_limit_soc_max;
+    union {
+        int32_t charge_limit_soc_max;
+    } optional_charge_limit_soc_max;
+    pb_size_t which_optional_max_range_charge_counter;
+    union {
+        int32_t max_range_charge_counter;
+    } optional_max_range_charge_counter;
+    pb_size_t which_optional_fast_charger_present;
+    union {
+        bool fast_charger_present;
+    } optional_fast_charger_present;
+    pb_size_t which_optional_battery_range;
+    union {
+        float battery_range;
+    } optional_battery_range;
+    pb_size_t which_optional_est_battery_range;
+    union {
+        float est_battery_range;
+    } optional_est_battery_range;
+    pb_size_t which_optional_ideal_battery_range;
+    union {
+        float ideal_battery_range;
+    } optional_ideal_battery_range;
+    pb_size_t which_optional_battery_level;
+    union {
+        int32_t battery_level;
+    } optional_battery_level;
+    pb_size_t which_optional_usable_battery_level;
+    union {
+        int32_t usable_battery_level;
+    } optional_usable_battery_level;
+    pb_size_t which_optional_charge_energy_added;
+    union {
+        float charge_energy_added;
+    } optional_charge_energy_added;
+    pb_size_t which_optional_charge_miles_added_rated;
+    union {
+        float charge_miles_added_rated;
+    } optional_charge_miles_added_rated;
+    pb_size_t which_optional_charge_miles_added_ideal;
+    union {
+        float charge_miles_added_ideal;
+    } optional_charge_miles_added_ideal;
+    pb_size_t which_optional_charger_voltage;
+    union {
+        int32_t charger_voltage;
+    } optional_charger_voltage;
+    pb_size_t which_optional_charger_pilot_current;
+    union {
+        int32_t charger_pilot_current;
+    } optional_charger_pilot_current;
+    pb_size_t which_optional_charger_actual_current;
+    union {
+        int32_t charger_actual_current;
+    } optional_charger_actual_current;
+    pb_size_t which_optional_charger_power;
+    union {
+        int32_t charger_power;
+    } optional_charger_power;
+    pb_size_t which_optional_minutes_to_full_charge;
+    union {
+        int32_t minutes_to_full_charge;
+    } optional_minutes_to_full_charge;
+    pb_size_t which_optional_trip_charging;
+    union {
+        bool trip_charging;
+    } optional_trip_charging;
+    pb_size_t which_optional_charge_rate_mph;
+    union {
+        int32_t charge_rate_mph;
+    } optional_charge_rate_mph;
+    pb_size_t which_optional_charge_port_door_open;
+    union {
+        bool charge_port_door_open;
+    } optional_charge_port_door_open;
+    pb_size_t which_optional_scheduled_charging_start_time;
+    union {
+        uint64_t scheduled_charging_start_time;
+    } optional_scheduled_charging_start_time;
+    pb_size_t which_optional_scheduled_charging_pending;
+    union {
+        bool scheduled_charging_pending;
+    } optional_scheduled_charging_pending;
+    pb_size_t which_optional_user_charge_enable_request;
+    union {
+        bool user_charge_enable_request;
+    } optional_user_charge_enable_request;
+    pb_size_t which_optional_charge_enable_request;
+    union {
+        bool charge_enable_request;
+    } optional_charge_enable_request;
+    pb_size_t which_optional_charger_phases;
+    union {
+        int32_t charger_phases;
+    } optional_charger_phases;
+    pb_size_t which_optional_charge_port_cold_weather_mode;
+    union {
+        bool charge_port_cold_weather_mode;
+    } optional_charge_port_cold_weather_mode;
+    pb_size_t which_optional_charge_current_request;
+    union {
+        int32_t charge_current_request;
+    } optional_charge_current_request;
+    pb_size_t which_optional_charge_current_request_max;
+    union {
+        int32_t charge_current_request_max;
+    } optional_charge_current_request_max;
+    pb_size_t which_optional_managed_charging_active;
+    union {
+        bool managed_charging_active;
+    } optional_managed_charging_active;
+    pb_size_t which_optional_managed_charging_user_canceled;
+    union {
+        bool managed_charging_user_canceled;
+    } optional_managed_charging_user_canceled;
+    pb_size_t which_optional_managed_charging_start_time;
+    union {
+        uint64_t managed_charging_start_time;
+    } optional_managed_charging_start_time;
+    pb_size_t which_optional_minutes_to_charge_limit;
+    union {
+        int32_t minutes_to_charge_limit;
+    } optional_minutes_to_charge_limit;
+    pb_size_t which_optional_off_peak_hours_end_time;
+    union {
+        uint32_t off_peak_hours_end_time;
+    } optional_off_peak_hours_end_time;
+    pb_size_t which_optional_scheduled_charging_mode;
+    union {
+        CarServer_ChargeState_ScheduledChargingMode scheduled_charging_mode;
+    } optional_scheduled_charging_mode;
+    pb_size_t which_optional_charging_amps;
+    union {
+        int32_t charging_amps;
+    } optional_charging_amps;
+    pb_size_t which_optional_scheduled_charging_start_time_minutes;
+    union {
+        uint32_t scheduled_charging_start_time_minutes;
+    } optional_scheduled_charging_start_time_minutes;
+    pb_size_t which_optional_scheduled_departure_time_minutes;
+    union {
+        uint32_t scheduled_departure_time_minutes;
+    } optional_scheduled_departure_time_minutes;
+    pb_size_t which_optional_preconditioning_enabled;
+    union {
+        bool preconditioning_enabled;
+    } optional_preconditioning_enabled;
+    pb_size_t which_optional_scheduled_charging_start_time_app;
+    union {
+        int32_t scheduled_charging_start_time_app;
+    } optional_scheduled_charging_start_time_app;
+    pb_size_t which_optional_supercharger_session_trip_planner;
+    union {
+        bool supercharger_session_trip_planner;
+    } optional_supercharger_session_trip_planner;
+    pb_size_t which_optional_charge_port_color;
+    union {
+        CarServer_ChargeState_ChargePortColor_E charge_port_color;
+    } optional_charge_port_color;
+    pb_size_t which_optional_charge_rate_mph_float;
+    union {
+        float charge_rate_mph_float;
+    } optional_charge_rate_mph_float;
+    pb_size_t which_optional_charge_limit_reason;
+    union {
+        CarServer_ChargeState_ChargeLimitReason charge_limit_reason;
+    } optional_charge_limit_reason;
+    bool has_managed_charging_state;
+    CarServer_ManagedChargingState managed_charging_state;
+    pb_size_t which_optional_charge_cable_unlatched;
+    union {
+        bool charge_cable_unlatched;
+    } optional_charge_cable_unlatched;
+    pb_size_t which_optional_outlet_state;
+    union {
+        CarServer_ChargeState_OutletState outlet_state;
+    } optional_outlet_state;
+    pb_size_t which_optional_power_feed_state;
+    union {
+        CarServer_ChargeState_PowerFeedState power_feed_state;
+    } optional_power_feed_state;
+    pb_size_t which_option_outlet_soc_limit;
+    union {
+        int32_t outlet_soc_limit;
+    } option_outlet_soc_limit;
+    pb_size_t which_option_power_feed_soc_limit;
+    union {
+        int32_t power_feed_soc_limit;
+    } option_power_feed_soc_limit;
+    pb_size_t which_option_outlet_time_remaining;
+    union {
+        int64_t outlet_time_remaining;
+    } option_outlet_time_remaining;
+    pb_size_t which_option_power_feed_time_remaining;
+    union {
+        int64_t power_feed_time_remaining;
+    } option_power_feed_time_remaining;
+    pb_size_t which_optional_powershare_feature_allowed;
+    union {
+        bool powershare_feature_allowed;
+    } optional_powershare_feature_allowed;
+    pb_size_t which_optional_powershare_feature_enabled;
+    union {
+        bool powershare_feature_enabled;
+    } optional_powershare_feature_enabled;
+    pb_size_t which_optional_powershare_request;
+    union {
+        bool powershare_request;
+    } optional_powershare_request;
+    pb_size_t which_optional_powershare_type;
+    union {
+        CarServer_ChargeState_PowershareType powershare_type;
+    } optional_powershare_type;
+    pb_size_t which_optional_powershare_status;
+    union {
+        CarServer_ChargeState_PowershareStatus powershare_status;
+    } optional_powershare_status;
+    pb_size_t which_optional_powershare_stop_reason;
+    union {
+        CarServer_ChargeState_PowershareStopReason powershare_stop_reason;
+    } optional_powershare_stop_reason;
+    pb_size_t which_optional_powershare_instantaneous_load_kw;
+    union {
+        float powershare_instantaneous_load_kw;
+    } optional_powershare_instantaneous_load_kw;
+    pb_size_t which_optional_powershare_vehicle_energy_left_hr;
+    union {
+        int32_t powershare_vehicle_energy_left_hr;
+    } optional_powershare_vehicle_energy_left_hr;
+    pb_size_t which_optional_powershare_soc_limit;
+    union {
+        int32_t powershare_soc_limit;
+    } optional_powershare_soc_limit;
+    pb_size_t which_optional_one_time_soc_limit;
+    union {
+        int32_t one_time_soc_limit;
+    } optional_one_time_soc_limit;
+    pb_size_t which_optional_home_location;
+    union {
+        CarServer_LatLong home_location;
+    } optional_home_location;
+    pb_size_t which_optional_work_location;
+    union {
+        CarServer_LatLong work_location;
+    } optional_work_location;
+    pb_size_t which_optional_outlet_max_timer_minutes;
+    union {
+        int32_t outlet_max_timer_minutes;
+    } optional_outlet_max_timer_minutes;
+} CarServer_ChargeState;
+
 typedef struct _CarServer_VehicleState_GuestMode {
     bool GuestModeActive;
 } CarServer_VehicleState_GuestMode;
@@ -27,9 +874,409 @@ typedef struct _CarServer_VehicleState {
     CarServer_VehicleState_GuestMode guestMode;
 } CarServer_VehicleState;
 
+typedef struct _CarServer_ClimateState_ClimateKeeperMode {
+    pb_size_t which_type;
+    union {
+        CarServer_Void Unknown;
+        CarServer_Void Off;
+        CarServer_Void On;
+        CarServer_Void Dog;
+        CarServer_Void Party;
+    } type;
+} CarServer_ClimateState_ClimateKeeperMode;
+
+typedef struct _CarServer_ClimateState_DefrostMode {
+    pb_size_t which_type;
+    union {
+        CarServer_Void Off;
+        CarServer_Void Normal;
+        CarServer_Void Max;
+    } type;
+} CarServer_ClimateState_DefrostMode;
+
 typedef struct _CarServer_ClimateState {
-    char dummy_field;
+    bool has_climate_keeper_mode;
+    CarServer_ClimateState_ClimateKeeperMode climate_keeper_mode;
+    bool has_defrost_mode;
+    CarServer_ClimateState_DefrostMode defrost_mode;
+    pb_size_t which_optional_inside_temp_celsius;
+    union {
+        float inside_temp_celsius;
+    } optional_inside_temp_celsius;
+    pb_size_t which_optional_outside_temp_celsius;
+    union {
+        float outside_temp_celsius;
+    } optional_outside_temp_celsius;
+    pb_size_t which_optional_driver_temp_setting;
+    union {
+        float driver_temp_setting;
+    } optional_driver_temp_setting;
+    pb_size_t which_optional_passenger_temp_setting;
+    union {
+        float passenger_temp_setting;
+    } optional_passenger_temp_setting;
+    pb_size_t which_optional_left_temp_direction;
+    union {
+        int32_t left_temp_direction;
+    } optional_left_temp_direction;
+    pb_size_t which_optional_right_temp_direction;
+    union {
+        int32_t right_temp_direction;
+    } optional_right_temp_direction;
+    pb_size_t which_optional_is_front_defroster_on;
+    union {
+        bool is_front_defroster_on;
+    } optional_is_front_defroster_on;
+    pb_size_t which_optional_is_rear_defroster_on;
+    union {
+        bool is_rear_defroster_on;
+    } optional_is_rear_defroster_on;
+    pb_size_t which_optional_fan_status;
+    union {
+        int32_t fan_status;
+    } optional_fan_status;
+    pb_size_t which_optional_is_climate_on;
+    union {
+        bool is_climate_on;
+    } optional_is_climate_on;
+    pb_size_t which_optional_min_avail_temp_celsius;
+    union {
+        float min_avail_temp_celsius;
+    } optional_min_avail_temp_celsius;
+    pb_size_t which_optional_max_avail_temp_celsius;
+    union {
+        float max_avail_temp_celsius;
+    } optional_max_avail_temp_celsius;
+    pb_size_t which_optional_seat_heater_left;
+    union {
+        int32_t seat_heater_left;
+    } optional_seat_heater_left;
+    pb_size_t which_optional_seat_heater_right;
+    union {
+        int32_t seat_heater_right;
+    } optional_seat_heater_right;
+    pb_size_t which_optional_seat_heater_rear_left;
+    union {
+        int32_t seat_heater_rear_left;
+    } optional_seat_heater_rear_left;
+    pb_size_t which_optional_seat_heater_rear_right;
+    union {
+        int32_t seat_heater_rear_right;
+    } optional_seat_heater_rear_right;
+    pb_size_t which_optional_seat_heater_rear_center;
+    union {
+        int32_t seat_heater_rear_center;
+    } optional_seat_heater_rear_center;
+    pb_size_t which_optional_seat_heater_rear_right_back;
+    union {
+        int32_t seat_heater_rear_right_back;
+    } optional_seat_heater_rear_right_back;
+    pb_size_t which_optional_seat_heater_rear_left_back;
+    union {
+        int32_t seat_heater_rear_left_back;
+    } optional_seat_heater_rear_left_back;
+    pb_size_t which_optional_seat_heater_third_row_right;
+    union {
+        int32_t seat_heater_third_row_right;
+    } optional_seat_heater_third_row_right;
+    pb_size_t which_optional_seat_heater_third_row_left;
+    union {
+        int32_t seat_heater_third_row_left;
+    } optional_seat_heater_third_row_left;
+    pb_size_t which_optional_battery_heater;
+    union {
+        bool battery_heater;
+    } optional_battery_heater;
+    pb_size_t which_optional_battery_heater_no_power;
+    union {
+        bool battery_heater_no_power;
+    } optional_battery_heater_no_power;
+    pb_size_t which_optional_steering_wheel_heater;
+    union {
+        bool steering_wheel_heater;
+    } optional_steering_wheel_heater;
+    pb_size_t which_optional_wiper_blade_heater;
+    union {
+        bool wiper_blade_heater;
+    } optional_wiper_blade_heater;
+    pb_size_t which_optional_side_mirror_heaters;
+    union {
+        bool side_mirror_heaters;
+    } optional_side_mirror_heaters;
+    pb_size_t which_optional_is_preconditioning;
+    union {
+        bool is_preconditioning;
+    } optional_is_preconditioning;
+    pb_size_t which_optional_remote_heater_control_enabled;
+    union {
+        bool remote_heater_control_enabled;
+    } optional_remote_heater_control_enabled;
+    pb_size_t which_optional_bioweapon_mode_on;
+    union {
+        bool bioweapon_mode_on;
+    } optional_bioweapon_mode_on;
+    pb_size_t which_optional_is_auto_conditioning_on;
+    union {
+        bool is_auto_conditioning_on;
+    } optional_is_auto_conditioning_on;
+    pb_size_t which_optional_auto_seat_climate_left;
+    union {
+        bool auto_seat_climate_left;
+    } optional_auto_seat_climate_left;
+    pb_size_t which_optional_auto_seat_climate_right;
+    union {
+        bool auto_seat_climate_right;
+    } optional_auto_seat_climate_right;
+    pb_size_t which_optional_seat_fan_front_left;
+    union {
+        int32_t seat_fan_front_left;
+    } optional_seat_fan_front_left;
+    pb_size_t which_optional_seat_fan_front_right;
+    union {
+        int32_t seat_fan_front_right;
+    } optional_seat_fan_front_right;
+    pb_size_t which_optional_allow_cabin_overheat_protection;
+    union {
+        bool allow_cabin_overheat_protection;
+    } optional_allow_cabin_overheat_protection;
+    pb_size_t which_optional_supports_fan_only_cabin_overheat_protection;
+    union {
+        bool supports_fan_only_cabin_overheat_protection;
+    } optional_supports_fan_only_cabin_overheat_protection;
+    pb_size_t which_optional_cabin_overheat_protection;
+    union {
+        CarServer_ClimateState_CabinOverheatProtection_E cabin_overheat_protection;
+    } optional_cabin_overheat_protection;
+    pb_size_t which_optional_cabin_overheat_protection_actively_cooling;
+    union {
+        bool cabin_overheat_protection_actively_cooling;
+    } optional_cabin_overheat_protection_actively_cooling;
+    pb_size_t which_optional_cop_activation_temperature;
+    union {
+        CarServer_ClimateState_CopActivationTemp cop_activation_temperature;
+    } optional_cop_activation_temperature;
+    pb_size_t which_optional_auto_steering_wheel_heat;
+    union {
+        bool auto_steering_wheel_heat;
+    } optional_auto_steering_wheel_heat;
+    pb_size_t which_optional_steering_wheel_heat_level;
+    union {
+        CarServer_StwHeatLevel steering_wheel_heat_level;
+    } optional_steering_wheel_heat_level;
+    pb_size_t which_optional_hvac_auto_request;
+    union {
+        CarServer_ClimateState_HvacAutoRequest hvac_auto_request;
+    } optional_hvac_auto_request;
+    pb_size_t which_optional_cop_not_running_reason;
+    union {
+        CarServer_ClimateState_COPNotRunningReason cop_not_running_reason;
+    } optional_cop_not_running_reason;
 } CarServer_ClimateState;
+
+typedef struct _CarServer_TirePressureState {
+    pb_size_t which_optional_tpms_pressure_fl;
+    union {
+        float tpms_pressure_fl;
+    } optional_tpms_pressure_fl;
+    pb_size_t which_optional_tpms_pressure_fr;
+    union {
+        float tpms_pressure_fr;
+    } optional_tpms_pressure_fr;
+    pb_size_t which_optional_tpms_pressure_rl;
+    union {
+        float tpms_pressure_rl;
+    } optional_tpms_pressure_rl;
+    pb_size_t which_optional_tpms_pressure_rr;
+    union {
+        float tpms_pressure_rr;
+    } optional_tpms_pressure_rr;
+    pb_size_t which_optional_tpms_hard_warning_fl;
+    union {
+        bool tpms_hard_warning_fl;
+    } optional_tpms_hard_warning_fl;
+    pb_size_t which_optional_tpms_hard_warning_fr;
+    union {
+        bool tpms_hard_warning_fr;
+    } optional_tpms_hard_warning_fr;
+    pb_size_t which_optional_tpms_hard_warning_rl;
+    union {
+        bool tpms_hard_warning_rl;
+    } optional_tpms_hard_warning_rl;
+    pb_size_t which_optional_tpms_hard_warning_rr;
+    union {
+        bool tpms_hard_warning_rr;
+    } optional_tpms_hard_warning_rr;
+    pb_size_t which_optional_tpms_soft_warning_fl;
+    union {
+        bool tpms_soft_warning_fl;
+    } optional_tpms_soft_warning_fl;
+    pb_size_t which_optional_tpms_soft_warning_fr;
+    union {
+        bool tpms_soft_warning_fr;
+    } optional_tpms_soft_warning_fr;
+    pb_size_t which_optional_tpms_soft_warning_rl;
+    union {
+        bool tpms_soft_warning_rl;
+    } optional_tpms_soft_warning_rl;
+    pb_size_t which_optional_tpms_soft_warning_rr;
+    union {
+        bool tpms_soft_warning_rr;
+    } optional_tpms_soft_warning_rr;
+    pb_size_t which_optional_tpms_rcp_front_value;
+    union {
+        float tpms_rcp_front_value;
+    } optional_tpms_rcp_front_value;
+    pb_size_t which_optional_tpms_rcp_rear_value;
+    union {
+        float tpms_rcp_rear_value;
+    } optional_tpms_rcp_rear_value;
+} CarServer_TirePressureState;
+
+typedef struct _CarServer_MediaState {
+    pb_size_t which_optional_remote_control_enabled;
+    union {
+        bool remote_control_enabled;
+    } optional_remote_control_enabled;
+    pb_size_t which_optional_now_playing_artist;
+    union {
+        pb_callback_t now_playing_artist;
+    } optional_now_playing_artist;
+    pb_size_t which_optional_now_playing_title;
+    union {
+        pb_callback_t now_playing_title;
+    } optional_now_playing_title;
+    pb_size_t which_optional_audio_volume;
+    union {
+        float audio_volume;
+    } optional_audio_volume;
+    pb_size_t which_optional_audio_volume_increment;
+    union {
+        float audio_volume_increment;
+    } optional_audio_volume_increment;
+    pb_size_t which_optional_audio_volume_max;
+    union {
+        float audio_volume_max;
+    } optional_audio_volume_max;
+    pb_size_t which_optional_now_playing_source;
+    union {
+        CarServer_MediaSourceType now_playing_source;
+    } optional_now_playing_source;
+    pb_size_t which_optional_media_playback_status;
+    union {
+        CarServer_MediaPlaybackStatus media_playback_status;
+    } optional_media_playback_status;
+} CarServer_MediaState;
+
+typedef struct _CarServer_MediaDetailState {
+    pb_size_t which_optional_now_playing_duration;
+    union {
+        int32_t now_playing_duration;
+    } optional_now_playing_duration;
+    pb_size_t which_optional_now_playing_elapsed;
+    union {
+        int32_t now_playing_elapsed;
+    } optional_now_playing_elapsed;
+    pb_size_t which_optional_now_playing_source_string;
+    union {
+        pb_callback_t now_playing_source_string;
+    } optional_now_playing_source_string;
+    pb_size_t which_optional_now_playing_album;
+    union {
+        pb_callback_t now_playing_album;
+    } optional_now_playing_album;
+    pb_size_t which_optional_now_playing_station;
+    union {
+        pb_callback_t now_playing_station;
+    } optional_now_playing_station;
+    pb_size_t which_optional_a2dp_source_name;
+    union {
+        pb_callback_t a2dp_source_name;
+    } optional_a2dp_source_name;
+} CarServer_MediaDetailState;
+
+typedef struct _CarServer_ShiftState {
+    pb_size_t which_type;
+    union {
+        CarServer_Void Invalid;
+        CarServer_Void P;
+        CarServer_Void R;
+        CarServer_Void N;
+        CarServer_Void D;
+        CarServer_Void SNA;
+    } type;
+} CarServer_ShiftState;
+
+typedef struct _CarServer_DriveState {
+    bool has_shift_state;
+    CarServer_ShiftState shift_state;
+    pb_size_t which_optional_active_route_destination;
+    union {
+        pb_callback_t active_route_destination;
+    } optional_active_route_destination;
+    pb_size_t which_optional_active_route_minutes_to_arrival;
+    union {
+        float active_route_minutes_to_arrival;
+    } optional_active_route_minutes_to_arrival;
+    pb_size_t which_optional_active_route_miles_to_arrival;
+    union {
+        float active_route_miles_to_arrival;
+    } optional_active_route_miles_to_arrival;
+    pb_size_t which_optional_active_route_traffic_minutes_delay;
+    union {
+        float active_route_traffic_minutes_delay;
+    } optional_active_route_traffic_minutes_delay;
+    pb_size_t which_optional_active_route_energy_at_arrival;
+    union {
+        float active_route_energy_at_arrival;
+    } optional_active_route_energy_at_arrival;
+    bool has_active_route_coordinates;
+    CarServer_LatLong active_route_coordinates;
+    pb_size_t which_optional_last_route_update;
+    union {
+        uint32_t last_route_update;
+    } optional_last_route_update;
+    pb_size_t which_optional_speed;
+    union {
+        uint32_t speed;
+    } optional_speed;
+    pb_size_t which_optional_power;
+    union {
+        int32_t power;
+    } optional_power;
+    pb_size_t which_optional_odometer_in_hundredths_of_a_mile;
+    union {
+        int32_t odometer_in_hundredths_of_a_mile;
+    } optional_odometer_in_hundredths_of_a_mile;
+    pb_size_t which_optional_speed_float;
+    union {
+        float speed_float;
+    } optional_speed_float;
+} CarServer_DriveState;
+
+typedef struct _CarServer_VehicleData {
+    bool has_charge_state;
+    CarServer_ChargeState charge_state;
+    bool has_climate_state;
+    CarServer_ClimateState climate_state;
+    bool has_drive_state;
+    CarServer_DriveState drive_state;
+    bool has_closures_state;
+    CarServer_ClosuresState closures_state;
+    bool has_charge_schedule_state;
+    CarServer_ChargeScheduleState charge_schedule_state;
+    bool has_preconditioning_schedule_state;
+    CarServer_PreconditioningScheduleState preconditioning_schedule_state;
+    bool has_tire_pressure_state;
+    CarServer_TirePressureState tire_pressure_state;
+    bool has_media_state;
+    CarServer_MediaState media_state;
+    bool has_media_detail_state;
+    CarServer_MediaDetailState media_detail_state;
+    bool has_software_update_state;
+    CarServer_SoftwareUpdateState software_update_state;
+    bool has_parental_controls_state;
+    CarServer_ParentalControlsState parental_controls_state;
+} CarServer_VehicleData;
 
 
 #ifdef __cplusplus
@@ -37,27 +1284,940 @@ extern "C" {
 #endif
 
 /* Helper constants for enums */
+#define _CarServer_MediaSourceType_MIN CarServer_MediaSourceType_MediaSourceType_None
+#define _CarServer_MediaSourceType_MAX CarServer_MediaSourceType_MediaSourceType_Search
+#define _CarServer_MediaSourceType_ARRAYSIZE ((CarServer_MediaSourceType)(CarServer_MediaSourceType_MediaSourceType_Search+1))
+
+#define _CarServer_ChargeState_ScheduledChargingMode_MIN CarServer_ChargeState_ScheduledChargingMode_ScheduledChargingModeOff
+#define _CarServer_ChargeState_ScheduledChargingMode_MAX CarServer_ChargeState_ScheduledChargingMode_ScheduledChargingModeDepartBy
+#define _CarServer_ChargeState_ScheduledChargingMode_ARRAYSIZE ((CarServer_ChargeState_ScheduledChargingMode)(CarServer_ChargeState_ScheduledChargingMode_ScheduledChargingModeDepartBy+1))
+
+#define _CarServer_ChargeState_ChargePortColor_E_MIN CarServer_ChargeState_ChargePortColor_E_ChargePortColorOff
+#define _CarServer_ChargeState_ChargePortColor_E_MAX CarServer_ChargeState_ChargePortColor_E_ChargePortColorFlashingBlue
+#define _CarServer_ChargeState_ChargePortColor_E_ARRAYSIZE ((CarServer_ChargeState_ChargePortColor_E)(CarServer_ChargeState_ChargePortColor_E_ChargePortColorFlashingBlue+1))
+
+#define _CarServer_ChargeState_ChargeLimitReason_MIN CarServer_ChargeState_ChargeLimitReason_ChargeLimitReasonUnknown
+#define _CarServer_ChargeState_ChargeLimitReason_MAX CarServer_ChargeState_ChargeLimitReason_ChargeLimitReasonCabin
+#define _CarServer_ChargeState_ChargeLimitReason_ARRAYSIZE ((CarServer_ChargeState_ChargeLimitReason)(CarServer_ChargeState_ChargeLimitReason_ChargeLimitReasonCabin+1))
+
+#define _CarServer_ChargeState_OutletState_MIN CarServer_ChargeState_OutletState_OutletStateOff
+#define _CarServer_ChargeState_OutletState_MAX CarServer_ChargeState_OutletState_OutletStateCabin
+#define _CarServer_ChargeState_OutletState_ARRAYSIZE ((CarServer_ChargeState_OutletState)(CarServer_ChargeState_OutletState_OutletStateCabin+1))
+
+#define _CarServer_ChargeState_PowerFeedState_MIN CarServer_ChargeState_PowerFeedState_PowerFeedStateOff
+#define _CarServer_ChargeState_PowerFeedState_MAX CarServer_ChargeState_PowerFeedState_PowerFeedStateCabin
+#define _CarServer_ChargeState_PowerFeedState_ARRAYSIZE ((CarServer_ChargeState_PowerFeedState)(CarServer_ChargeState_PowerFeedState_PowerFeedStateCabin+1))
+
+#define _CarServer_ChargeState_PowershareStatus_MIN CarServer_ChargeState_PowershareStatus_PowershareStatusInactive
+#define _CarServer_ChargeState_PowershareStatus_MAX CarServer_ChargeState_PowershareStatus_PowershareStatusActiveReconnectingSoon
+#define _CarServer_ChargeState_PowershareStatus_ARRAYSIZE ((CarServer_ChargeState_PowershareStatus)(CarServer_ChargeState_PowershareStatus_PowershareStatusActiveReconnectingSoon+1))
+
+#define _CarServer_ChargeState_PowershareType_MIN CarServer_ChargeState_PowershareType_PowershareTypeNone
+#define _CarServer_ChargeState_PowershareType_MAX CarServer_ChargeState_PowershareType_PowershareTypeHome
+#define _CarServer_ChargeState_PowershareType_ARRAYSIZE ((CarServer_ChargeState_PowershareType)(CarServer_ChargeState_PowershareType_PowershareTypeHome+1))
+
+#define _CarServer_ChargeState_PowershareStopReason_MIN CarServer_ChargeState_PowershareStopReason_PowershareStopReasonNone
+#define _CarServer_ChargeState_PowershareStopReason_MAX CarServer_ChargeState_PowershareStopReason_PowershareStopReasonAuthentication
+#define _CarServer_ChargeState_PowershareStopReason_ARRAYSIZE ((CarServer_ChargeState_PowershareStopReason)(CarServer_ChargeState_PowershareStopReason_PowershareStopReasonAuthentication+1))
+
+#define _CarServer_ClimateState_HvacAutoRequest_MIN CarServer_ClimateState_HvacAutoRequest_HvacAutoRequestOn
+#define _CarServer_ClimateState_HvacAutoRequest_MAX CarServer_ClimateState_HvacAutoRequest_HvacAutoRequestOverride
+#define _CarServer_ClimateState_HvacAutoRequest_ARRAYSIZE ((CarServer_ClimateState_HvacAutoRequest)(CarServer_ClimateState_HvacAutoRequest_HvacAutoRequestOverride+1))
+
+#define _CarServer_ClimateState_CabinOverheatProtection_E_MIN CarServer_ClimateState_CabinOverheatProtection_E_CabinOverheatProtectionOff
+#define _CarServer_ClimateState_CabinOverheatProtection_E_MAX CarServer_ClimateState_CabinOverheatProtection_E_CabinOverheatProtectionFanOnly
+#define _CarServer_ClimateState_CabinOverheatProtection_E_ARRAYSIZE ((CarServer_ClimateState_CabinOverheatProtection_E)(CarServer_ClimateState_CabinOverheatProtection_E_CabinOverheatProtectionFanOnly+1))
+
+#define _CarServer_ClimateState_SeatHeaterLevel_E_MIN CarServer_ClimateState_SeatHeaterLevel_E_SeatHeaterLevelOff
+#define _CarServer_ClimateState_SeatHeaterLevel_E_MAX CarServer_ClimateState_SeatHeaterLevel_E_SeatHeaterLevelHigh
+#define _CarServer_ClimateState_SeatHeaterLevel_E_ARRAYSIZE ((CarServer_ClimateState_SeatHeaterLevel_E)(CarServer_ClimateState_SeatHeaterLevel_E_SeatHeaterLevelHigh+1))
+
+#define _CarServer_ClimateState_SeatCoolingLevel_E_MIN CarServer_ClimateState_SeatCoolingLevel_E_SeatCoolingLevelOff
+#define _CarServer_ClimateState_SeatCoolingLevel_E_MAX CarServer_ClimateState_SeatCoolingLevel_E_SeatCoolingLevelHigh
+#define _CarServer_ClimateState_SeatCoolingLevel_E_ARRAYSIZE ((CarServer_ClimateState_SeatCoolingLevel_E)(CarServer_ClimateState_SeatCoolingLevel_E_SeatCoolingLevelHigh+1))
+
 #define _CarServer_ClimateState_CopActivationTemp_MIN CarServer_ClimateState_CopActivationTemp_CopActivationTempUnspecified
 #define _CarServer_ClimateState_CopActivationTemp_MAX CarServer_ClimateState_CopActivationTemp_CopActivationTempHigh
 #define _CarServer_ClimateState_CopActivationTemp_ARRAYSIZE ((CarServer_ClimateState_CopActivationTemp)(CarServer_ClimateState_CopActivationTemp_CopActivationTempHigh+1))
 
+#define _CarServer_ClimateState_COPNotRunningReason_MIN CarServer_ClimateState_COPNotRunningReason_COPNotRunningReasonNoReason
+#define _CarServer_ClimateState_COPNotRunningReason_MAX CarServer_ClimateState_COPNotRunningReason_COPNotRunningReasonCabinBelowThreshold
+#define _CarServer_ClimateState_COPNotRunningReason_ARRAYSIZE ((CarServer_ClimateState_COPNotRunningReason)(CarServer_ClimateState_COPNotRunningReason_COPNotRunningReasonCabinBelowThreshold+1))
+
+
+#define CarServer_ClosuresState_optional_tonneau_state_tonneau_state_ENUMTYPE VCSEC_ClosureState_E
+
+
+
+
+
+
+
+
+
+
+
+
+#define CarServer_ChargeState_optional_scheduled_charging_mode_scheduled_charging_mode_ENUMTYPE CarServer_ChargeState_ScheduledChargingMode
+#define CarServer_ChargeState_optional_charge_port_color_charge_port_color_ENUMTYPE CarServer_ChargeState_ChargePortColor_E
+#define CarServer_ChargeState_optional_charge_limit_reason_charge_limit_reason_ENUMTYPE CarServer_ChargeState_ChargeLimitReason
+#define CarServer_ChargeState_optional_outlet_state_outlet_state_ENUMTYPE CarServer_ChargeState_OutletState
+#define CarServer_ChargeState_optional_power_feed_state_power_feed_state_ENUMTYPE CarServer_ChargeState_PowerFeedState
+#define CarServer_ChargeState_optional_powershare_type_powershare_type_ENUMTYPE CarServer_ChargeState_PowershareType
+#define CarServer_ChargeState_optional_powershare_status_powershare_status_ENUMTYPE CarServer_ChargeState_PowershareStatus
+#define CarServer_ChargeState_optional_powershare_stop_reason_powershare_stop_reason_ENUMTYPE CarServer_ChargeState_PowershareStopReason
+
+
+
+
+
+
+
+
+#define CarServer_ChargeOnSolarStateNoChargeRecommended_reason_ENUMTYPE ManagedCharging_ChargeOnSolarNoChargeReason
+
+
+
+
+
+
+
+
+
+#define CarServer_ClimateState_optional_cabin_overheat_protection_cabin_overheat_protection_ENUMTYPE CarServer_ClimateState_CabinOverheatProtection_E
+#define CarServer_ClimateState_optional_cop_activation_temperature_cop_activation_temperature_ENUMTYPE CarServer_ClimateState_CopActivationTemp
+#define CarServer_ClimateState_optional_steering_wheel_heat_level_steering_wheel_heat_level_ENUMTYPE CarServer_StwHeatLevel
+#define CarServer_ClimateState_optional_hvac_auto_request_hvac_auto_request_ENUMTYPE CarServer_ClimateState_HvacAutoRequest
+#define CarServer_ClimateState_optional_cop_not_running_reason_cop_not_running_reason_ENUMTYPE CarServer_ClimateState_COPNotRunningReason
+
+
+
+
+#define CarServer_MediaState_optional_now_playing_source_now_playing_source_ENUMTYPE CarServer_MediaSourceType
+#define CarServer_MediaState_optional_media_playback_status_media_playback_status_ENUMTYPE CarServer_MediaPlaybackStatus
 
 
 
 
 /* Initializer values for message structs */
+#define CarServer_VehicleData_init_default       {false, CarServer_ChargeState_init_default, false, CarServer_ClimateState_init_default, false, CarServer_DriveState_init_default, false, CarServer_ClosuresState_init_default, false, CarServer_ChargeScheduleState_init_default, false, CarServer_PreconditioningScheduleState_init_default, false, CarServer_TirePressureState_init_default, false, CarServer_MediaState_init_default, false, CarServer_MediaDetailState_init_default, false, CarServer_SoftwareUpdateState_init_default, false, CarServer_ParentalControlsState_init_default}
+#define CarServer_ClosuresState_init_default     {false, CarServer_ClosuresState_SunRoofState_init_default, false, CarServer_ClosuresState_DisplayState_init_default, false, CarServer_ClosuresState_SentryModeState_init_default, false, CarServer_SpeedLimitMode_init_default, 0, {_VCSEC_ClosureState_E_MIN}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_ClosuresState_SunRoofState_init_default {0, {CarServer_Void_init_default}}
+#define CarServer_ClosuresState_DisplayState_init_default {0, {CarServer_Void_init_default}}
+#define CarServer_ClosuresState_SentryModeState_init_default {0, {CarServer_Void_init_default}}
+#define CarServer_ChargeScheduleState_init_default {{{NULL}, NULL}, 0, {CarServer_ChargeSchedule_init_default}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_PreconditioningScheduleState_init_default {{{NULL}, NULL}, 0, {CarServer_PreconditionSchedule_init_default}, 0, {0}, 0, {0}}
+#define CarServer_SpeedLimitMode_init_default    {0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_ParentalControlsSettings_init_default {0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_ParentalControlsState_init_default {0, {0}, 0, {0}, false, CarServer_ParentalControlsSettings_init_default}
+#define CarServer_SoftwareUpdateState_init_default {false, CarServer_SoftwareUpdateState_SoftwareUpdateStatus_init_default, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {{{NULL}, NULL}}}
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_init_default {0, {CarServer_Void_init_default}}
+#define CarServer_DriveState_init_default        {false, CarServer_ShiftState_init_default, 0, {{{NULL}, NULL}}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, false, CarServer_LatLong_init_default, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_ChargeState_init_default       {false, CarServer_ChargeState_ChargingState_init_default, false, CarServer_ChargeState_ChargerType_init_default, false, CarServer_ChargeState_ChargerBrand_init_default, false, CarServer_ChargeState_CableType_init_default, false, CarServer_ChargePortLatchState_init_default, false, CarServer_PreconditioningTimes_init_default, false, CarServer_OffPeakChargingTimes_init_default, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {_CarServer_ChargeState_ScheduledChargingMode_MIN}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {_CarServer_ChargeState_ChargePortColor_E_MIN}, 0, {0}, 0, {_CarServer_ChargeState_ChargeLimitReason_MIN}, false, CarServer_ManagedChargingState_init_default, 0, {0}, 0, {_CarServer_ChargeState_OutletState_MIN}, 0, {_CarServer_ChargeState_PowerFeedState_MIN}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {_CarServer_ChargeState_PowershareType_MIN}, 0, {_CarServer_ChargeState_PowershareStatus_MIN}, 0, {_CarServer_ChargeState_PowershareStopReason_MIN}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {CarServer_LatLong_init_default}, 0, {CarServer_LatLong_init_default}, 0, {0}}
+#define CarServer_ChargeState_CableType_init_default {0, {CarServer_Void_init_default}}
+#define CarServer_ChargeState_ChargerType_init_default {0, {CarServer_Void_init_default}}
+#define CarServer_ChargeState_ChargingState_init_default {0, {CarServer_Void_init_default}}
+#define CarServer_ChargeState_ChargerBrand_init_default {0, {CarServer_Void_init_default}}
+#define CarServer_ManagedChargingState_init_default {false, CarServer_ChargeOnSolarState_init_default, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}, 0, {0}}
+#define CarServer_ChargeOnSolarState_init_default {0, {CarServer_ChargeOnSolarStateNotAllowed_init_default}}
+#define CarServer_ChargeOnSolarStateNotAllowed_init_default {0}
+#define CarServer_ChargeOnSolarStateNoChargeRecommended_init_default {_ManagedCharging_ChargeOnSolarNoChargeReason_MIN}
+#define CarServer_ChargeOnSolarStateChargingOnExcessSolar_init_default {0}
+#define CarServer_ChargeOnSolarStateChargingOnAnything_init_default {0}
+#define CarServer_ChargeOnSolarStateUserDisabled_init_default {0}
+#define CarServer_ChargeOnSolarStateWaitingForServer_init_default {0}
+#define CarServer_ChargeOnSolarStateError_init_default {0}
+#define CarServer_ChargeOnSolarStateUserStopped_init_default {0}
 #define CarServer_VehicleState_init_default      {false, CarServer_VehicleState_GuestMode_init_default}
 #define CarServer_VehicleState_GuestMode_init_default {0}
-#define CarServer_ClimateState_init_default      {0}
+#define CarServer_ClimateState_init_default      {false, CarServer_ClimateState_ClimateKeeperMode_init_default, false, CarServer_ClimateState_DefrostMode_init_default, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {_CarServer_ClimateState_CabinOverheatProtection_E_MIN}, 0, {0}, 0, {_CarServer_ClimateState_CopActivationTemp_MIN}, 0, {0}, 0, {_CarServer_StwHeatLevel_MIN}, 0, {_CarServer_ClimateState_HvacAutoRequest_MIN}, 0, {_CarServer_ClimateState_COPNotRunningReason_MIN}}
+#define CarServer_ClimateState_ClimateKeeperMode_init_default {0, {CarServer_Void_init_default}}
+#define CarServer_ClimateState_DefrostMode_init_default {0, {CarServer_Void_init_default}}
+#define CarServer_TirePressureState_init_default {0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_MediaState_init_default        {0, {0}, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}, 0, {0}, 0, {0}, 0, {0}, 0, {_CarServer_MediaSourceType_MIN}, 0, {_CarServer_MediaPlaybackStatus_MIN}}
+#define CarServer_MediaDetailState_init_default  {0, {0}, 0, {0}, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}}
+#define CarServer_ShiftState_init_default        {0, {CarServer_Void_init_default}}
+#define CarServer_VehicleData_init_zero          {false, CarServer_ChargeState_init_zero, false, CarServer_ClimateState_init_zero, false, CarServer_DriveState_init_zero, false, CarServer_ClosuresState_init_zero, false, CarServer_ChargeScheduleState_init_zero, false, CarServer_PreconditioningScheduleState_init_zero, false, CarServer_TirePressureState_init_zero, false, CarServer_MediaState_init_zero, false, CarServer_MediaDetailState_init_zero, false, CarServer_SoftwareUpdateState_init_zero, false, CarServer_ParentalControlsState_init_zero}
+#define CarServer_ClosuresState_init_zero        {false, CarServer_ClosuresState_SunRoofState_init_zero, false, CarServer_ClosuresState_DisplayState_init_zero, false, CarServer_ClosuresState_SentryModeState_init_zero, false, CarServer_SpeedLimitMode_init_zero, 0, {_VCSEC_ClosureState_E_MIN}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_ClosuresState_SunRoofState_init_zero {0, {CarServer_Void_init_zero}}
+#define CarServer_ClosuresState_DisplayState_init_zero {0, {CarServer_Void_init_zero}}
+#define CarServer_ClosuresState_SentryModeState_init_zero {0, {CarServer_Void_init_zero}}
+#define CarServer_ChargeScheduleState_init_zero  {{{NULL}, NULL}, 0, {CarServer_ChargeSchedule_init_zero}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_PreconditioningScheduleState_init_zero {{{NULL}, NULL}, 0, {CarServer_PreconditionSchedule_init_zero}, 0, {0}, 0, {0}}
+#define CarServer_SpeedLimitMode_init_zero       {0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_ParentalControlsSettings_init_zero {0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_ParentalControlsState_init_zero {0, {0}, 0, {0}, false, CarServer_ParentalControlsSettings_init_zero}
+#define CarServer_SoftwareUpdateState_init_zero  {false, CarServer_SoftwareUpdateState_SoftwareUpdateStatus_init_zero, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {{{NULL}, NULL}}}
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_init_zero {0, {CarServer_Void_init_zero}}
+#define CarServer_DriveState_init_zero           {false, CarServer_ShiftState_init_zero, 0, {{{NULL}, NULL}}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, false, CarServer_LatLong_init_zero, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_ChargeState_init_zero          {false, CarServer_ChargeState_ChargingState_init_zero, false, CarServer_ChargeState_ChargerType_init_zero, false, CarServer_ChargeState_ChargerBrand_init_zero, false, CarServer_ChargeState_CableType_init_zero, false, CarServer_ChargePortLatchState_init_zero, false, CarServer_PreconditioningTimes_init_zero, false, CarServer_OffPeakChargingTimes_init_zero, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {_CarServer_ChargeState_ScheduledChargingMode_MIN}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {_CarServer_ChargeState_ChargePortColor_E_MIN}, 0, {0}, 0, {_CarServer_ChargeState_ChargeLimitReason_MIN}, false, CarServer_ManagedChargingState_init_zero, 0, {0}, 0, {_CarServer_ChargeState_OutletState_MIN}, 0, {_CarServer_ChargeState_PowerFeedState_MIN}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {_CarServer_ChargeState_PowershareType_MIN}, 0, {_CarServer_ChargeState_PowershareStatus_MIN}, 0, {_CarServer_ChargeState_PowershareStopReason_MIN}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {CarServer_LatLong_init_zero}, 0, {CarServer_LatLong_init_zero}, 0, {0}}
+#define CarServer_ChargeState_CableType_init_zero {0, {CarServer_Void_init_zero}}
+#define CarServer_ChargeState_ChargerType_init_zero {0, {CarServer_Void_init_zero}}
+#define CarServer_ChargeState_ChargingState_init_zero {0, {CarServer_Void_init_zero}}
+#define CarServer_ChargeState_ChargerBrand_init_zero {0, {CarServer_Void_init_zero}}
+#define CarServer_ManagedChargingState_init_zero {false, CarServer_ChargeOnSolarState_init_zero, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}, 0, {0}}
+#define CarServer_ChargeOnSolarState_init_zero   {0, {CarServer_ChargeOnSolarStateNotAllowed_init_zero}}
+#define CarServer_ChargeOnSolarStateNotAllowed_init_zero {0}
+#define CarServer_ChargeOnSolarStateNoChargeRecommended_init_zero {_ManagedCharging_ChargeOnSolarNoChargeReason_MIN}
+#define CarServer_ChargeOnSolarStateChargingOnExcessSolar_init_zero {0}
+#define CarServer_ChargeOnSolarStateChargingOnAnything_init_zero {0}
+#define CarServer_ChargeOnSolarStateUserDisabled_init_zero {0}
+#define CarServer_ChargeOnSolarStateWaitingForServer_init_zero {0}
+#define CarServer_ChargeOnSolarStateError_init_zero {0}
+#define CarServer_ChargeOnSolarStateUserStopped_init_zero {0}
 #define CarServer_VehicleState_init_zero         {false, CarServer_VehicleState_GuestMode_init_zero}
 #define CarServer_VehicleState_GuestMode_init_zero {0}
-#define CarServer_ClimateState_init_zero         {0}
+#define CarServer_ClimateState_init_zero         {false, CarServer_ClimateState_ClimateKeeperMode_init_zero, false, CarServer_ClimateState_DefrostMode_init_zero, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {_CarServer_ClimateState_CabinOverheatProtection_E_MIN}, 0, {0}, 0, {_CarServer_ClimateState_CopActivationTemp_MIN}, 0, {0}, 0, {_CarServer_StwHeatLevel_MIN}, 0, {_CarServer_ClimateState_HvacAutoRequest_MIN}, 0, {_CarServer_ClimateState_COPNotRunningReason_MIN}}
+#define CarServer_ClimateState_ClimateKeeperMode_init_zero {0, {CarServer_Void_init_zero}}
+#define CarServer_ClimateState_DefrostMode_init_zero {0, {CarServer_Void_init_zero}}
+#define CarServer_TirePressureState_init_zero    {0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_MediaState_init_zero           {0, {0}, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}, 0, {0}, 0, {0}, 0, {0}, 0, {_CarServer_MediaSourceType_MIN}, 0, {_CarServer_MediaPlaybackStatus_MIN}}
+#define CarServer_MediaDetailState_init_zero     {0, {0}, 0, {0}, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}}
+#define CarServer_ShiftState_init_zero           {0, {CarServer_Void_init_zero}}
 
 /* Field tags (for use in manual encoding/decoding) */
+#define CarServer_ClosuresState_SunRoofState_Unknown_tag 1
+#define CarServer_ClosuresState_SunRoofState_Calibrating_tag 2
+#define CarServer_ClosuresState_SunRoofState_Closed_tag 3
+#define CarServer_ClosuresState_SunRoofState_Open_tag 4
+#define CarServer_ClosuresState_SunRoofState_Moving_tag 5
+#define CarServer_ClosuresState_SunRoofState_Vent_tag 6
+#define CarServer_ClosuresState_DisplayState_Off_tag 1
+#define CarServer_ClosuresState_DisplayState_Dim_tag 2
+#define CarServer_ClosuresState_DisplayState_Accessory_tag 3
+#define CarServer_ClosuresState_DisplayState_On_tag 4
+#define CarServer_ClosuresState_DisplayState_Driving_tag 5
+#define CarServer_ClosuresState_DisplayState_Charging_tag 6
+#define CarServer_ClosuresState_DisplayState_Lock_tag 7
+#define CarServer_ClosuresState_DisplayState_Sentry_tag 8
+#define CarServer_ClosuresState_DisplayState_Dog_tag 9
+#define CarServer_ClosuresState_DisplayState_Entertainment_tag 10
+#define CarServer_ClosuresState_SentryModeState_Off_tag 1
+#define CarServer_ClosuresState_SentryModeState_Idle_tag 2
+#define CarServer_ClosuresState_SentryModeState_Armed_tag 3
+#define CarServer_ClosuresState_SentryModeState_Aware_tag 4
+#define CarServer_ClosuresState_SentryModeState_Panic_tag 5
+#define CarServer_ClosuresState_SentryModeState_Quiet_tag 6
+#define CarServer_ChargeScheduleState_charge_schedules_tag 1
+#define CarServer_ChargeScheduleState_charge_schedule_window_tag 2
+#define CarServer_ChargeScheduleState_charge_buffer_tag 3
+#define CarServer_ChargeScheduleState_max_num_charge_schedules_tag 4
+#define CarServer_ChargeScheduleState_next_schedule_tag 5
+#define CarServer_ChargeScheduleState_show_schedule_complete_state_tag 6
+#define CarServer_PreconditioningScheduleState_precondition_schedules_tag 1
+#define CarServer_PreconditioningScheduleState_preconditioning_schedule_window_tag 2
+#define CarServer_PreconditioningScheduleState_max_num_precondition_schedules_tag 3
+#define CarServer_PreconditioningScheduleState_next_schedule_tag 4
+#define CarServer_SpeedLimitMode_active_tag      103
+#define CarServer_SpeedLimitMode_pin_code_set_tag 104
+#define CarServer_SpeedLimitMode_max_limit_mph_tag 106
+#define CarServer_SpeedLimitMode_min_limit_mph_tag 107
+#define CarServer_SpeedLimitMode_current_limit_mph_tag 108
+#define CarServer_ClosuresState_sun_roof_state_tag 11
+#define CarServer_ClosuresState_center_display_state_tag 15
+#define CarServer_ClosuresState_sentry_mode_state_tag 19
+#define CarServer_ClosuresState_speed_limit_mode_tag 22
+#define CarServer_ClosuresState_tonneau_state_tag 23
+#define CarServer_ClosuresState_tonneau_percent_open_tag 24
+#define CarServer_ClosuresState_tonneau_in_motion_tag 25
+#define CarServer_ClosuresState_door_open_driver_front_tag 101
+#define CarServer_ClosuresState_door_open_driver_rear_tag 102
+#define CarServer_ClosuresState_door_open_passenger_front_tag 103
+#define CarServer_ClosuresState_door_open_passenger_rear_tag 104
+#define CarServer_ClosuresState_door_open_trunk_front_tag 105
+#define CarServer_ClosuresState_door_open_trunk_rear_tag 106
+#define CarServer_ClosuresState_window_open_driver_front_tag 107
+#define CarServer_ClosuresState_window_open_passenger_front_tag 108
+#define CarServer_ClosuresState_window_open_driver_rear_tag 109
+#define CarServer_ClosuresState_window_open_passenger_rear_tag 110
+#define CarServer_ClosuresState_sun_roof_percent_open_tag 112
+#define CarServer_ClosuresState_locked_tag       113
+#define CarServer_ClosuresState_is_user_present_tag 114
+#define CarServer_ClosuresState_remote_start_tag 116
+#define CarServer_ClosuresState_valet_mode_tag   117
+#define CarServer_ClosuresState_valet_pin_needed_tag 118
+#define CarServer_ClosuresState_sentry_mode_available_tag 120
+#define CarServer_ParentalControlsSettings_speed_limit_enabled_tag 1
+#define CarServer_ParentalControlsSettings_max_limit_mph_tag 2
+#define CarServer_ParentalControlsSettings_min_limit_mph_tag 3
+#define CarServer_ParentalControlsSettings_current_limit_mph_tag 4
+#define CarServer_ParentalControlsSettings_chill_acceleration_enabled_tag 5
+#define CarServer_ParentalControlsSettings_require_safety_settings_enabled_tag 6
+#define CarServer_ParentalControlsSettings_curfew_enabled_tag 7
+#define CarServer_ParentalControlsSettings_curfew_start_time_tag 8
+#define CarServer_ParentalControlsSettings_curfew_end_time_tag 9
+#define CarServer_ParentalControlsState_parental_controls_active_tag 2
+#define CarServer_ParentalControlsState_parental_controls_pin_set_tag 3
+#define CarServer_ParentalControlsState_parental_controls_settings_tag 4
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_Unknown_tag 1
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_Installing_tag 2
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_Scheduled_tag 3
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_Available_tag 4
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_DownloadingWifiWait_tag 5
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_Downloading_tag 6
+#define CarServer_SoftwareUpdateState_status_tag 1
+#define CarServer_SoftwareUpdateState_scheduled_time_ms_tag 102
+#define CarServer_SoftwareUpdateState_warning_time_remaining_ms_tag 103
+#define CarServer_SoftwareUpdateState_expected_duration_sec_tag 104
+#define CarServer_SoftwareUpdateState_download_perc_tag 105
+#define CarServer_SoftwareUpdateState_install_perc_tag 106
+#define CarServer_SoftwareUpdateState_version_tag 107
+#define CarServer_ChargeState_CableType_SNA_tag  1
+#define CarServer_ChargeState_CableType_IEC_tag  2
+#define CarServer_ChargeState_CableType_SAE_tag  3
+#define CarServer_ChargeState_CableType_GB_AC_tag 4
+#define CarServer_ChargeState_CableType_GB_DC_tag 5
+#define CarServer_ChargeState_ChargerType_SNA_tag 1
+#define CarServer_ChargeState_ChargerType_Supercharger_tag 2
+#define CarServer_ChargeState_ChargerType_Chademo_tag 3
+#define CarServer_ChargeState_ChargerType_Gb_tag 4
+#define CarServer_ChargeState_ChargerType_ACSingleWireCAN_tag 5
+#define CarServer_ChargeState_ChargerType_Combo_tag 6
+#define CarServer_ChargeState_ChargerType_MCSingleWireCAN_tag 7
+#define CarServer_ChargeState_ChargerType_Other_tag 8
+#define CarServer_ChargeState_ChargerType_Tesla_tag 9
+#define CarServer_ChargeState_ChargingState_Unknown_tag 1
+#define CarServer_ChargeState_ChargingState_Disconnected_tag 2
+#define CarServer_ChargeState_ChargingState_NoPower_tag 3
+#define CarServer_ChargeState_ChargingState_Starting_tag 4
+#define CarServer_ChargeState_ChargingState_Charging_tag 5
+#define CarServer_ChargeState_ChargingState_Complete_tag 6
+#define CarServer_ChargeState_ChargingState_Stopped_tag 7
+#define CarServer_ChargeState_ChargingState_Calibrating_tag 8
+#define CarServer_ChargeState_ChargerBrand_Tesla_tag 1
+#define CarServer_ChargeState_ChargerBrand_SNA_tag 2
+#define CarServer_ChargeOnSolarStateNoChargeRecommended_reason_tag 1
+#define CarServer_ChargeOnSolarState_not_allowed_tag 1
+#define CarServer_ChargeOnSolarState_no_charge_recommended_tag 2
+#define CarServer_ChargeOnSolarState_charging_on_excess_solar_tag 3
+#define CarServer_ChargeOnSolarState_charging_on_anything_tag 4
+#define CarServer_ChargeOnSolarState_user_disabled_tag 6
+#define CarServer_ChargeOnSolarState_waiting_for_server_tag 7
+#define CarServer_ChargeOnSolarState_error_tag   8
+#define CarServer_ChargeOnSolarState_user_stopped_tag 9
+#define CarServer_ManagedChargingState_charge_on_solar_state_tag 1
+#define CarServer_ManagedChargingState_charge_on_solar_gateway_din_tag 2
+#define CarServer_ManagedChargingState_tesla_electric_asset_id_tag 3
+#define CarServer_ManagedChargingState_minutes_to_lower_limit_tag 4
+#define CarServer_ChargeState_charging_state_tag 1
+#define CarServer_ChargeState_fast_charger_type_tag 2
+#define CarServer_ChargeState_fast_charger_brand_tag 3
+#define CarServer_ChargeState_conn_charge_cable_tag 28
+#define CarServer_ChargeState_charge_port_latch_tag 35
+#define CarServer_ChargeState_preconditioning_times_tag 45
+#define CarServer_ChargeState_off_peak_charging_times_tag 46
+#define CarServer_ChargeState_charge_limit_soc_tag 104
+#define CarServer_ChargeState_charge_limit_soc_std_tag 105
+#define CarServer_ChargeState_charge_limit_soc_min_tag 106
+#define CarServer_ChargeState_charge_limit_soc_max_tag 107
+#define CarServer_ChargeState_max_range_charge_counter_tag 109
+#define CarServer_ChargeState_fast_charger_present_tag 110
+#define CarServer_ChargeState_battery_range_tag  111
+#define CarServer_ChargeState_est_battery_range_tag 112
+#define CarServer_ChargeState_ideal_battery_range_tag 113
+#define CarServer_ChargeState_battery_level_tag  114
+#define CarServer_ChargeState_usable_battery_level_tag 115
+#define CarServer_ChargeState_charge_energy_added_tag 116
+#define CarServer_ChargeState_charge_miles_added_rated_tag 117
+#define CarServer_ChargeState_charge_miles_added_ideal_tag 118
+#define CarServer_ChargeState_charger_voltage_tag 119
+#define CarServer_ChargeState_charger_pilot_current_tag 120
+#define CarServer_ChargeState_charger_actual_current_tag 121
+#define CarServer_ChargeState_charger_power_tag  122
+#define CarServer_ChargeState_minutes_to_full_charge_tag 123
+#define CarServer_ChargeState_trip_charging_tag  125
+#define CarServer_ChargeState_charge_rate_mph_tag 126
+#define CarServer_ChargeState_charge_port_door_open_tag 127
+#define CarServer_ChargeState_scheduled_charging_start_time_tag 129
+#define CarServer_ChargeState_scheduled_charging_pending_tag 130
+#define CarServer_ChargeState_user_charge_enable_request_tag 132
+#define CarServer_ChargeState_charge_enable_request_tag 133
+#define CarServer_ChargeState_charger_phases_tag 134
+#define CarServer_ChargeState_charge_port_cold_weather_mode_tag 136
+#define CarServer_ChargeState_charge_current_request_tag 137
+#define CarServer_ChargeState_charge_current_request_max_tag 138
+#define CarServer_ChargeState_managed_charging_active_tag 139
+#define CarServer_ChargeState_managed_charging_user_canceled_tag 140
+#define CarServer_ChargeState_managed_charging_start_time_tag 141
+#define CarServer_ChargeState_minutes_to_charge_limit_tag 142
+#define CarServer_ChargeState_off_peak_hours_end_time_tag 147
+#define CarServer_ChargeState_scheduled_charging_mode_tag 148
+#define CarServer_ChargeState_charging_amps_tag  149
+#define CarServer_ChargeState_scheduled_charging_start_time_minutes_tag 150
+#define CarServer_ChargeState_scheduled_departure_time_minutes_tag 151
+#define CarServer_ChargeState_preconditioning_enabled_tag 152
+#define CarServer_ChargeState_scheduled_charging_start_time_app_tag 153
+#define CarServer_ChargeState_supercharger_session_trip_planner_tag 154
+#define CarServer_ChargeState_charge_port_color_tag 155
+#define CarServer_ChargeState_charge_rate_mph_float_tag 156
+#define CarServer_ChargeState_charge_limit_reason_tag 157
+#define CarServer_ChargeState_managed_charging_state_tag 158
+#define CarServer_ChargeState_charge_cable_unlatched_tag 159
+#define CarServer_ChargeState_outlet_state_tag   160
+#define CarServer_ChargeState_power_feed_state_tag 161
+#define CarServer_ChargeState_outlet_soc_limit_tag 162
+#define CarServer_ChargeState_power_feed_soc_limit_tag 163
+#define CarServer_ChargeState_outlet_time_remaining_tag 164
+#define CarServer_ChargeState_power_feed_time_remaining_tag 165
+#define CarServer_ChargeState_powershare_feature_allowed_tag 166
+#define CarServer_ChargeState_powershare_feature_enabled_tag 167
+#define CarServer_ChargeState_powershare_request_tag 168
+#define CarServer_ChargeState_powershare_type_tag 169
+#define CarServer_ChargeState_powershare_status_tag 170
+#define CarServer_ChargeState_powershare_stop_reason_tag 171
+#define CarServer_ChargeState_powershare_instantaneous_load_kw_tag 172
+#define CarServer_ChargeState_powershare_vehicle_energy_left_hr_tag 173
+#define CarServer_ChargeState_powershare_soc_limit_tag 174
+#define CarServer_ChargeState_one_time_soc_limit_tag 175
+#define CarServer_ChargeState_home_location_tag  176
+#define CarServer_ChargeState_work_location_tag  177
+#define CarServer_ChargeState_outlet_max_timer_minutes_tag 178
 #define CarServer_VehicleState_GuestMode_GuestModeActive_tag 1
 #define CarServer_VehicleState_guestMode_tag     74
+#define CarServer_ClimateState_ClimateKeeperMode_Unknown_tag 1
+#define CarServer_ClimateState_ClimateKeeperMode_Off_tag 2
+#define CarServer_ClimateState_ClimateKeeperMode_On_tag 3
+#define CarServer_ClimateState_ClimateKeeperMode_Dog_tag 4
+#define CarServer_ClimateState_ClimateKeeperMode_Party_tag 5
+#define CarServer_ClimateState_DefrostMode_Off_tag 1
+#define CarServer_ClimateState_DefrostMode_Normal_tag 2
+#define CarServer_ClimateState_DefrostMode_Max_tag 3
+#define CarServer_ClimateState_climate_keeper_mode_tag 30
+#define CarServer_ClimateState_defrost_mode_tag  35
+#define CarServer_ClimateState_inside_temp_celsius_tag 101
+#define CarServer_ClimateState_outside_temp_celsius_tag 102
+#define CarServer_ClimateState_driver_temp_setting_tag 103
+#define CarServer_ClimateState_passenger_temp_setting_tag 104
+#define CarServer_ClimateState_left_temp_direction_tag 105
+#define CarServer_ClimateState_right_temp_direction_tag 106
+#define CarServer_ClimateState_is_front_defroster_on_tag 107
+#define CarServer_ClimateState_is_rear_defroster_on_tag 108
+#define CarServer_ClimateState_fan_status_tag    109
+#define CarServer_ClimateState_is_climate_on_tag 110
+#define CarServer_ClimateState_min_avail_temp_celsius_tag 111
+#define CarServer_ClimateState_max_avail_temp_celsius_tag 112
+#define CarServer_ClimateState_seat_heater_left_tag 113
+#define CarServer_ClimateState_seat_heater_right_tag 114
+#define CarServer_ClimateState_seat_heater_rear_left_tag 115
+#define CarServer_ClimateState_seat_heater_rear_right_tag 116
+#define CarServer_ClimateState_seat_heater_rear_center_tag 117
+#define CarServer_ClimateState_seat_heater_rear_right_back_tag 118
+#define CarServer_ClimateState_seat_heater_rear_left_back_tag 119
+#define CarServer_ClimateState_seat_heater_third_row_right_tag 120
+#define CarServer_ClimateState_seat_heater_third_row_left_tag 121
+#define CarServer_ClimateState_battery_heater_tag 122
+#define CarServer_ClimateState_battery_heater_no_power_tag 123
+#define CarServer_ClimateState_steering_wheel_heater_tag 125
+#define CarServer_ClimateState_wiper_blade_heater_tag 126
+#define CarServer_ClimateState_side_mirror_heaters_tag 127
+#define CarServer_ClimateState_is_preconditioning_tag 128
+#define CarServer_ClimateState_remote_heater_control_enabled_tag 129
+#define CarServer_ClimateState_bioweapon_mode_on_tag 134
+#define CarServer_ClimateState_is_auto_conditioning_on_tag 136
+#define CarServer_ClimateState_auto_seat_climate_left_tag 137
+#define CarServer_ClimateState_auto_seat_climate_right_tag 138
+#define CarServer_ClimateState_seat_fan_front_left_tag 139
+#define CarServer_ClimateState_seat_fan_front_right_tag 140
+#define CarServer_ClimateState_allow_cabin_overheat_protection_tag 141
+#define CarServer_ClimateState_supports_fan_only_cabin_overheat_protection_tag 142
+#define CarServer_ClimateState_cabin_overheat_protection_tag 143
+#define CarServer_ClimateState_cabin_overheat_protection_actively_cooling_tag 144
+#define CarServer_ClimateState_cop_activation_temperature_tag 146
+#define CarServer_ClimateState_auto_steering_wheel_heat_tag 147
+#define CarServer_ClimateState_steering_wheel_heat_level_tag 148
+#define CarServer_ClimateState_hvac_auto_request_tag 150
+#define CarServer_ClimateState_cop_not_running_reason_tag 151
+#define CarServer_TirePressureState_tpms_pressure_fl_tag 2
+#define CarServer_TirePressureState_tpms_pressure_fr_tag 3
+#define CarServer_TirePressureState_tpms_pressure_rl_tag 4
+#define CarServer_TirePressureState_tpms_pressure_rr_tag 5
+#define CarServer_TirePressureState_tpms_hard_warning_fl_tag 10
+#define CarServer_TirePressureState_tpms_hard_warning_fr_tag 11
+#define CarServer_TirePressureState_tpms_hard_warning_rl_tag 12
+#define CarServer_TirePressureState_tpms_hard_warning_rr_tag 13
+#define CarServer_TirePressureState_tpms_soft_warning_fl_tag 14
+#define CarServer_TirePressureState_tpms_soft_warning_fr_tag 15
+#define CarServer_TirePressureState_tpms_soft_warning_rl_tag 16
+#define CarServer_TirePressureState_tpms_soft_warning_rr_tag 17
+#define CarServer_TirePressureState_tpms_rcp_front_value_tag 18
+#define CarServer_TirePressureState_tpms_rcp_rear_value_tag 19
+#define CarServer_MediaState_remote_control_enabled_tag 2
+#define CarServer_MediaState_now_playing_artist_tag 3
+#define CarServer_MediaState_now_playing_title_tag 4
+#define CarServer_MediaState_audio_volume_tag    5
+#define CarServer_MediaState_audio_volume_increment_tag 6
+#define CarServer_MediaState_audio_volume_max_tag 7
+#define CarServer_MediaState_now_playing_source_tag 8
+#define CarServer_MediaState_media_playback_status_tag 9
+#define CarServer_MediaDetailState_now_playing_duration_tag 2
+#define CarServer_MediaDetailState_now_playing_elapsed_tag 3
+#define CarServer_MediaDetailState_now_playing_source_string_tag 4
+#define CarServer_MediaDetailState_now_playing_album_tag 5
+#define CarServer_MediaDetailState_now_playing_station_tag 6
+#define CarServer_MediaDetailState_a2dp_source_name_tag 7
+#define CarServer_ShiftState_Invalid_tag         1
+#define CarServer_ShiftState_P_tag               2
+#define CarServer_ShiftState_R_tag               3
+#define CarServer_ShiftState_N_tag               4
+#define CarServer_ShiftState_D_tag               5
+#define CarServer_ShiftState_SNA_tag             6
+#define CarServer_DriveState_shift_state_tag     1
+#define CarServer_DriveState_active_route_destination_tag 7
+#define CarServer_DriveState_active_route_minutes_to_arrival_tag 8
+#define CarServer_DriveState_active_route_miles_to_arrival_tag 9
+#define CarServer_DriveState_active_route_traffic_minutes_delay_tag 10
+#define CarServer_DriveState_active_route_energy_at_arrival_tag 11
+#define CarServer_DriveState_active_route_coordinates_tag 12
+#define CarServer_DriveState_last_route_update_tag 14
+#define CarServer_DriveState_speed_tag           102
+#define CarServer_DriveState_power_tag           103
+#define CarServer_DriveState_odometer_in_hundredths_of_a_mile_tag 105
+#define CarServer_DriveState_speed_float_tag     106
+#define CarServer_VehicleData_charge_state_tag   3
+#define CarServer_VehicleData_climate_state_tag  4
+#define CarServer_VehicleData_drive_state_tag    5
+#define CarServer_VehicleData_closures_state_tag 9
+#define CarServer_VehicleData_charge_schedule_state_tag 15
+#define CarServer_VehicleData_preconditioning_schedule_state_tag 16
+#define CarServer_VehicleData_tire_pressure_state_tag 19
+#define CarServer_VehicleData_media_state_tag    20
+#define CarServer_VehicleData_media_detail_state_tag 21
+#define CarServer_VehicleData_software_update_state_tag 23
+#define CarServer_VehicleData_parental_controls_state_tag 24
 
 /* Struct field encoding specification for nanopb */
+#define CarServer_VehicleData_FIELDLIST(X, a) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  charge_state,      3) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  climate_state,     4) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  drive_state,       5) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  closures_state,    9) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  charge_schedule_state,  15) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  preconditioning_schedule_state,  16) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  tire_pressure_state,  19) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  media_state,      20) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  media_detail_state,  21) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  software_update_state,  23) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  parental_controls_state,  24)
+#define CarServer_VehicleData_CALLBACK NULL
+#define CarServer_VehicleData_DEFAULT NULL
+#define CarServer_VehicleData_charge_state_MSGTYPE CarServer_ChargeState
+#define CarServer_VehicleData_climate_state_MSGTYPE CarServer_ClimateState
+#define CarServer_VehicleData_drive_state_MSGTYPE CarServer_DriveState
+#define CarServer_VehicleData_closures_state_MSGTYPE CarServer_ClosuresState
+#define CarServer_VehicleData_charge_schedule_state_MSGTYPE CarServer_ChargeScheduleState
+#define CarServer_VehicleData_preconditioning_schedule_state_MSGTYPE CarServer_PreconditioningScheduleState
+#define CarServer_VehicleData_tire_pressure_state_MSGTYPE CarServer_TirePressureState
+#define CarServer_VehicleData_media_state_MSGTYPE CarServer_MediaState
+#define CarServer_VehicleData_media_detail_state_MSGTYPE CarServer_MediaDetailState
+#define CarServer_VehicleData_software_update_state_MSGTYPE CarServer_SoftwareUpdateState
+#define CarServer_VehicleData_parental_controls_state_MSGTYPE CarServer_ParentalControlsState
+
+#define CarServer_ClosuresState_FIELDLIST(X, a) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  sun_roof_state,   11) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  center_display_state,  15) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  sentry_mode_state,  19) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  speed_limit_mode,  22) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_tonneau_state,tonneau_state,optional_tonneau_state.tonneau_state),  23) \
+X(a, STATIC,   ONEOF,    UINT32,   (optional_tonneau_percent_open,tonneau_percent_open,optional_tonneau_percent_open.tonneau_percent_open),  24) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_tonneau_in_motion,tonneau_in_motion,optional_tonneau_in_motion.tonneau_in_motion),  25) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_door_open_driver_front,door_open_driver_front,optional_door_open_driver_front.door_open_driver_front), 101) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_door_open_driver_rear,door_open_driver_rear,optional_door_open_driver_rear.door_open_driver_rear), 102) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_door_open_passenger_front,door_open_passenger_front,optional_door_open_passenger_front.door_open_passenger_front), 103) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_door_open_passenger_rear,door_open_passenger_rear,optional_door_open_passenger_rear.door_open_passenger_rear), 104) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_door_open_trunk_front,door_open_trunk_front,optional_door_open_trunk_front.door_open_trunk_front), 105) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_door_open_trunk_rear,door_open_trunk_rear,optional_door_open_trunk_rear.door_open_trunk_rear), 106) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_window_open_driver_front,window_open_driver_front,optional_window_open_driver_front.window_open_driver_front), 107) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_window_open_passenger_front,window_open_passenger_front,optional_window_open_passenger_front.window_open_passenger_front), 108) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_window_open_driver_rear,window_open_driver_rear,optional_window_open_driver_rear.window_open_driver_rear), 109) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_window_open_passenger_rear,window_open_passenger_rear,optional_window_open_passenger_rear.window_open_passenger_rear), 110) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_sun_roof_percent_open,sun_roof_percent_open,optional_sun_roof_percent_open.sun_roof_percent_open), 112) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_locked,locked,optional_locked.locked), 113) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_is_user_present,is_user_present,optional_is_user_present.is_user_present), 114) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_remote_start,remote_start,optional_remote_start.remote_start), 116) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_valet_mode,valet_mode,optional_valet_mode.valet_mode), 117) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_valet_pin_needed,valet_pin_needed,optional_valet_pin_needed.valet_pin_needed), 118) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_sentry_mode_available,sentry_mode_available,optional_sentry_mode_available.sentry_mode_available), 120)
+#define CarServer_ClosuresState_CALLBACK NULL
+#define CarServer_ClosuresState_DEFAULT NULL
+#define CarServer_ClosuresState_sun_roof_state_MSGTYPE CarServer_ClosuresState_SunRoofState
+#define CarServer_ClosuresState_center_display_state_MSGTYPE CarServer_ClosuresState_DisplayState
+#define CarServer_ClosuresState_sentry_mode_state_MSGTYPE CarServer_ClosuresState_SentryModeState
+#define CarServer_ClosuresState_speed_limit_mode_MSGTYPE CarServer_SpeedLimitMode
+
+#define CarServer_ClosuresState_SunRoofState_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Unknown,type.Unknown),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Calibrating,type.Calibrating),   2) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Closed,type.Closed),   3) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Open,type.Open),   4) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Moving,type.Moving),   5) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Vent,type.Vent),   6)
+#define CarServer_ClosuresState_SunRoofState_CALLBACK NULL
+#define CarServer_ClosuresState_SunRoofState_DEFAULT NULL
+#define CarServer_ClosuresState_SunRoofState_type_Unknown_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_SunRoofState_type_Calibrating_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_SunRoofState_type_Closed_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_SunRoofState_type_Open_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_SunRoofState_type_Moving_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_SunRoofState_type_Vent_MSGTYPE CarServer_Void
+
+#define CarServer_ClosuresState_DisplayState_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Off,type.Off),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Dim,type.Dim),   2) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Accessory,type.Accessory),   3) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,On,type.On),   4) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Driving,type.Driving),   5) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Charging,type.Charging),   6) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Lock,type.Lock),   7) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Sentry,type.Sentry),   8) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Dog,type.Dog),   9) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Entertainment,type.Entertainment),  10)
+#define CarServer_ClosuresState_DisplayState_CALLBACK NULL
+#define CarServer_ClosuresState_DisplayState_DEFAULT NULL
+#define CarServer_ClosuresState_DisplayState_type_Off_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_DisplayState_type_Dim_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_DisplayState_type_Accessory_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_DisplayState_type_On_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_DisplayState_type_Driving_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_DisplayState_type_Charging_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_DisplayState_type_Lock_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_DisplayState_type_Sentry_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_DisplayState_type_Dog_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_DisplayState_type_Entertainment_MSGTYPE CarServer_Void
+
+#define CarServer_ClosuresState_SentryModeState_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Off,type.Off),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Idle,type.Idle),   2) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Armed,type.Armed),   3) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Aware,type.Aware),   4) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Panic,type.Panic),   5) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Quiet,type.Quiet),   6)
+#define CarServer_ClosuresState_SentryModeState_CALLBACK NULL
+#define CarServer_ClosuresState_SentryModeState_DEFAULT NULL
+#define CarServer_ClosuresState_SentryModeState_type_Off_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_SentryModeState_type_Idle_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_SentryModeState_type_Armed_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_SentryModeState_type_Aware_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_SentryModeState_type_Panic_MSGTYPE CarServer_Void
+#define CarServer_ClosuresState_SentryModeState_type_Quiet_MSGTYPE CarServer_Void
+
+#define CarServer_ChargeScheduleState_FIELDLIST(X, a) \
+X(a, CALLBACK, REPEATED, MESSAGE,  charge_schedules,   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (optional_charge_schedule_window,charge_schedule_window,optional_charge_schedule_window.charge_schedule_window),   2) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charge_buffer,charge_buffer,optional_charge_buffer.charge_buffer),   3) \
+X(a, STATIC,   ONEOF,    UINT32,   (optional_max_num_charge_schedules,max_num_charge_schedules,optional_max_num_charge_schedules.max_num_charge_schedules),   4) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_next_schedule,next_schedule,optional_next_schedule.next_schedule),   5) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_show_schedule_complete_state,show_schedule_complete_state,optional_show_schedule_complete_state.show_schedule_complete_state),   6)
+#define CarServer_ChargeScheduleState_CALLBACK pb_default_field_callback
+#define CarServer_ChargeScheduleState_DEFAULT NULL
+#define CarServer_ChargeScheduleState_charge_schedules_MSGTYPE CarServer_ChargeSchedule
+#define CarServer_ChargeScheduleState_optional_charge_schedule_window_charge_schedule_window_MSGTYPE CarServer_ChargeSchedule
+
+#define CarServer_PreconditioningScheduleState_FIELDLIST(X, a) \
+X(a, CALLBACK, REPEATED, MESSAGE,  precondition_schedules,   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (optional_preconditioning_schedule_window,preconditioning_schedule_window,optional_preconditioning_schedule_window.preconditioning_schedule_window),   2) \
+X(a, STATIC,   ONEOF,    UINT32,   (optional_max_num_precondition_schedules,max_num_precondition_schedules,optional_max_num_precondition_schedules.max_num_precondition_schedules),   3) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_next_schedule,next_schedule,optional_next_schedule.next_schedule),   4)
+#define CarServer_PreconditioningScheduleState_CALLBACK pb_default_field_callback
+#define CarServer_PreconditioningScheduleState_DEFAULT NULL
+#define CarServer_PreconditioningScheduleState_precondition_schedules_MSGTYPE CarServer_PreconditionSchedule
+#define CarServer_PreconditioningScheduleState_optional_preconditioning_schedule_window_preconditioning_schedule_window_MSGTYPE CarServer_PreconditionSchedule
+
+#define CarServer_SpeedLimitMode_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_active,active,optional_active.active), 103) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_pin_code_set,pin_code_set,optional_pin_code_set.pin_code_set), 104) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_max_limit_mph,max_limit_mph,optional_max_limit_mph.max_limit_mph), 106) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_min_limit_mph,min_limit_mph,optional_min_limit_mph.min_limit_mph), 107) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_current_limit_mph,current_limit_mph,optional_current_limit_mph.current_limit_mph), 108)
+#define CarServer_SpeedLimitMode_CALLBACK NULL
+#define CarServer_SpeedLimitMode_DEFAULT NULL
+
+#define CarServer_ParentalControlsSettings_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_speed_limit_enabled,speed_limit_enabled,optional_speed_limit_enabled.speed_limit_enabled),   1) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_max_limit_mph,max_limit_mph,optional_max_limit_mph.max_limit_mph),   2) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_min_limit_mph,min_limit_mph,optional_min_limit_mph.min_limit_mph),   3) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_current_limit_mph,current_limit_mph,optional_current_limit_mph.current_limit_mph),   4) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_chill_acceleration_enabled,chill_acceleration_enabled,optional_chill_acceleration_enabled.chill_acceleration_enabled),   5) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_require_safety_settings_enabled,require_safety_settings_enabled,optional_require_safety_settings_enabled.require_safety_settings_enabled),   6) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_curfew_enabled,curfew_enabled,optional_curfew_enabled.curfew_enabled),   7) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_curfew_start_time,curfew_start_time,optional_curfew_start_time.curfew_start_time),   8) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_curfew_end_time,curfew_end_time,optional_curfew_end_time.curfew_end_time),   9)
+#define CarServer_ParentalControlsSettings_CALLBACK NULL
+#define CarServer_ParentalControlsSettings_DEFAULT NULL
+
+#define CarServer_ParentalControlsState_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_parental_controls_active,parental_controls_active,optional_parental_controls_active.parental_controls_active),   2) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_parental_controls_pin_set,parental_controls_pin_set,optional_parental_controls_pin_set.parental_controls_pin_set),   3) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  parental_controls_settings,   4)
+#define CarServer_ParentalControlsState_CALLBACK NULL
+#define CarServer_ParentalControlsState_DEFAULT NULL
+#define CarServer_ParentalControlsState_parental_controls_settings_MSGTYPE CarServer_ParentalControlsSettings
+
+#define CarServer_SoftwareUpdateState_FIELDLIST(X, a) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  status,            1) \
+X(a, STATIC,   ONEOF,    UINT64,   (optional_scheduled_time_ms,scheduled_time_ms,optional_scheduled_time_ms.scheduled_time_ms), 102) \
+X(a, STATIC,   ONEOF,    UINT64,   (optional_warning_time_remaining_ms,warning_time_remaining_ms,optional_warning_time_remaining_ms.warning_time_remaining_ms), 103) \
+X(a, STATIC,   ONEOF,    UINT32,   (optional_expected_duration_sec,expected_duration_sec,optional_expected_duration_sec.expected_duration_sec), 104) \
+X(a, STATIC,   ONEOF,    UINT32,   (optional_download_perc,download_perc,optional_download_perc.download_perc), 105) \
+X(a, STATIC,   ONEOF,    UINT32,   (optional_install_perc,install_perc,optional_install_perc.install_perc), 106) \
+X(a, CALLBACK, ONEOF,    STRING,   (optional_version,version,optional_version.version), 107)
+#define CarServer_SoftwareUpdateState_CALLBACK pb_default_field_callback
+#define CarServer_SoftwareUpdateState_DEFAULT NULL
+#define CarServer_SoftwareUpdateState_status_MSGTYPE CarServer_SoftwareUpdateState_SoftwareUpdateStatus
+
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Unknown,type.Unknown),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Installing,type.Installing),   2) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Scheduled,type.Scheduled),   3) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Available,type.Available),   4) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,DownloadingWifiWait,type.DownloadingWifiWait),   5) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Downloading,type.Downloading),   6)
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_CALLBACK NULL
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_DEFAULT NULL
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_type_Unknown_MSGTYPE CarServer_Void
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_type_Installing_MSGTYPE CarServer_Void
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_type_Scheduled_MSGTYPE CarServer_Void
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_type_Available_MSGTYPE CarServer_Void
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_type_DownloadingWifiWait_MSGTYPE CarServer_Void
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_type_Downloading_MSGTYPE CarServer_Void
+
+#define CarServer_DriveState_FIELDLIST(X, a) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  shift_state,       1) \
+X(a, CALLBACK, ONEOF,    STRING,   (optional_active_route_destination,active_route_destination,optional_active_route_destination.active_route_destination),   7) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_active_route_minutes_to_arrival,active_route_minutes_to_arrival,optional_active_route_minutes_to_arrival.active_route_minutes_to_arrival),   8) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_active_route_miles_to_arrival,active_route_miles_to_arrival,optional_active_route_miles_to_arrival.active_route_miles_to_arrival),   9) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_active_route_traffic_minutes_delay,active_route_traffic_minutes_delay,optional_active_route_traffic_minutes_delay.active_route_traffic_minutes_delay),  10) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_active_route_energy_at_arrival,active_route_energy_at_arrival,optional_active_route_energy_at_arrival.active_route_energy_at_arrival),  11) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  active_route_coordinates,  12) \
+X(a, STATIC,   ONEOF,    UINT32,   (optional_last_route_update,last_route_update,optional_last_route_update.last_route_update),  14) \
+X(a, STATIC,   ONEOF,    UINT32,   (optional_speed,speed,optional_speed.speed), 102) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_power,power,optional_power.power), 103) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_odometer_in_hundredths_of_a_mile,odometer_in_hundredths_of_a_mile,optional_odometer_in_hundredths_of_a_mile.odometer_in_hundredths_of_a_mile), 105) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_speed_float,speed_float,optional_speed_float.speed_float), 106)
+#define CarServer_DriveState_CALLBACK pb_default_field_callback
+#define CarServer_DriveState_DEFAULT NULL
+#define CarServer_DriveState_shift_state_MSGTYPE CarServer_ShiftState
+#define CarServer_DriveState_active_route_coordinates_MSGTYPE CarServer_LatLong
+
+#define CarServer_ChargeState_FIELDLIST(X, a) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  charging_state,    1) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  fast_charger_type,   2) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  fast_charger_brand,   3) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  conn_charge_cable,  28) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  charge_port_latch,  35) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  preconditioning_times,  45) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  off_peak_charging_times,  46) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charge_limit_soc,charge_limit_soc,optional_charge_limit_soc.charge_limit_soc), 104) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charge_limit_soc_std,charge_limit_soc_std,optional_charge_limit_soc_std.charge_limit_soc_std), 105) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charge_limit_soc_min,charge_limit_soc_min,optional_charge_limit_soc_min.charge_limit_soc_min), 106) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charge_limit_soc_max,charge_limit_soc_max,optional_charge_limit_soc_max.charge_limit_soc_max), 107) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_max_range_charge_counter,max_range_charge_counter,optional_max_range_charge_counter.max_range_charge_counter), 109) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_fast_charger_present,fast_charger_present,optional_fast_charger_present.fast_charger_present), 110) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_battery_range,battery_range,optional_battery_range.battery_range), 111) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_est_battery_range,est_battery_range,optional_est_battery_range.est_battery_range), 112) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_ideal_battery_range,ideal_battery_range,optional_ideal_battery_range.ideal_battery_range), 113) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_battery_level,battery_level,optional_battery_level.battery_level), 114) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_usable_battery_level,usable_battery_level,optional_usable_battery_level.usable_battery_level), 115) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_charge_energy_added,charge_energy_added,optional_charge_energy_added.charge_energy_added), 116) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_charge_miles_added_rated,charge_miles_added_rated,optional_charge_miles_added_rated.charge_miles_added_rated), 117) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_charge_miles_added_ideal,charge_miles_added_ideal,optional_charge_miles_added_ideal.charge_miles_added_ideal), 118) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charger_voltage,charger_voltage,optional_charger_voltage.charger_voltage), 119) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charger_pilot_current,charger_pilot_current,optional_charger_pilot_current.charger_pilot_current), 120) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charger_actual_current,charger_actual_current,optional_charger_actual_current.charger_actual_current), 121) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charger_power,charger_power,optional_charger_power.charger_power), 122) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_minutes_to_full_charge,minutes_to_full_charge,optional_minutes_to_full_charge.minutes_to_full_charge), 123) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_trip_charging,trip_charging,optional_trip_charging.trip_charging), 125) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charge_rate_mph,charge_rate_mph,optional_charge_rate_mph.charge_rate_mph), 126) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_charge_port_door_open,charge_port_door_open,optional_charge_port_door_open.charge_port_door_open), 127) \
+X(a, STATIC,   ONEOF,    UINT64,   (optional_scheduled_charging_start_time,scheduled_charging_start_time,optional_scheduled_charging_start_time.scheduled_charging_start_time), 129) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_scheduled_charging_pending,scheduled_charging_pending,optional_scheduled_charging_pending.scheduled_charging_pending), 130) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_user_charge_enable_request,user_charge_enable_request,optional_user_charge_enable_request.user_charge_enable_request), 132) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_charge_enable_request,charge_enable_request,optional_charge_enable_request.charge_enable_request), 133) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charger_phases,charger_phases,optional_charger_phases.charger_phases), 134) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_charge_port_cold_weather_mode,charge_port_cold_weather_mode,optional_charge_port_cold_weather_mode.charge_port_cold_weather_mode), 136) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charge_current_request,charge_current_request,optional_charge_current_request.charge_current_request), 137) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charge_current_request_max,charge_current_request_max,optional_charge_current_request_max.charge_current_request_max), 138) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_managed_charging_active,managed_charging_active,optional_managed_charging_active.managed_charging_active), 139) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_managed_charging_user_canceled,managed_charging_user_canceled,optional_managed_charging_user_canceled.managed_charging_user_canceled), 140) \
+X(a, STATIC,   ONEOF,    UINT64,   (optional_managed_charging_start_time,managed_charging_start_time,optional_managed_charging_start_time.managed_charging_start_time), 141) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_minutes_to_charge_limit,minutes_to_charge_limit,optional_minutes_to_charge_limit.minutes_to_charge_limit), 142) \
+X(a, STATIC,   ONEOF,    UINT32,   (optional_off_peak_hours_end_time,off_peak_hours_end_time,optional_off_peak_hours_end_time.off_peak_hours_end_time), 147) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_scheduled_charging_mode,scheduled_charging_mode,optional_scheduled_charging_mode.scheduled_charging_mode), 148) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_charging_amps,charging_amps,optional_charging_amps.charging_amps), 149) \
+X(a, STATIC,   ONEOF,    UINT32,   (optional_scheduled_charging_start_time_minutes,scheduled_charging_start_time_minutes,optional_scheduled_charging_start_time_minutes.scheduled_charging_start_time_minutes), 150) \
+X(a, STATIC,   ONEOF,    UINT32,   (optional_scheduled_departure_time_minutes,scheduled_departure_time_minutes,optional_scheduled_departure_time_minutes.scheduled_departure_time_minutes), 151) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_preconditioning_enabled,preconditioning_enabled,optional_preconditioning_enabled.preconditioning_enabled), 152) \
+X(a, STATIC,   ONEOF,    SINT32,   (optional_scheduled_charging_start_time_app,scheduled_charging_start_time_app,optional_scheduled_charging_start_time_app.scheduled_charging_start_time_app), 153) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_supercharger_session_trip_planner,supercharger_session_trip_planner,optional_supercharger_session_trip_planner.supercharger_session_trip_planner), 154) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_charge_port_color,charge_port_color,optional_charge_port_color.charge_port_color), 155) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_charge_rate_mph_float,charge_rate_mph_float,optional_charge_rate_mph_float.charge_rate_mph_float), 156) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_charge_limit_reason,charge_limit_reason,optional_charge_limit_reason.charge_limit_reason), 157) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  managed_charging_state, 158) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_charge_cable_unlatched,charge_cable_unlatched,optional_charge_cable_unlatched.charge_cable_unlatched), 159) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_outlet_state,outlet_state,optional_outlet_state.outlet_state), 160) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_power_feed_state,power_feed_state,optional_power_feed_state.power_feed_state), 161) \
+X(a, STATIC,   ONEOF,    INT32,    (option_outlet_soc_limit,outlet_soc_limit,option_outlet_soc_limit.outlet_soc_limit), 162) \
+X(a, STATIC,   ONEOF,    INT32,    (option_power_feed_soc_limit,power_feed_soc_limit,option_power_feed_soc_limit.power_feed_soc_limit), 163) \
+X(a, STATIC,   ONEOF,    INT64,    (option_outlet_time_remaining,outlet_time_remaining,option_outlet_time_remaining.outlet_time_remaining), 164) \
+X(a, STATIC,   ONEOF,    INT64,    (option_power_feed_time_remaining,power_feed_time_remaining,option_power_feed_time_remaining.power_feed_time_remaining), 165) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_powershare_feature_allowed,powershare_feature_allowed,optional_powershare_feature_allowed.powershare_feature_allowed), 166) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_powershare_feature_enabled,powershare_feature_enabled,optional_powershare_feature_enabled.powershare_feature_enabled), 167) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_powershare_request,powershare_request,optional_powershare_request.powershare_request), 168) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_powershare_type,powershare_type,optional_powershare_type.powershare_type), 169) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_powershare_status,powershare_status,optional_powershare_status.powershare_status), 170) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_powershare_stop_reason,powershare_stop_reason,optional_powershare_stop_reason.powershare_stop_reason), 171) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_powershare_instantaneous_load_kw,powershare_instantaneous_load_kw,optional_powershare_instantaneous_load_kw.powershare_instantaneous_load_kw), 172) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_powershare_vehicle_energy_left_hr,powershare_vehicle_energy_left_hr,optional_powershare_vehicle_energy_left_hr.powershare_vehicle_energy_left_hr), 173) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_powershare_soc_limit,powershare_soc_limit,optional_powershare_soc_limit.powershare_soc_limit), 174) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_one_time_soc_limit,one_time_soc_limit,optional_one_time_soc_limit.one_time_soc_limit), 175) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (optional_home_location,home_location,optional_home_location.home_location), 176) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (optional_work_location,work_location,optional_work_location.work_location), 177) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_outlet_max_timer_minutes,outlet_max_timer_minutes,optional_outlet_max_timer_minutes.outlet_max_timer_minutes), 178)
+#define CarServer_ChargeState_CALLBACK NULL
+#define CarServer_ChargeState_DEFAULT NULL
+#define CarServer_ChargeState_charging_state_MSGTYPE CarServer_ChargeState_ChargingState
+#define CarServer_ChargeState_fast_charger_type_MSGTYPE CarServer_ChargeState_ChargerType
+#define CarServer_ChargeState_fast_charger_brand_MSGTYPE CarServer_ChargeState_ChargerBrand
+#define CarServer_ChargeState_conn_charge_cable_MSGTYPE CarServer_ChargeState_CableType
+#define CarServer_ChargeState_charge_port_latch_MSGTYPE CarServer_ChargePortLatchState
+#define CarServer_ChargeState_preconditioning_times_MSGTYPE CarServer_PreconditioningTimes
+#define CarServer_ChargeState_off_peak_charging_times_MSGTYPE CarServer_OffPeakChargingTimes
+#define CarServer_ChargeState_managed_charging_state_MSGTYPE CarServer_ManagedChargingState
+#define CarServer_ChargeState_optional_home_location_home_location_MSGTYPE CarServer_LatLong
+#define CarServer_ChargeState_optional_work_location_work_location_MSGTYPE CarServer_LatLong
+
+#define CarServer_ChargeState_CableType_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,SNA,type.SNA),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,IEC,type.IEC),   2) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,SAE,type.SAE),   3) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,GB_AC,type.GB_AC),   4) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,GB_DC,type.GB_DC),   5)
+#define CarServer_ChargeState_CableType_CALLBACK NULL
+#define CarServer_ChargeState_CableType_DEFAULT NULL
+#define CarServer_ChargeState_CableType_type_SNA_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_CableType_type_IEC_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_CableType_type_SAE_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_CableType_type_GB_AC_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_CableType_type_GB_DC_MSGTYPE CarServer_Void
+
+#define CarServer_ChargeState_ChargerType_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,SNA,type.SNA),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Supercharger,type.Supercharger),   2) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Chademo,type.Chademo),   3) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Gb,type.Gb),   4) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,ACSingleWireCAN,type.ACSingleWireCAN),   5) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Combo,type.Combo),   6) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,MCSingleWireCAN,type.MCSingleWireCAN),   7) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Other,type.Other),   8) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Tesla,type.Tesla),   9)
+#define CarServer_ChargeState_ChargerType_CALLBACK NULL
+#define CarServer_ChargeState_ChargerType_DEFAULT NULL
+#define CarServer_ChargeState_ChargerType_type_SNA_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargerType_type_Supercharger_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargerType_type_Chademo_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargerType_type_Gb_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargerType_type_ACSingleWireCAN_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargerType_type_Combo_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargerType_type_MCSingleWireCAN_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargerType_type_Other_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargerType_type_Tesla_MSGTYPE CarServer_Void
+
+#define CarServer_ChargeState_ChargingState_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Unknown,type.Unknown),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Disconnected,type.Disconnected),   2) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,NoPower,type.NoPower),   3) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Starting,type.Starting),   4) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Charging,type.Charging),   5) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Complete,type.Complete),   6) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Stopped,type.Stopped),   7) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Calibrating,type.Calibrating),   8)
+#define CarServer_ChargeState_ChargingState_CALLBACK NULL
+#define CarServer_ChargeState_ChargingState_DEFAULT NULL
+#define CarServer_ChargeState_ChargingState_type_Unknown_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargingState_type_Disconnected_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargingState_type_NoPower_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargingState_type_Starting_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargingState_type_Charging_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargingState_type_Complete_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargingState_type_Stopped_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargingState_type_Calibrating_MSGTYPE CarServer_Void
+
+#define CarServer_ChargeState_ChargerBrand_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Tesla,type.Tesla),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,SNA,type.SNA),   2)
+#define CarServer_ChargeState_ChargerBrand_CALLBACK NULL
+#define CarServer_ChargeState_ChargerBrand_DEFAULT NULL
+#define CarServer_ChargeState_ChargerBrand_type_Tesla_MSGTYPE CarServer_Void
+#define CarServer_ChargeState_ChargerBrand_type_SNA_MSGTYPE CarServer_Void
+
+#define CarServer_ManagedChargingState_FIELDLIST(X, a) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  charge_on_solar_state,   1) \
+X(a, CALLBACK, ONEOF,    STRING,   (optional_charge_on_solar_gateway_din,charge_on_solar_gateway_din,optional_charge_on_solar_gateway_din.charge_on_solar_gateway_din),   2) \
+X(a, CALLBACK, ONEOF,    STRING,   (optional_tesla_electric_asset_id,tesla_electric_asset_id,optional_tesla_electric_asset_id.tesla_electric_asset_id),   3) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_minutes_to_lower_limit,minutes_to_lower_limit,optional_minutes_to_lower_limit.minutes_to_lower_limit),   4)
+#define CarServer_ManagedChargingState_CALLBACK pb_default_field_callback
+#define CarServer_ManagedChargingState_DEFAULT NULL
+#define CarServer_ManagedChargingState_charge_on_solar_state_MSGTYPE CarServer_ChargeOnSolarState
+
+#define CarServer_ChargeOnSolarState_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (state,not_allowed,state.not_allowed),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (state,no_charge_recommended,state.no_charge_recommended),   2) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (state,charging_on_excess_solar,state.charging_on_excess_solar),   3) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (state,charging_on_anything,state.charging_on_anything),   4) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (state,user_disabled,state.user_disabled),   6) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (state,waiting_for_server,state.waiting_for_server),   7) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (state,error,state.error),   8) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (state,user_stopped,state.user_stopped),   9)
+#define CarServer_ChargeOnSolarState_CALLBACK NULL
+#define CarServer_ChargeOnSolarState_DEFAULT NULL
+#define CarServer_ChargeOnSolarState_state_not_allowed_MSGTYPE CarServer_ChargeOnSolarStateNotAllowed
+#define CarServer_ChargeOnSolarState_state_no_charge_recommended_MSGTYPE CarServer_ChargeOnSolarStateNoChargeRecommended
+#define CarServer_ChargeOnSolarState_state_charging_on_excess_solar_MSGTYPE CarServer_ChargeOnSolarStateChargingOnExcessSolar
+#define CarServer_ChargeOnSolarState_state_charging_on_anything_MSGTYPE CarServer_ChargeOnSolarStateChargingOnAnything
+#define CarServer_ChargeOnSolarState_state_user_disabled_MSGTYPE CarServer_ChargeOnSolarStateUserDisabled
+#define CarServer_ChargeOnSolarState_state_waiting_for_server_MSGTYPE CarServer_ChargeOnSolarStateWaitingForServer
+#define CarServer_ChargeOnSolarState_state_error_MSGTYPE CarServer_ChargeOnSolarStateError
+#define CarServer_ChargeOnSolarState_state_user_stopped_MSGTYPE CarServer_ChargeOnSolarStateUserStopped
+
+#define CarServer_ChargeOnSolarStateNotAllowed_FIELDLIST(X, a) \
+
+#define CarServer_ChargeOnSolarStateNotAllowed_CALLBACK NULL
+#define CarServer_ChargeOnSolarStateNotAllowed_DEFAULT NULL
+
+#define CarServer_ChargeOnSolarStateNoChargeRecommended_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, UENUM,    reason,            1)
+#define CarServer_ChargeOnSolarStateNoChargeRecommended_CALLBACK NULL
+#define CarServer_ChargeOnSolarStateNoChargeRecommended_DEFAULT NULL
+
+#define CarServer_ChargeOnSolarStateChargingOnExcessSolar_FIELDLIST(X, a) \
+
+#define CarServer_ChargeOnSolarStateChargingOnExcessSolar_CALLBACK NULL
+#define CarServer_ChargeOnSolarStateChargingOnExcessSolar_DEFAULT NULL
+
+#define CarServer_ChargeOnSolarStateChargingOnAnything_FIELDLIST(X, a) \
+
+#define CarServer_ChargeOnSolarStateChargingOnAnything_CALLBACK NULL
+#define CarServer_ChargeOnSolarStateChargingOnAnything_DEFAULT NULL
+
+#define CarServer_ChargeOnSolarStateUserDisabled_FIELDLIST(X, a) \
+
+#define CarServer_ChargeOnSolarStateUserDisabled_CALLBACK NULL
+#define CarServer_ChargeOnSolarStateUserDisabled_DEFAULT NULL
+
+#define CarServer_ChargeOnSolarStateWaitingForServer_FIELDLIST(X, a) \
+
+#define CarServer_ChargeOnSolarStateWaitingForServer_CALLBACK NULL
+#define CarServer_ChargeOnSolarStateWaitingForServer_DEFAULT NULL
+
+#define CarServer_ChargeOnSolarStateError_FIELDLIST(X, a) \
+
+#define CarServer_ChargeOnSolarStateError_CALLBACK NULL
+#define CarServer_ChargeOnSolarStateError_DEFAULT NULL
+
+#define CarServer_ChargeOnSolarStateUserStopped_FIELDLIST(X, a) \
+
+#define CarServer_ChargeOnSolarStateUserStopped_CALLBACK NULL
+#define CarServer_ChargeOnSolarStateUserStopped_DEFAULT NULL
+
 #define CarServer_VehicleState_FIELDLIST(X, a) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  guestMode,        74)
 #define CarServer_VehicleState_CALLBACK NULL
@@ -70,22 +2230,254 @@ X(a, STATIC,   SINGULAR, BOOL,     GuestModeActive,   1)
 #define CarServer_VehicleState_GuestMode_DEFAULT NULL
 
 #define CarServer_ClimateState_FIELDLIST(X, a) \
-
+X(a, STATIC,   OPTIONAL, MESSAGE,  climate_keeper_mode,  30) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  defrost_mode,     35) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_inside_temp_celsius,inside_temp_celsius,optional_inside_temp_celsius.inside_temp_celsius), 101) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_outside_temp_celsius,outside_temp_celsius,optional_outside_temp_celsius.outside_temp_celsius), 102) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_driver_temp_setting,driver_temp_setting,optional_driver_temp_setting.driver_temp_setting), 103) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_passenger_temp_setting,passenger_temp_setting,optional_passenger_temp_setting.passenger_temp_setting), 104) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_left_temp_direction,left_temp_direction,optional_left_temp_direction.left_temp_direction), 105) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_right_temp_direction,right_temp_direction,optional_right_temp_direction.right_temp_direction), 106) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_is_front_defroster_on,is_front_defroster_on,optional_is_front_defroster_on.is_front_defroster_on), 107) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_is_rear_defroster_on,is_rear_defroster_on,optional_is_rear_defroster_on.is_rear_defroster_on), 108) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_fan_status,fan_status,optional_fan_status.fan_status), 109) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_is_climate_on,is_climate_on,optional_is_climate_on.is_climate_on), 110) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_min_avail_temp_celsius,min_avail_temp_celsius,optional_min_avail_temp_celsius.min_avail_temp_celsius), 111) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_max_avail_temp_celsius,max_avail_temp_celsius,optional_max_avail_temp_celsius.max_avail_temp_celsius), 112) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_seat_heater_left,seat_heater_left,optional_seat_heater_left.seat_heater_left), 113) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_seat_heater_right,seat_heater_right,optional_seat_heater_right.seat_heater_right), 114) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_seat_heater_rear_left,seat_heater_rear_left,optional_seat_heater_rear_left.seat_heater_rear_left), 115) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_seat_heater_rear_right,seat_heater_rear_right,optional_seat_heater_rear_right.seat_heater_rear_right), 116) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_seat_heater_rear_center,seat_heater_rear_center,optional_seat_heater_rear_center.seat_heater_rear_center), 117) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_seat_heater_rear_right_back,seat_heater_rear_right_back,optional_seat_heater_rear_right_back.seat_heater_rear_right_back), 118) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_seat_heater_rear_left_back,seat_heater_rear_left_back,optional_seat_heater_rear_left_back.seat_heater_rear_left_back), 119) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_seat_heater_third_row_right,seat_heater_third_row_right,optional_seat_heater_third_row_right.seat_heater_third_row_right), 120) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_seat_heater_third_row_left,seat_heater_third_row_left,optional_seat_heater_third_row_left.seat_heater_third_row_left), 121) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_battery_heater,battery_heater,optional_battery_heater.battery_heater), 122) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_battery_heater_no_power,battery_heater_no_power,optional_battery_heater_no_power.battery_heater_no_power), 123) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_steering_wheel_heater,steering_wheel_heater,optional_steering_wheel_heater.steering_wheel_heater), 125) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_wiper_blade_heater,wiper_blade_heater,optional_wiper_blade_heater.wiper_blade_heater), 126) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_side_mirror_heaters,side_mirror_heaters,optional_side_mirror_heaters.side_mirror_heaters), 127) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_is_preconditioning,is_preconditioning,optional_is_preconditioning.is_preconditioning), 128) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_remote_heater_control_enabled,remote_heater_control_enabled,optional_remote_heater_control_enabled.remote_heater_control_enabled), 129) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_bioweapon_mode_on,bioweapon_mode_on,optional_bioweapon_mode_on.bioweapon_mode_on), 134) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_is_auto_conditioning_on,is_auto_conditioning_on,optional_is_auto_conditioning_on.is_auto_conditioning_on), 136) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_auto_seat_climate_left,auto_seat_climate_left,optional_auto_seat_climate_left.auto_seat_climate_left), 137) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_auto_seat_climate_right,auto_seat_climate_right,optional_auto_seat_climate_right.auto_seat_climate_right), 138) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_seat_fan_front_left,seat_fan_front_left,optional_seat_fan_front_left.seat_fan_front_left), 139) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_seat_fan_front_right,seat_fan_front_right,optional_seat_fan_front_right.seat_fan_front_right), 140) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_allow_cabin_overheat_protection,allow_cabin_overheat_protection,optional_allow_cabin_overheat_protection.allow_cabin_overheat_protection), 141) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_supports_fan_only_cabin_overheat_protection,supports_fan_only_cabin_overheat_protection,optional_supports_fan_only_cabin_overheat_protection.supports_fan_only_cabin_overheat_protection), 142) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_cabin_overheat_protection,cabin_overheat_protection,optional_cabin_overheat_protection.cabin_overheat_protection), 143) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_cabin_overheat_protection_actively_cooling,cabin_overheat_protection_actively_cooling,optional_cabin_overheat_protection_actively_cooling.cabin_overheat_protection_actively_cooling), 144) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_cop_activation_temperature,cop_activation_temperature,optional_cop_activation_temperature.cop_activation_temperature), 146) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_auto_steering_wheel_heat,auto_steering_wheel_heat,optional_auto_steering_wheel_heat.auto_steering_wheel_heat), 147) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_steering_wheel_heat_level,steering_wheel_heat_level,optional_steering_wheel_heat_level.steering_wheel_heat_level), 148) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_hvac_auto_request,hvac_auto_request,optional_hvac_auto_request.hvac_auto_request), 150) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_cop_not_running_reason,cop_not_running_reason,optional_cop_not_running_reason.cop_not_running_reason), 151)
 #define CarServer_ClimateState_CALLBACK NULL
 #define CarServer_ClimateState_DEFAULT NULL
+#define CarServer_ClimateState_climate_keeper_mode_MSGTYPE CarServer_ClimateState_ClimateKeeperMode
+#define CarServer_ClimateState_defrost_mode_MSGTYPE CarServer_ClimateState_DefrostMode
 
+#define CarServer_ClimateState_ClimateKeeperMode_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Unknown,type.Unknown),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Off,type.Off),   2) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,On,type.On),   3) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Dog,type.Dog),   4) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Party,type.Party),   5)
+#define CarServer_ClimateState_ClimateKeeperMode_CALLBACK NULL
+#define CarServer_ClimateState_ClimateKeeperMode_DEFAULT NULL
+#define CarServer_ClimateState_ClimateKeeperMode_type_Unknown_MSGTYPE CarServer_Void
+#define CarServer_ClimateState_ClimateKeeperMode_type_Off_MSGTYPE CarServer_Void
+#define CarServer_ClimateState_ClimateKeeperMode_type_On_MSGTYPE CarServer_Void
+#define CarServer_ClimateState_ClimateKeeperMode_type_Dog_MSGTYPE CarServer_Void
+#define CarServer_ClimateState_ClimateKeeperMode_type_Party_MSGTYPE CarServer_Void
+
+#define CarServer_ClimateState_DefrostMode_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Off,type.Off),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Normal,type.Normal),   2) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Max,type.Max),   3)
+#define CarServer_ClimateState_DefrostMode_CALLBACK NULL
+#define CarServer_ClimateState_DefrostMode_DEFAULT NULL
+#define CarServer_ClimateState_DefrostMode_type_Off_MSGTYPE CarServer_Void
+#define CarServer_ClimateState_DefrostMode_type_Normal_MSGTYPE CarServer_Void
+#define CarServer_ClimateState_DefrostMode_type_Max_MSGTYPE CarServer_Void
+
+#define CarServer_TirePressureState_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_tpms_pressure_fl,tpms_pressure_fl,optional_tpms_pressure_fl.tpms_pressure_fl),   2) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_tpms_pressure_fr,tpms_pressure_fr,optional_tpms_pressure_fr.tpms_pressure_fr),   3) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_tpms_pressure_rl,tpms_pressure_rl,optional_tpms_pressure_rl.tpms_pressure_rl),   4) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_tpms_pressure_rr,tpms_pressure_rr,optional_tpms_pressure_rr.tpms_pressure_rr),   5) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_tpms_hard_warning_fl,tpms_hard_warning_fl,optional_tpms_hard_warning_fl.tpms_hard_warning_fl),  10) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_tpms_hard_warning_fr,tpms_hard_warning_fr,optional_tpms_hard_warning_fr.tpms_hard_warning_fr),  11) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_tpms_hard_warning_rl,tpms_hard_warning_rl,optional_tpms_hard_warning_rl.tpms_hard_warning_rl),  12) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_tpms_hard_warning_rr,tpms_hard_warning_rr,optional_tpms_hard_warning_rr.tpms_hard_warning_rr),  13) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_tpms_soft_warning_fl,tpms_soft_warning_fl,optional_tpms_soft_warning_fl.tpms_soft_warning_fl),  14) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_tpms_soft_warning_fr,tpms_soft_warning_fr,optional_tpms_soft_warning_fr.tpms_soft_warning_fr),  15) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_tpms_soft_warning_rl,tpms_soft_warning_rl,optional_tpms_soft_warning_rl.tpms_soft_warning_rl),  16) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_tpms_soft_warning_rr,tpms_soft_warning_rr,optional_tpms_soft_warning_rr.tpms_soft_warning_rr),  17) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_tpms_rcp_front_value,tpms_rcp_front_value,optional_tpms_rcp_front_value.tpms_rcp_front_value),  18) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_tpms_rcp_rear_value,tpms_rcp_rear_value,optional_tpms_rcp_rear_value.tpms_rcp_rear_value),  19)
+#define CarServer_TirePressureState_CALLBACK NULL
+#define CarServer_TirePressureState_DEFAULT NULL
+
+#define CarServer_MediaState_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_remote_control_enabled,remote_control_enabled,optional_remote_control_enabled.remote_control_enabled),   2) \
+X(a, CALLBACK, ONEOF,    STRING,   (optional_now_playing_artist,now_playing_artist,optional_now_playing_artist.now_playing_artist),   3) \
+X(a, CALLBACK, ONEOF,    STRING,   (optional_now_playing_title,now_playing_title,optional_now_playing_title.now_playing_title),   4) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_audio_volume,audio_volume,optional_audio_volume.audio_volume),   5) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_audio_volume_increment,audio_volume_increment,optional_audio_volume_increment.audio_volume_increment),   6) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_audio_volume_max,audio_volume_max,optional_audio_volume_max.audio_volume_max),   7) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_now_playing_source,now_playing_source,optional_now_playing_source.now_playing_source),   8) \
+X(a, STATIC,   ONEOF,    UENUM,    (optional_media_playback_status,media_playback_status,optional_media_playback_status.media_playback_status),   9)
+#define CarServer_MediaState_CALLBACK pb_default_field_callback
+#define CarServer_MediaState_DEFAULT NULL
+
+#define CarServer_MediaDetailState_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_now_playing_duration,now_playing_duration,optional_now_playing_duration.now_playing_duration),   2) \
+X(a, STATIC,   ONEOF,    INT32,    (optional_now_playing_elapsed,now_playing_elapsed,optional_now_playing_elapsed.now_playing_elapsed),   3) \
+X(a, CALLBACK, ONEOF,    STRING,   (optional_now_playing_source_string,now_playing_source_string,optional_now_playing_source_string.now_playing_source_string),   4) \
+X(a, CALLBACK, ONEOF,    STRING,   (optional_now_playing_album,now_playing_album,optional_now_playing_album.now_playing_album),   5) \
+X(a, CALLBACK, ONEOF,    STRING,   (optional_now_playing_station,now_playing_station,optional_now_playing_station.now_playing_station),   6) \
+X(a, CALLBACK, ONEOF,    STRING,   (optional_a2dp_source_name,a2dp_source_name,optional_a2dp_source_name.a2dp_source_name),   7)
+#define CarServer_MediaDetailState_CALLBACK pb_default_field_callback
+#define CarServer_MediaDetailState_DEFAULT NULL
+
+#define CarServer_ShiftState_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,Invalid,type.Invalid),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,P,type.P),   2) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,R,type.R),   3) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,N,type.N),   4) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,D,type.D),   5) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,SNA,type.SNA),   6)
+#define CarServer_ShiftState_CALLBACK NULL
+#define CarServer_ShiftState_DEFAULT NULL
+#define CarServer_ShiftState_type_Invalid_MSGTYPE CarServer_Void
+#define CarServer_ShiftState_type_P_MSGTYPE CarServer_Void
+#define CarServer_ShiftState_type_R_MSGTYPE CarServer_Void
+#define CarServer_ShiftState_type_N_MSGTYPE CarServer_Void
+#define CarServer_ShiftState_type_D_MSGTYPE CarServer_Void
+#define CarServer_ShiftState_type_SNA_MSGTYPE CarServer_Void
+
+extern const pb_msgdesc_t CarServer_VehicleData_msg;
+extern const pb_msgdesc_t CarServer_ClosuresState_msg;
+extern const pb_msgdesc_t CarServer_ClosuresState_SunRoofState_msg;
+extern const pb_msgdesc_t CarServer_ClosuresState_DisplayState_msg;
+extern const pb_msgdesc_t CarServer_ClosuresState_SentryModeState_msg;
+extern const pb_msgdesc_t CarServer_ChargeScheduleState_msg;
+extern const pb_msgdesc_t CarServer_PreconditioningScheduleState_msg;
+extern const pb_msgdesc_t CarServer_SpeedLimitMode_msg;
+extern const pb_msgdesc_t CarServer_ParentalControlsSettings_msg;
+extern const pb_msgdesc_t CarServer_ParentalControlsState_msg;
+extern const pb_msgdesc_t CarServer_SoftwareUpdateState_msg;
+extern const pb_msgdesc_t CarServer_SoftwareUpdateState_SoftwareUpdateStatus_msg;
+extern const pb_msgdesc_t CarServer_DriveState_msg;
+extern const pb_msgdesc_t CarServer_ChargeState_msg;
+extern const pb_msgdesc_t CarServer_ChargeState_CableType_msg;
+extern const pb_msgdesc_t CarServer_ChargeState_ChargerType_msg;
+extern const pb_msgdesc_t CarServer_ChargeState_ChargingState_msg;
+extern const pb_msgdesc_t CarServer_ChargeState_ChargerBrand_msg;
+extern const pb_msgdesc_t CarServer_ManagedChargingState_msg;
+extern const pb_msgdesc_t CarServer_ChargeOnSolarState_msg;
+extern const pb_msgdesc_t CarServer_ChargeOnSolarStateNotAllowed_msg;
+extern const pb_msgdesc_t CarServer_ChargeOnSolarStateNoChargeRecommended_msg;
+extern const pb_msgdesc_t CarServer_ChargeOnSolarStateChargingOnExcessSolar_msg;
+extern const pb_msgdesc_t CarServer_ChargeOnSolarStateChargingOnAnything_msg;
+extern const pb_msgdesc_t CarServer_ChargeOnSolarStateUserDisabled_msg;
+extern const pb_msgdesc_t CarServer_ChargeOnSolarStateWaitingForServer_msg;
+extern const pb_msgdesc_t CarServer_ChargeOnSolarStateError_msg;
+extern const pb_msgdesc_t CarServer_ChargeOnSolarStateUserStopped_msg;
 extern const pb_msgdesc_t CarServer_VehicleState_msg;
 extern const pb_msgdesc_t CarServer_VehicleState_GuestMode_msg;
 extern const pb_msgdesc_t CarServer_ClimateState_msg;
+extern const pb_msgdesc_t CarServer_ClimateState_ClimateKeeperMode_msg;
+extern const pb_msgdesc_t CarServer_ClimateState_DefrostMode_msg;
+extern const pb_msgdesc_t CarServer_TirePressureState_msg;
+extern const pb_msgdesc_t CarServer_MediaState_msg;
+extern const pb_msgdesc_t CarServer_MediaDetailState_msg;
+extern const pb_msgdesc_t CarServer_ShiftState_msg;
 
 /* Defines for backwards compatibility with code written before nanopb-0.4.0 */
+#define CarServer_VehicleData_fields &CarServer_VehicleData_msg
+#define CarServer_ClosuresState_fields &CarServer_ClosuresState_msg
+#define CarServer_ClosuresState_SunRoofState_fields &CarServer_ClosuresState_SunRoofState_msg
+#define CarServer_ClosuresState_DisplayState_fields &CarServer_ClosuresState_DisplayState_msg
+#define CarServer_ClosuresState_SentryModeState_fields &CarServer_ClosuresState_SentryModeState_msg
+#define CarServer_ChargeScheduleState_fields &CarServer_ChargeScheduleState_msg
+#define CarServer_PreconditioningScheduleState_fields &CarServer_PreconditioningScheduleState_msg
+#define CarServer_SpeedLimitMode_fields &CarServer_SpeedLimitMode_msg
+#define CarServer_ParentalControlsSettings_fields &CarServer_ParentalControlsSettings_msg
+#define CarServer_ParentalControlsState_fields &CarServer_ParentalControlsState_msg
+#define CarServer_SoftwareUpdateState_fields &CarServer_SoftwareUpdateState_msg
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_fields &CarServer_SoftwareUpdateState_SoftwareUpdateStatus_msg
+#define CarServer_DriveState_fields &CarServer_DriveState_msg
+#define CarServer_ChargeState_fields &CarServer_ChargeState_msg
+#define CarServer_ChargeState_CableType_fields &CarServer_ChargeState_CableType_msg
+#define CarServer_ChargeState_ChargerType_fields &CarServer_ChargeState_ChargerType_msg
+#define CarServer_ChargeState_ChargingState_fields &CarServer_ChargeState_ChargingState_msg
+#define CarServer_ChargeState_ChargerBrand_fields &CarServer_ChargeState_ChargerBrand_msg
+#define CarServer_ManagedChargingState_fields &CarServer_ManagedChargingState_msg
+#define CarServer_ChargeOnSolarState_fields &CarServer_ChargeOnSolarState_msg
+#define CarServer_ChargeOnSolarStateNotAllowed_fields &CarServer_ChargeOnSolarStateNotAllowed_msg
+#define CarServer_ChargeOnSolarStateNoChargeRecommended_fields &CarServer_ChargeOnSolarStateNoChargeRecommended_msg
+#define CarServer_ChargeOnSolarStateChargingOnExcessSolar_fields &CarServer_ChargeOnSolarStateChargingOnExcessSolar_msg
+#define CarServer_ChargeOnSolarStateChargingOnAnything_fields &CarServer_ChargeOnSolarStateChargingOnAnything_msg
+#define CarServer_ChargeOnSolarStateUserDisabled_fields &CarServer_ChargeOnSolarStateUserDisabled_msg
+#define CarServer_ChargeOnSolarStateWaitingForServer_fields &CarServer_ChargeOnSolarStateWaitingForServer_msg
+#define CarServer_ChargeOnSolarStateError_fields &CarServer_ChargeOnSolarStateError_msg
+#define CarServer_ChargeOnSolarStateUserStopped_fields &CarServer_ChargeOnSolarStateUserStopped_msg
 #define CarServer_VehicleState_fields &CarServer_VehicleState_msg
 #define CarServer_VehicleState_GuestMode_fields &CarServer_VehicleState_GuestMode_msg
 #define CarServer_ClimateState_fields &CarServer_ClimateState_msg
+#define CarServer_ClimateState_ClimateKeeperMode_fields &CarServer_ClimateState_ClimateKeeperMode_msg
+#define CarServer_ClimateState_DefrostMode_fields &CarServer_ClimateState_DefrostMode_msg
+#define CarServer_TirePressureState_fields &CarServer_TirePressureState_msg
+#define CarServer_MediaState_fields &CarServer_MediaState_msg
+#define CarServer_MediaDetailState_fields &CarServer_MediaDetailState_msg
+#define CarServer_ShiftState_fields &CarServer_ShiftState_msg
 
 /* Maximum encoded size of messages (where known) */
-#define CARSERVER_VEHICLE_PB_H_MAX_SIZE          CarServer_VehicleState_size
-#define CarServer_ClimateState_size              0
+#if defined(CarServer_ChargeSchedule_size)
+#endif
+#if defined(CarServer_PreconditionSchedule_size)
+#endif
+/* CarServer_VehicleData_size depends on runtime parameters */
+/* CarServer_ChargeScheduleState_size depends on runtime parameters */
+/* CarServer_PreconditioningScheduleState_size depends on runtime parameters */
+/* CarServer_SoftwareUpdateState_size depends on runtime parameters */
+/* CarServer_DriveState_size depends on runtime parameters */
+/* CarServer_ChargeState_size depends on runtime parameters */
+/* CarServer_ManagedChargingState_size depends on runtime parameters */
+/* CarServer_MediaState_size depends on runtime parameters */
+/* CarServer_MediaDetailState_size depends on runtime parameters */
+#define CARSERVER_VEHICLE_PB_H_MAX_SIZE          CarServer_ClimateState_size
+#define CarServer_ChargeOnSolarStateChargingOnAnything_size 0
+#define CarServer_ChargeOnSolarStateChargingOnExcessSolar_size 0
+#define CarServer_ChargeOnSolarStateError_size   0
+#define CarServer_ChargeOnSolarStateNoChargeRecommended_size 2
+#define CarServer_ChargeOnSolarStateNotAllowed_size 0
+#define CarServer_ChargeOnSolarStateUserDisabled_size 0
+#define CarServer_ChargeOnSolarStateUserStopped_size 0
+#define CarServer_ChargeOnSolarStateWaitingForServer_size 0
+#define CarServer_ChargeOnSolarState_size        4
+#define CarServer_ChargeState_CableType_size     2
+#define CarServer_ChargeState_ChargerBrand_size  2
+#define CarServer_ChargeState_ChargerType_size   2
+#define CarServer_ChargeState_ChargingState_size 2
+#define CarServer_ClimateState_ClimateKeeperMode_size 2
+#define CarServer_ClimateState_DefrostMode_size  2
+#define CarServer_ClimateState_size              283
+#define CarServer_ClosuresState_DisplayState_size 2
+#define CarServer_ClosuresState_SentryModeState_size 2
+#define CarServer_ClosuresState_SunRoofState_size 2
+#define CarServer_ClosuresState_size             113
+#define CarServer_ParentalControlsSettings_size  45
+#define CarServer_ParentalControlsState_size     51
+#define CarServer_ShiftState_size                2
+#define CarServer_SoftwareUpdateState_SoftwareUpdateStatus_size 2
+#define CarServer_SpeedLimitMode_size            24
+#define CarServer_TirePressureState_size         50
 #define CarServer_VehicleState_GuestMode_size    2
 #define CarServer_VehicleState_size              5
 

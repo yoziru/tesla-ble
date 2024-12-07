@@ -16,7 +16,7 @@ set(BUILD_EXAMPLES ON)
 FetchContent_Declare(
         nanopb
         GIT_REPOSITORY https://github.com/nanopb/nanopb.git
-        GIT_TAG 0.4.8
+        GIT_TAG 0.4.9.1
         GIT_SHALLOW    TRUE
 )
 FetchContent_Declare(

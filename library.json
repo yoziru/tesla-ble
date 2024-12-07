@@ -20,6 +20,6 @@
   "frameworks": "*",
   "platforms": ["espidf"],
   "dependencies": {
-    "nanopb/Nanopb": "^0.4.8"
+    "nanopb/Nanopb": "^0.4.9.1"
   }
 }

@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := generate
+
 generate_raw:
 	mkdir -p out
 	nanopb_generator *.proto --output-dir=out/

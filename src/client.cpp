@@ -802,7 +802,7 @@ namespace TeslaBLE
     return 0;
   }
 
-  int Client::buildOpenChargePortDoorhMessage(pb_byte_t *output_buffer,
+  int Client::buildOpenChargePortDoorMessage(pb_byte_t *output_buffer,
                                        size_t *output_length)
   {
     CarServer_Action action = CarServer_Action_init_default;
@@ -828,7 +828,7 @@ namespace TeslaBLE
   }
 
 
-  int Client::buildCloseChargePortDoorhMessage(pb_byte_t *output_buffer,
+  int Client::buildCloseChargePortDoorMessage(pb_byte_t *output_buffer,
                                        size_t *output_length)
   {
     CarServer_Action action = CarServer_Action_init_default;

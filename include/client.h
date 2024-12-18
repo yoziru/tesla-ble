@@ -178,11 +178,11 @@ namespace TeslaBLE
         pb_byte_t *output_buffer,
         size_t *output_length);
 
-    int buildOpenChargePortDoorhMessage(
+    int buildOpenChargePortDoorMessage(
         pb_byte_t *output_buffer,
         size_t *output_length);
 
-    int buildCloseChargePortDoorhMessage(
+    int buildCloseChargePortDoorMessage(
         pb_byte_t *output_buffer,
         size_t *output_length);
 

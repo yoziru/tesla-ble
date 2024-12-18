@@ -807,11 +807,10 @@ namespace TeslaBLE
   {
     CarServer_Action action = CarServer_Action_init_default;
     action.which_action_msg = CarServer_Action_vehicleAction_tag;
-
     CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-    vehicle_action.dummy_field = 1;
     vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_chargePortDoorOpen_tag;
     CarServer_ChargePortDoorOpen vehicle_action_msg = CarServer_ChargePortDoorOpen_init_default;
+    vehicle_action_msg.dummy_field = 1;
     vehicle_action.vehicle_action_msg.chargePortDoorOpen = vehicle_action_msg;
     action.action_msg.vehicleAction = vehicle_action;
 
@@ -836,9 +835,9 @@ namespace TeslaBLE
     action.which_action_msg = CarServer_Action_vehicleAction_tag;
 
     CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-    vehicle_action.dummy_field = 1;
     vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_chargePortDoorClose_tag;
     CarServer_ChargePortDoorClose vehicle_action_msg = CarServer_ChargePortDoorClose_init_default;
+    vehicle_action_msg.dummy_field = 1;
     vehicle_action.vehicle_action_msg.chargePortDoorClose = vehicle_action_msg;
     action.action_msg.vehicleAction = vehicle_action;
 

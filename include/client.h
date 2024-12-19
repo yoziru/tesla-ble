@@ -178,6 +178,14 @@ namespace TeslaBLE
         pb_byte_t *output_buffer,
         size_t *output_length);
 
+    int buildOpenChargePortDoorMessage(
+        pb_byte_t *output_buffer,
+        size_t *output_length);
+
+    int buildCloseChargePortDoorMessage(
+        pb_byte_t *output_buffer,
+        size_t *output_length);
+
     Peer *getPeer(UniversalMessage_Domain domain)
     {
       if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)

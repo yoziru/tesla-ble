@@ -27,6 +27,7 @@
 #include "universal_message.pb.h"
 #include "vcsec.pb.h"
 #include "peer.h"
+#include "vehicle.pb.h"
 #include "tb_utils.h"
 #include "errors.h"
 
@@ -354,6 +355,9 @@ namespace TeslaBLE
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
+    // If the response includes a signature_data.AES_GCM_Response_data field, then the protobuf_message_as_bytes payload is encrypted. Otherwise, the payload is plaintext.
+    // TODO
+
     return 0;
   }
   int Client::parseUniversalMessageBLE(pb_byte_t *input_buffer,
@@ -438,6 +442,10 @@ namespace TeslaBLE
     universal_message.from_destination = from_destination;
 
     universal_message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
+    
+    // Always set the encrypt response flag for 2024.38+ firmware compatibility
+    // universal_message.flags = UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE;
+
     if (encryptPayload)
     {
       if (!session->isInitialized())
@@ -446,47 +454,62 @@ namespace TeslaBLE
         return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
       }
 
-      pb_byte_t signature[16];
-      // encrypt the payload
+      pb_byte_t signature[16];  // AES-GCM tag
       pb_byte_t encrypted_payload[100];
       size_t encrypted_output_length = 0;
-
       uint32_t expires_at = session->generateExpiresAt(5);
-
-      // Next, we construct the serialized metadata string from values in the table
-      // below. The metadata string is used as the associated authenticated data (AAD)
-      // field of AES-GCM.
-      // std::string epoch_hex;
       const pb_byte_t *epoch = session->getEpoch();
 
+      // Construct AD buffer for encryption
       pb_byte_t ad_buffer[56];
       size_t ad_buffer_length = 0;
       session->ConstructADBuffer(
           Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-          this->VIN, expires_at, ad_buffer, &ad_buffer_length);
+          this->VIN,
+          expires_at,
+          ad_buffer,
+          &ad_buffer_length);
 
+      // Generate nonce and encrypt payload
       pb_byte_t nonce[12];
-      int return_code = session->Encrypt(payload, payload_length, encrypted_payload, sizeof encrypted_payload, &encrypted_output_length, signature, ad_buffer, ad_buffer_length, nonce);
+      int return_code = session->Encrypt(
+          payload,
+          payload_length,
+          encrypted_payload,
+          sizeof(encrypted_payload),
+          &encrypted_output_length,
+          signature,  // This will contain the AES-GCM tag
+          ad_buffer,
+          ad_buffer_length,
+          nonce);
+
       if (return_code != 0)
       {
         LOG_ERROR("Failed to encrypt payload");
         return TeslaBLE_Status_E_ERROR_ENCRYPT;
       }
 
-      // payload length
-      memcpy(universal_message.payload.protobuf_message_as_bytes.bytes, encrypted_payload, encrypted_output_length);
+      // Set encrypted payload
+      memcpy(universal_message.payload.protobuf_message_as_bytes.bytes,
+            encrypted_payload,
+            encrypted_output_length);
       universal_message.payload.protobuf_message_as_bytes.size = encrypted_output_length;
 
-      // set signature
-      // set public key
+      // Prepare signature data
       Signatures_SignatureData signature_data = Signatures_SignatureData_init_default;
+      
+      // Set signer identity (public key)
       Signatures_KeyIdentity signer_identity = Signatures_KeyIdentity_init_default;
       signer_identity.which_identity_type = Signatures_KeyIdentity_public_key_tag;
-      memcpy(signer_identity.identity_type.public_key.bytes, this->public_key_, this->public_key_size_);
+      memcpy(signer_identity.identity_type.public_key.bytes,
+            this->public_key_,
+            this->public_key_size_);
       signer_identity.identity_type.public_key.size = this->public_key_size_;
       signature_data.has_signer_identity = true;
       signature_data.signer_identity = signer_identity;
 
+      // Set AES-GCM signature data
+      signature_data.which_sig_type = Signatures_SignatureData_AES_GCM_Personalized_data_tag;
       Signatures_AES_GCM_Personalized_Signature_Data aes_gcm_signature_data = Signatures_AES_GCM_Personalized_Signature_Data_init_default;
       signature_data.which_sig_type = Signatures_SignatureData_AES_GCM_Personalized_data_tag;
       signature_data.sig_type.AES_GCM_Personalized_data.counter = session->getCounter();
@@ -495,6 +518,29 @@ namespace TeslaBLE
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.epoch, epoch, 16);
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.tag, signature, sizeof signature);
 
+      // After storing the signature/tag, construct and store request hash for later use in decrypting responses
+      pb_byte_t request_hash[17];  // Max size: 1 byte type + 16 bytes tag
+      size_t request_hash_length;
+      return_code = session->ConstructRequestHash(
+          Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+          signature,  // The tag we just generated
+          sizeof(signature),
+          request_hash,
+          &request_hash_length);
+          
+      if (return_code != 0) {
+          LOG_ERROR("Failed to construct request hash");
+          return return_code;
+      }
+
+      // Store the request hash for later use
+      memcpy(this->last_request_hash_, request_hash, request_hash_length);
+      this->last_request_hash_length_ = request_hash_length;
+
+      // Store the tag for later use in request hash construction
+      memcpy(this->last_request_tag_, signature, sizeof(signature));
+      this->last_request_type_ = Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED;
+
       universal_message.which_sub_sigData = UniversalMessage_RoutableMessage_signature_data_tag;
       universal_message.sub_sigData.signature_data = signature_data;
     }
@@ -502,11 +548,6 @@ namespace TeslaBLE
     {
       memcpy(universal_message.payload.protobuf_message_as_bytes.bytes, payload, payload_length);
       universal_message.payload.protobuf_message_as_bytes.size = payload_length;
-    }
-
-    // set gcm data
-    if (encryptPayload)
-    {
     }
 
     // random 16 bytes using rand()

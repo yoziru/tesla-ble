@@ -260,6 +260,12 @@ namespace TeslaBLE
     pb_byte_t connectionID[16];
     const char *VIN = "";
 
+    pb_byte_t last_request_tag_[16];  // Store the last request's authentication tag
+    Signatures_SignatureType last_request_type_;  // Store the authentication type used
+
+    pb_byte_t last_request_hash_[17];  // 1 byte type + 16 bytes tag
+    size_t last_request_hash_length_;
+
     static void prependLength(
         const pb_byte_t *input_buffer,
         size_t input_buffer_length,

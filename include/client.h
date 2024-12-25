@@ -200,6 +200,10 @@ namespace TeslaBLE
         pb_byte_t *output_buffer,
         size_t *output_length);
 
+    int buildCarServerGetVehicleDataMessage(
+        pb_byte_t *output_buffer,
+        size_t *output_length);
+
     int buildChargingAmpsMessage(
         int32_t amps,
         pb_byte_t *output_buffer,

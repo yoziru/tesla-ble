@@ -211,15 +211,11 @@ extern const pb_msgdesc_t UniversalMessage_RoutableMessage_msg;
 #define UniversalMessage_RoutableMessage_fields &UniversalMessage_RoutableMessage_msg
 
 /* Maximum encoded size of messages (where known) */
-#if defined(Signatures_SignatureData_size)
-#endif
+#define UNIVERSALMESSAGE_UNIVERSAL_MESSAGE_PB_H_MAX_SIZE UniversalMessage_RoutableMessage_size
 #define UniversalMessage_Destination_size        18
 #define UniversalMessage_MessageStatus_size      4
+#define UniversalMessage_RoutableMessage_size    329
 #define UniversalMessage_SessionInfoRequest_size 101
-#if defined(Signatures_SignatureData_size)
-#define UNIVERSALMESSAGE_UNIVERSAL_MESSAGE_PB_H_MAX_SIZE UniversalMessage_RoutableMessage_size
-#define UniversalMessage_RoutableMessage_size    (200 + Signatures_SignatureData_size)
-#endif
 
 #ifdef __cplusplus
 } /* extern "C" */

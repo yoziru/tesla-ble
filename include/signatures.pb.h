@@ -56,9 +56,9 @@ typedef struct _Signatures_AES_GCM_Personalized_Signature_Data {
 } Signatures_AES_GCM_Personalized_Signature_Data;
 
 typedef struct _Signatures_AES_GCM_Response_Signature_Data {
-    pb_callback_t nonce;
+    pb_byte_t nonce[12];
     uint32_t counter;
-    pb_callback_t tag;
+    pb_byte_t tag[16];
 } Signatures_AES_GCM_Response_Signature_Data;
 
 typedef PB_BYTES_ARRAY_T(34) Signatures_HMAC_Signature_Data_tag_t;
@@ -131,7 +131,7 @@ extern "C" {
 /* Initializer values for message structs */
 #define Signatures_KeyIdentity_init_default      {0, {{0, {0}}}}
 #define Signatures_AES_GCM_Personalized_Signature_Data_init_default {{0}, {0}, 0, 0, {0}}
-#define Signatures_AES_GCM_Response_Signature_Data_init_default {{{NULL}, NULL}, 0, {{NULL}, NULL}}
+#define Signatures_AES_GCM_Response_Signature_Data_init_default {{0}, 0, {0}}
 #define Signatures_HMAC_Signature_Data_init_default {{0, {0}}}
 #define Signatures_HMAC_Personalized_Signature_Data_init_default {{0}, 0, 0, {0}}
 #define Signatures_SignatureData_init_default    {false, Signatures_KeyIdentity_init_default, 0, {Signatures_AES_GCM_Personalized_Signature_Data_init_default}}
@@ -139,7 +139,7 @@ extern "C" {
 #define Signatures_SessionInfo_init_default      {0, {0, {0}}, {0}, 0, _Signatures_Session_Info_Status_MIN, 0}
 #define Signatures_KeyIdentity_init_zero         {0, {{0, {0}}}}
 #define Signatures_AES_GCM_Personalized_Signature_Data_init_zero {{0}, {0}, 0, 0, {0}}
-#define Signatures_AES_GCM_Response_Signature_Data_init_zero {{{NULL}, NULL}, 0, {{NULL}, NULL}}
+#define Signatures_AES_GCM_Response_Signature_Data_init_zero {{0}, 0, {0}}
 #define Signatures_HMAC_Signature_Data_init_zero {{0, {0}}}
 #define Signatures_HMAC_Personalized_Signature_Data_init_zero {{0}, 0, 0, {0}}
 #define Signatures_SignatureData_init_zero       {false, Signatures_KeyIdentity_init_zero, 0, {Signatures_AES_GCM_Personalized_Signature_Data_init_zero}}
@@ -192,10 +192,10 @@ X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, tag,               5)
 #define Signatures_AES_GCM_Personalized_Signature_Data_DEFAULT NULL
 
 #define Signatures_AES_GCM_Response_Signature_Data_FIELDLIST(X, a) \
-X(a, CALLBACK, SINGULAR, BYTES,    nonce,             1) \
+X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, nonce,             1) \
 X(a, STATIC,   SINGULAR, UINT32,   counter,           2) \
-X(a, CALLBACK, SINGULAR, BYTES,    tag,               3)
-#define Signatures_AES_GCM_Response_Signature_Data_CALLBACK pb_default_field_callback
+X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, tag,               3)
+#define Signatures_AES_GCM_Response_Signature_Data_CALLBACK NULL
 #define Signatures_AES_GCM_Response_Signature_Data_DEFAULT NULL
 
 #define Signatures_HMAC_Signature_Data_FIELDLIST(X, a) \
@@ -261,15 +261,15 @@ extern const pb_msgdesc_t Signatures_SessionInfo_msg;
 #define Signatures_SessionInfo_fields &Signatures_SessionInfo_msg
 
 /* Maximum encoded size of messages (where known) */
-/* Signatures_AES_GCM_Response_Signature_Data_size depends on runtime parameters */
-/* Signatures_SignatureData_size depends on runtime parameters */
-#define SIGNATURES_SIGNATURES_PB_H_MAX_SIZE      Signatures_SessionInfo_size
+#define SIGNATURES_SIGNATURES_PB_H_MAX_SIZE      Signatures_SignatureData_size
 #define Signatures_AES_GCM_Personalized_Signature_Data_size 61
+#define Signatures_AES_GCM_Response_Signature_Data_size 38
 #define Signatures_GetSessionInfoRequest_size    69
 #define Signatures_HMAC_Personalized_Signature_Data_size 47
 #define Signatures_HMAC_Signature_Data_size      36
 #define Signatures_KeyIdentity_size              67
 #define Signatures_SessionInfo_size              104
+#define Signatures_SignatureData_size            132
 
 #ifdef __cplusplus
 } /* extern "C" */

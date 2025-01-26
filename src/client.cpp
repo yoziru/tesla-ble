@@ -443,8 +443,11 @@ namespace TeslaBLE
 
     universal_message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
     
-    // Always set the encrypt response flag for 2024.38+ firmware compatibility
-    // universal_message.flags = UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE;
+    // The `flags` field is a bit mask of `universal_message.Flags` values.
+    // Vehicles authenticate this value, but ignore unrecognized bits. Clients
+    // should always set the `FLAG_ENCRYPT_RESPONSE` bit, which instructs vehicles
+    // with compatible firmware (2024.38+) to encrypt the response.
+    universal_message.flags = (1 << UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE);
 
     if (encryptPayload)
     {
@@ -454,7 +457,7 @@ namespace TeslaBLE
         return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
       }
 
-      pb_byte_t signature[16];  // AES-GCM tag
+      pb_byte_t signature[16]; // AES-GCM tag
       pb_byte_t encrypted_payload[100];
       size_t encrypted_output_length = 0;
       uint32_t expires_at = session->generateExpiresAt(5);
@@ -468,7 +471,9 @@ namespace TeslaBLE
           this->VIN,
           expires_at,
           ad_buffer,
-          &ad_buffer_length);
+          &ad_buffer_length,
+          universal_message.flags
+      );
 
       // Generate nonce and encrypt payload
       pb_byte_t nonce[12];
@@ -478,7 +483,7 @@ namespace TeslaBLE
           encrypted_payload,
           sizeof(encrypted_payload),
           &encrypted_output_length,
-          signature,  // This will contain the AES-GCM tag
+          signature, // This will contain the AES-GCM tag
           ad_buffer,
           ad_buffer_length,
           nonce);
@@ -509,7 +514,6 @@ namespace TeslaBLE
       signature_data.signer_identity = signer_identity;
 
       // Set AES-GCM signature data
-      signature_data.which_sig_type = Signatures_SignatureData_AES_GCM_Personalized_data_tag;
       Signatures_AES_GCM_Personalized_Signature_Data aes_gcm_signature_data = Signatures_AES_GCM_Personalized_Signature_Data_init_default;
       signature_data.which_sig_type = Signatures_SignatureData_AES_GCM_Personalized_data_tag;
       signature_data.sig_type.AES_GCM_Personalized_data.counter = session->getCounter();
@@ -519,16 +523,17 @@ namespace TeslaBLE
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.tag, signature, sizeof signature);
 
       // After storing the signature/tag, construct and store request hash for later use in decrypting responses
-      pb_byte_t request_hash[17];  // Max size: 1 byte type + 16 bytes tag
+      pb_byte_t request_hash[17]; // Max size: 1 byte type + 16 bytes tag
       size_t request_hash_length;
       return_code = session->ConstructRequestHash(
           Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-          signature,  // The tag we just generated
+          signature, // The tag we just generated
           sizeof(signature),
           request_hash,
           &request_hash_length);
           
-      if (return_code != 0) {
+      if (return_code != 0)
+      {
           LOG_ERROR("Failed to construct request hash");
           return return_code;
       }

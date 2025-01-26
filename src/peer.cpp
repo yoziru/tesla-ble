@@ -245,9 +245,9 @@ namespace TeslaBLE
       uint32_t expires_at,
       pb_byte_t *output_buffer,
       size_t *output_length,
+      uint32_t flags,
       const pb_byte_t* request_hash,
       size_t request_hash_length,
-      uint32_t flags,
       uint32_t fault) const
   {
     size_t index = 0;
@@ -291,16 +291,21 @@ namespace TeslaBLE
     output_buffer[index++] = (this->counter_ >> 8) & 0xFF;
     output_buffer[index++] = this->counter_ & 0xFF;
 
-    if (signature_type == Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE)
-    {
+    if (flags > 0 || signature_type == Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE) {
       // Flags (always included for responses, don't include for request)
+      // For backwards compatibility, message flags are only explicitly added to
+      // the metadata hash if at least one of them is set. (If a MITM
+      // clears these bits, the hashes will not match, as desired).
       output_buffer[index++] = Signatures_Tag_TAG_FLAGS;
       output_buffer[index++] = 0x04;
       output_buffer[index++] = (flags >> 24) & 0xFF;
       output_buffer[index++] = (flags >> 16) & 0xFF;
       output_buffer[index++] = (flags >> 8) & 0xFF;
       output_buffer[index++] = flags & 0xFF;
+    }
 
+    if (signature_type == Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE)
+    {
       // Request hash
       if (request_hash != nullptr && request_hash_length > 0) {
         output_buffer[index++] = Signatures_Tag_TAG_REQUEST_HASH;
@@ -390,9 +395,9 @@ namespace TeslaBLE
         0,  // expires_at not used for responses
         ad_buffer,
         &ad_length,
+        flags,
         request_hash,
         request_hash_length,
-        flags,
         fault);
 
     if (return_code != 0) {

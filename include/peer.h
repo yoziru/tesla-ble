@@ -74,9 +74,9 @@ namespace TeslaBLE
         uint32_t expires_at,
         pb_byte_t *output_buffer,
         size_t *output_length,
+        uint32_t flags = 0,
         const pb_byte_t* request_hash = nullptr,
         size_t request_hash_length = 0,
-        uint32_t flags = 0,
         uint32_t fault = 0) const;
 
     // Existing encryption method

@@ -90,6 +90,12 @@ PB_BIND(CarServer_ChargeOnSolarStateError, CarServer_ChargeOnSolarStateError, AU
 PB_BIND(CarServer_ChargeOnSolarStateUserStopped, CarServer_ChargeOnSolarStateUserStopped, AUTO)
 
 
+PB_BIND(CarServer_LocationState, CarServer_LocationState, 2)
+
+
+PB_BIND(CarServer_LocationState_GPSCoordinateType, CarServer_LocationState_GPSCoordinateType, AUTO)
+
+
 PB_BIND(CarServer_VehicleState, CarServer_VehicleState, 2)
 
 

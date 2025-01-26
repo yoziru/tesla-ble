@@ -36,6 +36,9 @@ PB_BIND(CarServer_GetClimateState, CarServer_GetClimateState, AUTO)
 PB_BIND(CarServer_GetDriveState, CarServer_GetDriveState, AUTO)
 
 
+PB_BIND(CarServer_GetLocationState, CarServer_GetLocationState, AUTO)
+
+
 PB_BIND(CarServer_GetClosuresState, CarServer_GetClosuresState, AUTO)
 
 

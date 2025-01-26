@@ -80,6 +80,10 @@ typedef struct _CarServer_GetDriveState {
     char dummy_field;
 } CarServer_GetDriveState;
 
+typedef struct _CarServer_GetLocationState {
+    char dummy_field;
+} CarServer_GetLocationState;
+
 typedef struct _CarServer_GetClosuresState {
     char dummy_field;
 } CarServer_GetClosuresState;
@@ -103,6 +107,8 @@ typedef struct _CarServer_GetVehicleData {
     CarServer_GetClimateState getClimateState;
     bool has_getDriveState;
     CarServer_GetDriveState getDriveState;
+    bool has_getLocationState;
+    CarServer_GetLocationState getLocationState;
     bool has_getClosuresState;
     CarServer_GetClosuresState getClosuresState;
     bool has_getChargeScheduleState;
@@ -589,6 +595,7 @@ extern "C" {
 
 
 
+
 #define CarServer_ActionStatus_result_ENUMTYPE CarServer_OperationStatus_E
 
 
@@ -656,7 +663,7 @@ extern "C" {
 /* Initializer values for message structs */
 #define CarServer_Action_init_default            {0, {CarServer_VehicleAction_init_default}}
 #define CarServer_VehicleAction_init_default     {0, {CarServer_GetVehicleData_init_default}}
-#define CarServer_GetVehicleData_init_default    {false, CarServer_GetChargeState_init_default, false, CarServer_GetClimateState_init_default, false, CarServer_GetDriveState_init_default, false, CarServer_GetClosuresState_init_default, false, CarServer_GetChargeScheduleState_init_default, false, CarServer_GetPreconditioningScheduleState_init_default, false, CarServer_GetTirePressureState_init_default, false, CarServer_GetMediaState_init_default, false, CarServer_GetMediaDetailState_init_default, false, CarServer_GetSoftwareUpdateState_init_default, false, CarServer_GetParentalControlsState_init_default}
+#define CarServer_GetVehicleData_init_default    {false, CarServer_GetChargeState_init_default, false, CarServer_GetClimateState_init_default, false, CarServer_GetDriveState_init_default, false, CarServer_GetLocationState_init_default, false, CarServer_GetClosuresState_init_default, false, CarServer_GetChargeScheduleState_init_default, false, CarServer_GetPreconditioningScheduleState_init_default, false, CarServer_GetTirePressureState_init_default, false, CarServer_GetMediaState_init_default, false, CarServer_GetMediaDetailState_init_default, false, CarServer_GetSoftwareUpdateState_init_default, false, CarServer_GetParentalControlsState_init_default}
 #define CarServer_GetTirePressureState_init_default {0}
 #define CarServer_GetMediaState_init_default     {0}
 #define CarServer_GetMediaDetailState_init_default {0}
@@ -664,6 +671,7 @@ extern "C" {
 #define CarServer_GetChargeState_init_default    {0}
 #define CarServer_GetClimateState_init_default   {0}
 #define CarServer_GetDriveState_init_default     {0}
+#define CarServer_GetLocationState_init_default  {0}
 #define CarServer_GetClosuresState_init_default  {0}
 #define CarServer_GetChargeScheduleState_init_default {0}
 #define CarServer_GetPreconditioningScheduleState_init_default {0}
@@ -728,7 +736,7 @@ extern "C" {
 #define CarServer_VehicleControlResetPinToDriveAction_init_default {0}
 #define CarServer_Action_init_zero               {0, {CarServer_VehicleAction_init_zero}}
 #define CarServer_VehicleAction_init_zero        {0, {CarServer_GetVehicleData_init_zero}}
-#define CarServer_GetVehicleData_init_zero       {false, CarServer_GetChargeState_init_zero, false, CarServer_GetClimateState_init_zero, false, CarServer_GetDriveState_init_zero, false, CarServer_GetClosuresState_init_zero, false, CarServer_GetChargeScheduleState_init_zero, false, CarServer_GetPreconditioningScheduleState_init_zero, false, CarServer_GetTirePressureState_init_zero, false, CarServer_GetMediaState_init_zero, false, CarServer_GetMediaDetailState_init_zero, false, CarServer_GetSoftwareUpdateState_init_zero, false, CarServer_GetParentalControlsState_init_zero}
+#define CarServer_GetVehicleData_init_zero       {false, CarServer_GetChargeState_init_zero, false, CarServer_GetClimateState_init_zero, false, CarServer_GetDriveState_init_zero, false, CarServer_GetLocationState_init_zero, false, CarServer_GetClosuresState_init_zero, false, CarServer_GetChargeScheduleState_init_zero, false, CarServer_GetPreconditioningScheduleState_init_zero, false, CarServer_GetTirePressureState_init_zero, false, CarServer_GetMediaState_init_zero, false, CarServer_GetMediaDetailState_init_zero, false, CarServer_GetSoftwareUpdateState_init_zero, false, CarServer_GetParentalControlsState_init_zero}
 #define CarServer_GetTirePressureState_init_zero {0}
 #define CarServer_GetMediaState_init_zero        {0}
 #define CarServer_GetMediaDetailState_init_zero  {0}
@@ -736,6 +744,7 @@ extern "C" {
 #define CarServer_GetChargeState_init_zero       {0}
 #define CarServer_GetClimateState_init_zero      {0}
 #define CarServer_GetDriveState_init_zero        {0}
+#define CarServer_GetLocationState_init_zero     {0}
 #define CarServer_GetClosuresState_init_zero     {0}
 #define CarServer_GetChargeScheduleState_init_zero {0}
 #define CarServer_GetPreconditioningScheduleState_init_zero {0}
@@ -803,6 +812,7 @@ extern "C" {
 #define CarServer_GetVehicleData_getChargeState_tag 2
 #define CarServer_GetVehicleData_getClimateState_tag 3
 #define CarServer_GetVehicleData_getDriveState_tag 4
+#define CarServer_GetVehicleData_getLocationState_tag 7
 #define CarServer_GetVehicleData_getClosuresState_tag 8
 #define CarServer_GetVehicleData_getChargeScheduleState_tag 10
 #define CarServer_GetVehicleData_getPreconditioningScheduleState_tag 11
@@ -1113,6 +1123,7 @@ X(a, STATIC,   ONEOF,    MESSAGE,  (vehicle_action_msg,batchRemoveChargeSchedule
 X(a, STATIC,   OPTIONAL, MESSAGE,  getChargeState,    2) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  getClimateState,   3) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  getDriveState,     4) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  getLocationState,   7) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  getClosuresState,   8) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  getChargeScheduleState,  10) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  getPreconditioningScheduleState,  11) \
@@ -1126,6 +1137,7 @@ X(a, STATIC,   OPTIONAL, MESSAGE,  getParentalControlsState,  19)
 #define CarServer_GetVehicleData_getChargeState_MSGTYPE CarServer_GetChargeState
 #define CarServer_GetVehicleData_getClimateState_MSGTYPE CarServer_GetClimateState
 #define CarServer_GetVehicleData_getDriveState_MSGTYPE CarServer_GetDriveState
+#define CarServer_GetVehicleData_getLocationState_MSGTYPE CarServer_GetLocationState
 #define CarServer_GetVehicleData_getClosuresState_MSGTYPE CarServer_GetClosuresState
 #define CarServer_GetVehicleData_getChargeScheduleState_MSGTYPE CarServer_GetChargeScheduleState
 #define CarServer_GetVehicleData_getPreconditioningScheduleState_MSGTYPE CarServer_GetPreconditioningScheduleState
@@ -1169,6 +1181,11 @@ X(a, STATIC,   OPTIONAL, MESSAGE,  getParentalControlsState,  19)
 
 #define CarServer_GetDriveState_CALLBACK NULL
 #define CarServer_GetDriveState_DEFAULT NULL
+
+#define CarServer_GetLocationState_FIELDLIST(X, a) \
+
+#define CarServer_GetLocationState_CALLBACK NULL
+#define CarServer_GetLocationState_DEFAULT NULL
 
 #define CarServer_GetClosuresState_FIELDLIST(X, a) \
 
@@ -1625,6 +1642,7 @@ extern const pb_msgdesc_t CarServer_GetSoftwareUpdateState_msg;
 extern const pb_msgdesc_t CarServer_GetChargeState_msg;
 extern const pb_msgdesc_t CarServer_GetClimateState_msg;
 extern const pb_msgdesc_t CarServer_GetDriveState_msg;
+extern const pb_msgdesc_t CarServer_GetLocationState_msg;
 extern const pb_msgdesc_t CarServer_GetClosuresState_msg;
 extern const pb_msgdesc_t CarServer_GetChargeScheduleState_msg;
 extern const pb_msgdesc_t CarServer_GetPreconditioningScheduleState_msg;
@@ -1699,6 +1717,7 @@ extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAction_msg;
 #define CarServer_GetChargeState_fields &CarServer_GetChargeState_msg
 #define CarServer_GetClimateState_fields &CarServer_GetClimateState_msg
 #define CarServer_GetDriveState_fields &CarServer_GetDriveState_msg
+#define CarServer_GetLocationState_fields &CarServer_GetLocationState_msg
 #define CarServer_GetClosuresState_fields &CarServer_GetClosuresState_msg
 #define CarServer_GetChargeScheduleState_fields &CarServer_GetChargeScheduleState_msg
 #define CarServer_GetPreconditioningScheduleState_fields &CarServer_GetPreconditioningScheduleState_msg
@@ -1796,6 +1815,7 @@ extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAction_msg;
 #define CarServer_GetClimateState_size           0
 #define CarServer_GetClosuresState_size          0
 #define CarServer_GetDriveState_size             0
+#define CarServer_GetLocationState_size          0
 #define CarServer_GetMediaDetailState_size       0
 #define CarServer_GetMediaState_size             0
 #define CarServer_GetNearbyChargingSites_size    24
@@ -1803,7 +1823,7 @@ extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAction_msg;
 #define CarServer_GetPreconditioningScheduleState_size 0
 #define CarServer_GetSoftwareUpdateState_size    0
 #define CarServer_GetTirePressureState_size      0
-#define CarServer_GetVehicleData_size            25
+#define CarServer_GetVehicleData_size            27
 #define CarServer_HvacAutoAction_size            4
 #define CarServer_HvacBioweaponModeAction_size   4
 #define CarServer_HvacClimateKeeperAction_size   4

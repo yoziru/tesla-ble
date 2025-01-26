@@ -865,6 +865,103 @@ typedef struct _CarServer_ChargeState {
     } optional_outlet_max_timer_minutes;
 } CarServer_ChargeState;
 
+typedef struct _CarServer_LocationState_GPSCoordinateType {
+    pb_size_t which_type;
+    union {
+        CarServer_Void GCJ;
+        CarServer_Void WGS;
+    } type;
+} CarServer_LocationState_GPSCoordinateType;
+
+/* LocationState contains information about the vehicle's location. Typically
+ clients will want to use native coordinates, which use either WGS
+ (international) or GCJ (Chinese) coordinate systems depending on the
+ vehicle's region. If the native fields are not provided, WGS clients should
+ fall back to the plain latitude/longitude fields, and GCJ clients should
+ fall back to corrected fields.
+
+ The geo fields contain raw WGS GPS coordinates. They are usually less
+ accurate. However, they should be used if there is a large discrepancy
+ between the raw and estimated location, as determined by the
+ "estimated to raw distance" field. This scenario most frequently arises when
+ the vehicle has recently been transported or towed. */
+typedef struct _CarServer_LocationState {
+    bool has_native_type;
+    CarServer_LocationState_GPSCoordinateType native_type;
+    pb_size_t which_optional_latitude;
+    union {
+        float latitude;
+    } optional_latitude;
+    pb_size_t which_optional_longitude;
+    union {
+        float longitude;
+    } optional_longitude;
+    pb_size_t which_optional_heading;
+    union {
+        uint32_t heading;
+    } optional_heading;
+    pb_size_t which_optional_gps_as_of;
+    union {
+        uint64_t gps_as_of;
+    } optional_gps_as_of;
+    pb_size_t which_optional_native_location_supported;
+    union {
+        bool native_location_supported;
+    } optional_native_location_supported;
+    pb_size_t which_optional_native_latitude;
+    union {
+        float native_latitude;
+    } optional_native_latitude;
+    pb_size_t which_optional_native_longitude;
+    union {
+        float native_longitude;
+    } optional_native_longitude;
+    pb_size_t which_optional_corrected_latitude;
+    union {
+        float corrected_latitude;
+    } optional_corrected_latitude;
+    pb_size_t which_optional_corrected_longitude;
+    union {
+        float corrected_longitude;
+    } optional_corrected_longitude;
+    pb_size_t which_optional_homelink_nearby;
+    union {
+        bool homelink_nearby;
+    } optional_homelink_nearby;
+    pb_size_t which_optional_location_name;
+    union {
+        pb_callback_t location_name;
+    } optional_location_name;
+    pb_size_t which_optional_geo_latitude;
+    union {
+        float geo_latitude;
+    } optional_geo_latitude;
+    pb_size_t which_optional_geo_longitude;
+    union {
+        float geo_longitude;
+    } optional_geo_longitude;
+    pb_size_t which_optional_geo_heading;
+    union {
+        float geo_heading;
+    } optional_geo_heading;
+    pb_size_t which_optional_geo_elevation;
+    union {
+        float geo_elevation;
+    } optional_geo_elevation;
+    pb_size_t which_optional_geo_accuracy;
+    union {
+        float geo_accuracy;
+    } optional_geo_accuracy;
+    pb_size_t which_optional_estimated_gps_valid;
+    union {
+        bool estimated_gps_valid;
+    } optional_estimated_gps_valid;
+    pb_size_t which_optional_estimated_to_raw_distance;
+    union {
+        float estimated_to_raw_distance;
+    } optional_estimated_to_raw_distance;
+} CarServer_LocationState;
+
 typedef struct _CarServer_VehicleState_GuestMode {
     bool GuestModeActive;
 } CarServer_VehicleState_GuestMode;
@@ -1260,6 +1357,8 @@ typedef struct _CarServer_VehicleData {
     CarServer_ClimateState climate_state;
     bool has_drive_state;
     CarServer_DriveState drive_state;
+    bool has_location_state;
+    CarServer_LocationState location_state;
     bool has_closures_state;
     CarServer_ClosuresState closures_state;
     bool has_charge_schedule_state;
@@ -1384,6 +1483,8 @@ extern "C" {
 
 
 
+
+
 #define CarServer_ClimateState_optional_cabin_overheat_protection_cabin_overheat_protection_ENUMTYPE CarServer_ClimateState_CabinOverheatProtection_E
 #define CarServer_ClimateState_optional_cop_activation_temperature_cop_activation_temperature_ENUMTYPE CarServer_ClimateState_CopActivationTemp
 #define CarServer_ClimateState_optional_steering_wheel_heat_level_steering_wheel_heat_level_ENUMTYPE CarServer_StwHeatLevel
@@ -1400,7 +1501,7 @@ extern "C" {
 
 
 /* Initializer values for message structs */
-#define CarServer_VehicleData_init_default       {false, CarServer_ChargeState_init_default, false, CarServer_ClimateState_init_default, false, CarServer_DriveState_init_default, false, CarServer_ClosuresState_init_default, false, CarServer_ChargeScheduleState_init_default, false, CarServer_PreconditioningScheduleState_init_default, false, CarServer_TirePressureState_init_default, false, CarServer_MediaState_init_default, false, CarServer_MediaDetailState_init_default, false, CarServer_SoftwareUpdateState_init_default, false, CarServer_ParentalControlsState_init_default}
+#define CarServer_VehicleData_init_default       {false, CarServer_ChargeState_init_default, false, CarServer_ClimateState_init_default, false, CarServer_DriveState_init_default, false, CarServer_LocationState_init_default, false, CarServer_ClosuresState_init_default, false, CarServer_ChargeScheduleState_init_default, false, CarServer_PreconditioningScheduleState_init_default, false, CarServer_TirePressureState_init_default, false, CarServer_MediaState_init_default, false, CarServer_MediaDetailState_init_default, false, CarServer_SoftwareUpdateState_init_default, false, CarServer_ParentalControlsState_init_default}
 #define CarServer_ClosuresState_init_default     {false, CarServer_ClosuresState_SunRoofState_init_default, false, CarServer_ClosuresState_DisplayState_init_default, false, CarServer_ClosuresState_SentryModeState_init_default, false, CarServer_SpeedLimitMode_init_default, 0, {_VCSEC_ClosureState_E_MIN}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
 #define CarServer_ClosuresState_SunRoofState_init_default {0, {CarServer_Void_init_default}}
 #define CarServer_ClosuresState_DisplayState_init_default {0, {CarServer_Void_init_default}}
@@ -1428,6 +1529,8 @@ extern "C" {
 #define CarServer_ChargeOnSolarStateWaitingForServer_init_default {0}
 #define CarServer_ChargeOnSolarStateError_init_default {0}
 #define CarServer_ChargeOnSolarStateUserStopped_init_default {0}
+#define CarServer_LocationState_init_default     {false, CarServer_LocationState_GPSCoordinateType_init_default, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {{{NULL}, NULL}}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_LocationState_GPSCoordinateType_init_default {0, {CarServer_Void_init_default}}
 #define CarServer_VehicleState_init_default      {false, CarServer_VehicleState_GuestMode_init_default}
 #define CarServer_VehicleState_GuestMode_init_default {0}
 #define CarServer_ClimateState_init_default      {false, CarServer_ClimateState_ClimateKeeperMode_init_default, false, CarServer_ClimateState_DefrostMode_init_default, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {_CarServer_ClimateState_CabinOverheatProtection_E_MIN}, 0, {0}, 0, {_CarServer_ClimateState_CopActivationTemp_MIN}, 0, {0}, 0, {_CarServer_StwHeatLevel_MIN}, 0, {_CarServer_ClimateState_HvacAutoRequest_MIN}, 0, {_CarServer_ClimateState_COPNotRunningReason_MIN}}
@@ -1437,7 +1540,7 @@ extern "C" {
 #define CarServer_MediaState_init_default        {0, {0}, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}, 0, {0}, 0, {0}, 0, {0}, 0, {_CarServer_MediaSourceType_MIN}, 0, {_CarServer_MediaPlaybackStatus_MIN}}
 #define CarServer_MediaDetailState_init_default  {0, {0}, 0, {0}, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}, 0, {{{NULL}, NULL}}}
 #define CarServer_ShiftState_init_default        {0, {CarServer_Void_init_default}}
-#define CarServer_VehicleData_init_zero          {false, CarServer_ChargeState_init_zero, false, CarServer_ClimateState_init_zero, false, CarServer_DriveState_init_zero, false, CarServer_ClosuresState_init_zero, false, CarServer_ChargeScheduleState_init_zero, false, CarServer_PreconditioningScheduleState_init_zero, false, CarServer_TirePressureState_init_zero, false, CarServer_MediaState_init_zero, false, CarServer_MediaDetailState_init_zero, false, CarServer_SoftwareUpdateState_init_zero, false, CarServer_ParentalControlsState_init_zero}
+#define CarServer_VehicleData_init_zero          {false, CarServer_ChargeState_init_zero, false, CarServer_ClimateState_init_zero, false, CarServer_DriveState_init_zero, false, CarServer_LocationState_init_zero, false, CarServer_ClosuresState_init_zero, false, CarServer_ChargeScheduleState_init_zero, false, CarServer_PreconditioningScheduleState_init_zero, false, CarServer_TirePressureState_init_zero, false, CarServer_MediaState_init_zero, false, CarServer_MediaDetailState_init_zero, false, CarServer_SoftwareUpdateState_init_zero, false, CarServer_ParentalControlsState_init_zero}
 #define CarServer_ClosuresState_init_zero        {false, CarServer_ClosuresState_SunRoofState_init_zero, false, CarServer_ClosuresState_DisplayState_init_zero, false, CarServer_ClosuresState_SentryModeState_init_zero, false, CarServer_SpeedLimitMode_init_zero, 0, {_VCSEC_ClosureState_E_MIN}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
 #define CarServer_ClosuresState_SunRoofState_init_zero {0, {CarServer_Void_init_zero}}
 #define CarServer_ClosuresState_DisplayState_init_zero {0, {CarServer_Void_init_zero}}
@@ -1465,6 +1568,8 @@ extern "C" {
 #define CarServer_ChargeOnSolarStateWaitingForServer_init_zero {0}
 #define CarServer_ChargeOnSolarStateError_init_zero {0}
 #define CarServer_ChargeOnSolarStateUserStopped_init_zero {0}
+#define CarServer_LocationState_init_zero        {false, CarServer_LocationState_GPSCoordinateType_init_zero, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {{{NULL}, NULL}}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}}
+#define CarServer_LocationState_GPSCoordinateType_init_zero {0, {CarServer_Void_init_zero}}
 #define CarServer_VehicleState_init_zero         {false, CarServer_VehicleState_GuestMode_init_zero}
 #define CarServer_VehicleState_GuestMode_init_zero {0}
 #define CarServer_ClimateState_init_zero         {false, CarServer_ClimateState_ClimateKeeperMode_init_zero, false, CarServer_ClimateState_DefrostMode_init_zero, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {0}, 0, {_CarServer_ClimateState_CabinOverheatProtection_E_MIN}, 0, {0}, 0, {_CarServer_ClimateState_CopActivationTemp_MIN}, 0, {0}, 0, {_CarServer_StwHeatLevel_MIN}, 0, {_CarServer_ClimateState_HvacAutoRequest_MIN}, 0, {_CarServer_ClimateState_COPNotRunningReason_MIN}}
@@ -1672,6 +1777,27 @@ extern "C" {
 #define CarServer_ChargeState_home_location_tag  176
 #define CarServer_ChargeState_work_location_tag  177
 #define CarServer_ChargeState_outlet_max_timer_minutes_tag 178
+#define CarServer_LocationState_GPSCoordinateType_GCJ_tag 1
+#define CarServer_LocationState_GPSCoordinateType_WGS_tag 2
+#define CarServer_LocationState_native_type_tag  8
+#define CarServer_LocationState_latitude_tag     101
+#define CarServer_LocationState_longitude_tag    102
+#define CarServer_LocationState_heading_tag      103
+#define CarServer_LocationState_gps_as_of_tag    104
+#define CarServer_LocationState_native_location_supported_tag 105
+#define CarServer_LocationState_native_latitude_tag 106
+#define CarServer_LocationState_native_longitude_tag 107
+#define CarServer_LocationState_corrected_latitude_tag 109
+#define CarServer_LocationState_corrected_longitude_tag 110
+#define CarServer_LocationState_homelink_nearby_tag 112
+#define CarServer_LocationState_location_name_tag 113
+#define CarServer_LocationState_geo_latitude_tag 114
+#define CarServer_LocationState_geo_longitude_tag 115
+#define CarServer_LocationState_geo_heading_tag  116
+#define CarServer_LocationState_geo_elevation_tag 117
+#define CarServer_LocationState_geo_accuracy_tag 118
+#define CarServer_LocationState_estimated_gps_valid_tag 119
+#define CarServer_LocationState_estimated_to_raw_distance_tag 120
 #define CarServer_VehicleState_GuestMode_GuestModeActive_tag 1
 #define CarServer_VehicleState_guestMode_tag     74
 #define CarServer_ClimateState_ClimateKeeperMode_Unknown_tag 1
@@ -1776,6 +1902,7 @@ extern "C" {
 #define CarServer_VehicleData_charge_state_tag   3
 #define CarServer_VehicleData_climate_state_tag  4
 #define CarServer_VehicleData_drive_state_tag    5
+#define CarServer_VehicleData_location_state_tag 8
 #define CarServer_VehicleData_closures_state_tag 9
 #define CarServer_VehicleData_charge_schedule_state_tag 15
 #define CarServer_VehicleData_preconditioning_schedule_state_tag 16
@@ -1790,6 +1917,7 @@ extern "C" {
 X(a, STATIC,   OPTIONAL, MESSAGE,  charge_state,      3) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  climate_state,     4) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  drive_state,       5) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  location_state,    8) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  closures_state,    9) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  charge_schedule_state,  15) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  preconditioning_schedule_state,  16) \
@@ -1803,6 +1931,7 @@ X(a, STATIC,   OPTIONAL, MESSAGE,  parental_controls_state,  24)
 #define CarServer_VehicleData_charge_state_MSGTYPE CarServer_ChargeState
 #define CarServer_VehicleData_climate_state_MSGTYPE CarServer_ClimateState
 #define CarServer_VehicleData_drive_state_MSGTYPE CarServer_DriveState
+#define CarServer_VehicleData_location_state_MSGTYPE CarServer_LocationState
 #define CarServer_VehicleData_closures_state_MSGTYPE CarServer_ClosuresState
 #define CarServer_VehicleData_charge_schedule_state_MSGTYPE CarServer_ChargeScheduleState
 #define CarServer_VehicleData_preconditioning_schedule_state_MSGTYPE CarServer_PreconditioningScheduleState
@@ -2218,6 +2347,38 @@ X(a, STATIC,   SINGULAR, UENUM,    reason,            1)
 #define CarServer_ChargeOnSolarStateUserStopped_CALLBACK NULL
 #define CarServer_ChargeOnSolarStateUserStopped_DEFAULT NULL
 
+#define CarServer_LocationState_FIELDLIST(X, a) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  native_type,       8) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_latitude,latitude,optional_latitude.latitude), 101) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_longitude,longitude,optional_longitude.longitude), 102) \
+X(a, STATIC,   ONEOF,    UINT32,   (optional_heading,heading,optional_heading.heading), 103) \
+X(a, STATIC,   ONEOF,    UINT64,   (optional_gps_as_of,gps_as_of,optional_gps_as_of.gps_as_of), 104) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_native_location_supported,native_location_supported,optional_native_location_supported.native_location_supported), 105) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_native_latitude,native_latitude,optional_native_latitude.native_latitude), 106) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_native_longitude,native_longitude,optional_native_longitude.native_longitude), 107) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_corrected_latitude,corrected_latitude,optional_corrected_latitude.corrected_latitude), 109) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_corrected_longitude,corrected_longitude,optional_corrected_longitude.corrected_longitude), 110) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_homelink_nearby,homelink_nearby,optional_homelink_nearby.homelink_nearby), 112) \
+X(a, CALLBACK, ONEOF,    STRING,   (optional_location_name,location_name,optional_location_name.location_name), 113) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_geo_latitude,geo_latitude,optional_geo_latitude.geo_latitude), 114) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_geo_longitude,geo_longitude,optional_geo_longitude.geo_longitude), 115) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_geo_heading,geo_heading,optional_geo_heading.geo_heading), 116) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_geo_elevation,geo_elevation,optional_geo_elevation.geo_elevation), 117) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_geo_accuracy,geo_accuracy,optional_geo_accuracy.geo_accuracy), 118) \
+X(a, STATIC,   ONEOF,    BOOL,     (optional_estimated_gps_valid,estimated_gps_valid,optional_estimated_gps_valid.estimated_gps_valid), 119) \
+X(a, STATIC,   ONEOF,    FLOAT,    (optional_estimated_to_raw_distance,estimated_to_raw_distance,optional_estimated_to_raw_distance.estimated_to_raw_distance), 120)
+#define CarServer_LocationState_CALLBACK pb_default_field_callback
+#define CarServer_LocationState_DEFAULT NULL
+#define CarServer_LocationState_native_type_MSGTYPE CarServer_LocationState_GPSCoordinateType
+
+#define CarServer_LocationState_GPSCoordinateType_FIELDLIST(X, a) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,GCJ,type.GCJ),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (type,WGS,type.WGS),   2)
+#define CarServer_LocationState_GPSCoordinateType_CALLBACK NULL
+#define CarServer_LocationState_GPSCoordinateType_DEFAULT NULL
+#define CarServer_LocationState_GPSCoordinateType_type_GCJ_MSGTYPE CarServer_Void
+#define CarServer_LocationState_GPSCoordinateType_type_WGS_MSGTYPE CarServer_Void
+
 #define CarServer_VehicleState_FIELDLIST(X, a) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  guestMode,        74)
 #define CarServer_VehicleState_CALLBACK NULL
@@ -2388,6 +2549,8 @@ extern const pb_msgdesc_t CarServer_ChargeOnSolarStateUserDisabled_msg;
 extern const pb_msgdesc_t CarServer_ChargeOnSolarStateWaitingForServer_msg;
 extern const pb_msgdesc_t CarServer_ChargeOnSolarStateError_msg;
 extern const pb_msgdesc_t CarServer_ChargeOnSolarStateUserStopped_msg;
+extern const pb_msgdesc_t CarServer_LocationState_msg;
+extern const pb_msgdesc_t CarServer_LocationState_GPSCoordinateType_msg;
 extern const pb_msgdesc_t CarServer_VehicleState_msg;
 extern const pb_msgdesc_t CarServer_VehicleState_GuestMode_msg;
 extern const pb_msgdesc_t CarServer_ClimateState_msg;
@@ -2427,6 +2590,8 @@ extern const pb_msgdesc_t CarServer_ShiftState_msg;
 #define CarServer_ChargeOnSolarStateWaitingForServer_fields &CarServer_ChargeOnSolarStateWaitingForServer_msg
 #define CarServer_ChargeOnSolarStateError_fields &CarServer_ChargeOnSolarStateError_msg
 #define CarServer_ChargeOnSolarStateUserStopped_fields &CarServer_ChargeOnSolarStateUserStopped_msg
+#define CarServer_LocationState_fields &CarServer_LocationState_msg
+#define CarServer_LocationState_GPSCoordinateType_fields &CarServer_LocationState_GPSCoordinateType_msg
 #define CarServer_VehicleState_fields &CarServer_VehicleState_msg
 #define CarServer_VehicleState_GuestMode_fields &CarServer_VehicleState_GuestMode_msg
 #define CarServer_ClimateState_fields &CarServer_ClimateState_msg
@@ -2449,6 +2614,7 @@ extern const pb_msgdesc_t CarServer_ShiftState_msg;
 /* CarServer_DriveState_size depends on runtime parameters */
 /* CarServer_ChargeState_size depends on runtime parameters */
 /* CarServer_ManagedChargingState_size depends on runtime parameters */
+/* CarServer_LocationState_size depends on runtime parameters */
 /* CarServer_MediaState_size depends on runtime parameters */
 /* CarServer_MediaDetailState_size depends on runtime parameters */
 #define CARSERVER_VEHICLE_PB_H_MAX_SIZE          CarServer_ClimateState_size
@@ -2472,6 +2638,7 @@ extern const pb_msgdesc_t CarServer_ShiftState_msg;
 #define CarServer_ClosuresState_SentryModeState_size 2
 #define CarServer_ClosuresState_SunRoofState_size 2
 #define CarServer_ClosuresState_size             113
+#define CarServer_LocationState_GPSCoordinateType_size 2
 #define CarServer_ParentalControlsSettings_size  45
 #define CarServer_ParentalControlsState_size     51
 #define CarServer_ShiftState_size                2

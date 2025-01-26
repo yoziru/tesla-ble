@@ -17,3 +17,4 @@ CarServer.TirePressureState.tpms_last_seen_pressure_time_rl type:FT_IGNORE
 CarServer.TirePressureState.tpms_last_seen_pressure_time_rr type:FT_IGNORE
 CarServer.MediaState.timestamp type:FT_IGNORE
 CarServer.MediaDetailState.timestamp type:FT_IGNORE
+CarServer.LocationState.timestamp type:FT_IGNORE

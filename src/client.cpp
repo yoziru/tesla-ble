@@ -326,7 +326,7 @@ namespace TeslaBLE
         pb_decode(&stream, VCSEC_InformationRequest_fields, output);
     if (!status)
     {
-      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      LOG_ERROR("[parseVCSECInformationRequest] Decoding failed: %s", PB_GET_ERROR(&stream));
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
@@ -351,7 +351,7 @@ namespace TeslaBLE
         pb_decode(&stream, UniversalMessage_RoutableMessage_fields, output);
     if (!status)
     {
-      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      LOG_ERROR("[parseUniversalMessage] Decoding failed: %s", PB_GET_ERROR(&stream));
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
@@ -377,7 +377,7 @@ namespace TeslaBLE
         pb_decode(&stream, Signatures_SessionInfo_fields, output);
     if (!status)
     {
-      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      LOG_ERROR("[parsePayloadSessionInfo] Decoding failed: %s", PB_GET_ERROR(&stream));
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
@@ -392,7 +392,7 @@ namespace TeslaBLE
         pb_decode(&stream, VCSEC_UnsignedMessage_fields, output);
     if (!status)
     {
-      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      LOG_ERROR("[parsePayloadUnsignedMessage] Decoding failed: %s", PB_GET_ERROR(&stream));
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
@@ -407,7 +407,7 @@ namespace TeslaBLE
         pb_decode(&stream, CarServer_Response_fields, output);
     if (!status)
     {
-      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      LOG_ERROR("[parsePayloadCarServerResponse] Decoding failed: %s", PB_GET_ERROR(&stream));
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 

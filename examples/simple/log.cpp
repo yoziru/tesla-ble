@@ -90,6 +90,16 @@ static const char *message_fault_to_string(UniversalMessage_MessageFault_E fault
     return "ERROR_REMOTE_SERVICE_ACCESS_DISABLED";
   case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_COMMAND_REQUIRES_ACCOUNT_CREDENTIALS:
     return "ERROR_COMMAND_REQUIRES_ACCOUNT_CREDENTIALS";
+  case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_REQUEST_MTU_EXCEEDED:
+    return "ERROR_REQUEST_MTU_EXCEEDED";
+  case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_RESPONSE_MTU_EXCEEDED:
+    return "ERROR_RESPONSE_MTU_EXCEEDED";
+  case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_REPEATED_COUNTER:
+    return "ERROR_REPEATED_COUNTER";
+  case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_KEY_HANDLE:
+    return "ERROR_INVALID_KEY_HANDLE";
+  case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_REQUIRES_RESPONSE_ENCRYPTION:
+    return "ERROR_REQUIRES_RESPONSE_ENCRYPTION";
   default:
     return "UNKNOWN_FAULT";
   }

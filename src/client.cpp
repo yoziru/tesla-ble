@@ -399,9 +399,67 @@ namespace TeslaBLE
     return 0;
   }
 
-  int Client::parsePayloadCarServerResponse(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
-                                            CarServer_Response *output)
+  int Client::parsePayloadCarServerResponse(
+      UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+      Signatures_SignatureData *signature_data,
+      pb_size_t which_sub_sigData,
+      UniversalMessage_MessageFault_E signed_message_fault,
+      CarServer_Response *output)
   {
+    // If encrypted, decrypt the payload
+    if (which_sub_sigData != 0)
+    {
+    switch (signature_data->which_sig_type)
+    {
+      case Signatures_SignatureData_AES_GCM_Response_data_tag:
+      {
+        LOG_DEBUG("AES_GCM_Response_data found in signature_data");
+        auto session = this->getPeer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+        if (!session->isInitialized())
+        {
+          LOG_ERROR("Session not initialized");
+          return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+        }
+
+        UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t decrypt_buffer;
+        size_t decrypt_length;
+        int return_code = session->DecryptResponse(
+            input_buffer->bytes,
+            input_buffer->size,
+            signature_data->sig_type.AES_GCM_Response_data.nonce,
+            signature_data->sig_type.AES_GCM_Response_data.tag,
+            this->last_request_hash_,
+            this->last_request_hash_length_,
+            UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE,
+            signed_message_fault,
+            decrypt_buffer.bytes,
+            sizeof(decrypt_buffer.bytes),
+            &decrypt_length);
+        if (return_code != 0)
+        {
+          LOG_ERROR("[parsePayloadCarServerResponse] Failed to decrypt response");
+          return TeslaBLE_Status_E_ERROR_DECRYPT;
+        }
+
+        // Set the size of the decrypted buffer
+        decrypt_buffer.size = decrypt_length;
+
+        pb_istream_t stream = pb_istream_from_buffer(decrypt_buffer.bytes, decrypt_buffer.size);
+        bool status =
+            pb_decode(&stream, CarServer_Response_fields, output);
+        if (!status)
+        {
+          LOG_ERROR("[parsePayloadCarServerResponse] Decoding failed: %s", PB_GET_ERROR(&stream));
+          return TeslaBLE_Status_E_ERROR_PB_DECODING;
+        }
+        break;
+      }
+      default:
+        LOG_DEBUG("No AES_GCM_Response_data found in signature_data");
+        return TeslaBLE_Status_E_ERROR_DECRYPT;
+      }
+    }
+    else {
     pb_istream_t stream = pb_istream_from_buffer(input_buffer->bytes, input_buffer->size);
     bool status =
         pb_decode(&stream, CarServer_Response_fields, output);
@@ -409,6 +467,7 @@ namespace TeslaBLE
     {
       LOG_ERROR("[parsePayloadCarServerResponse] Decoding failed: %s", PB_GET_ERROR(&stream));
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
+      }
     }
 
     return 0;

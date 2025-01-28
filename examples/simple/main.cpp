@@ -231,4 +231,16 @@ int main()
   }
   LOG_DEBUG("HVAC length: %d", hvac_on_message_length);
   LOG_INFO("HVAC hex: %s", bytes_to_hex_string(hvac_on_message_buffer, hvac_on_message_length).c_str());
+
+  LOG_INFO("Get charge data message");
+  pb_byte_t get_data_message_buffer[UniversalMessage_RoutableMessage_size];
+  size_t get_data_message_length;
+  return_code = client.buildCarServerGetVehicleDataMessage(get_data_message_buffer, &get_data_message_length);
+  if (return_code != 0)
+  {
+    LOG_ERROR("Failed to buildCarServerGetVehicleDataMessage");
+    return -1;
+  }
+  LOG_DEBUG("HVAC length: %d", get_data_message_length);
+  LOG_INFO("HVAC hex: %s", bytes_to_hex_string(get_data_message_buffer, get_data_message_length).c_str());
 }

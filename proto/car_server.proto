@@ -22,6 +22,7 @@ message VehicleAction {
     reserved 60;
     reserved 76;
     oneof vehicle_action_msg {
+        GetVehicleData getVehicleData = 1;
         ChargingSetLimitAction chargingSetLimitAction = 5;
         ChargingStartStopAction chargingStartStopAction = 6;
         DrivingClearSpeedLimitPinAction drivingClearSpeedLimitPinAction = 7;
@@ -66,7 +67,66 @@ message VehicleAction {
         EraseUserDataAction eraseUserDataAction = 72;
         VehicleControlSetPinToDriveAction vehicleControlSetPinToDriveAction = 77;
         VehicleControlResetPinToDriveAction vehicleControlResetPinToDriveAction = 78;
+        ChargeSchedule addChargeScheduleAction = 97;
+        RemoveChargeScheduleAction removeChargeScheduleAction = 98;
+        PreconditionSchedule addPreconditionScheduleAction = 99;
+        RemovePreconditionScheduleAction removePreconditionScheduleAction = 100;
+        BatchRemovePreconditionSchedulesAction batchRemovePreconditionSchedulesAction = 107;
+        BatchRemoveChargeSchedulesAction batchRemoveChargeSchedulesAction = 108;
     }
+}
+
+message GetVehicleData {
+    GetChargeState getChargeState = 2;
+    GetClimateState getClimateState = 3;
+    GetDriveState getDriveState = 4;
+    reserved 5, 6;
+    GetLocationState getLocationState = 7;
+    GetClosuresState getClosuresState = 8;
+    GetChargeScheduleState getChargeScheduleState = 10;
+    GetPreconditioningScheduleState getPreconditioningScheduleState = 11;
+    reserved 12, 13;
+    GetTirePressureState getTirePressureState = 14;
+    GetMediaState getMediaState = 15;
+    GetMediaDetailState getMediaDetailState = 16;
+    GetSoftwareUpdateState getSoftwareUpdateState = 17;
+    GetParentalControlsState getParentalControlsState = 19;
+}
+
+message GetTirePressureState {
+}
+
+message GetMediaState {
+}
+
+message GetMediaDetailState {
+}
+
+message GetSoftwareUpdateState {
+}
+
+message GetChargeState {
+}
+
+message GetClimateState {
+}
+
+message GetDriveState {
+}
+
+message GetLocationState {
+}
+
+message GetClosuresState {
+}
+
+message GetChargeScheduleState {
+}
+
+message GetPreconditioningScheduleState {
+}
+
+message GetParentalControlsState {
 }
 
 message EraseUserDataAction {
@@ -76,6 +136,7 @@ message EraseUserDataAction {
 message Response {
     ActionStatus actionStatus = 1;
     oneof response_msg {
+        VehicleData vehicleData = 2;
         Signatures.SessionInfo getSessionInfoResponse = 3;
         NearbyChargingSites getNearbyChargingSites = 5;
         Ping ping = 9;
@@ -387,6 +448,26 @@ message HvacClimateKeeperAction {
 
 message SetChargingAmpsAction {
     int32 charging_amps = 1;
+}
+
+message RemoveChargeScheduleAction {
+    uint64                      id                      = 1; // datetime in epoch time
+}
+
+message BatchRemoveChargeSchedulesAction {
+    bool                        home                    = 1;
+    bool                        work                    = 2;
+    bool                        other                   = 3; // Delete non-home and non-work charge schedules
+}
+
+message BatchRemovePreconditionSchedulesAction {
+    bool home = 1;
+    bool work = 2;
+    bool other = 3; // Delete non-home and non-work precondition schedules
+}
+
+message RemovePreconditionScheduleAction {
+    uint64 id = 1; // datetime in epoch time
 }
 
 message SetCabinOverheatProtectionAction {

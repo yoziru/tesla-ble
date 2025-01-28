@@ -5,6 +5,8 @@ Signatures.KeyIdentity.public_key max_size:65 type:FT_STATIC
 Signatures.AES_GCM_Personalized_Signature_Data.epoch max_size:16 fixed_length:true
 Signatures.AES_GCM_Personalized_Signature_Data.nonce max_size:12 fixed_length:true
 Signatures.AES_GCM_Personalized_Signature_Data.tag max_size:16 fixed_length:true
+Signatures.AES_GCM_Response_Signature_Data.nonce max_size:12 fixed_length:true
+Signatures.AES_GCM_Response_Signature_Data.tag max_size:16 fixed_length:true
 
 Signatures.HMAC_Personalized_Signature_Data.epoch max_size:16 fixed_length:true
 Signatures.HMAC_Personalized_Signature_Data.tag max_size:16 fixed_length:true

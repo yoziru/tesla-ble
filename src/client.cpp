@@ -650,9 +650,15 @@ namespace TeslaBLE
     }
 
     // build universal message
-    return this->buildUniversalMessageWithPayload(
+    return_code = this->buildUniversalMessageWithPayload(
         payload_buffer, payload_length, UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
         output_buffer, output_length, true);
+    if (return_code != 0)
+    {
+      LOG_ERROR("Failed to build car action message");       
+      return 1;
+    }
+    return 0;
   }
 
   /*/
@@ -686,174 +692,110 @@ namespace TeslaBLE
     return 0;
   }
 
-  int Client::buildChargingAmpsMessage(int32_t amps,
+  // Original method declarations, now implemented using the generic helpers
+  int Client::buildChargingAmpsMessage(int32_t amps, pb_byte_t *output_buffer, size_t *output_length)
+  {
+    return buildVehicleActionMessage<int32_t>(
+        CarServer_VehicleAction_setChargingAmpsAction_tag,
+        amps,
+        [](CarServer_VehicleAction &va, const int32_t &amps)
+        {
+          auto &action = va.vehicle_action_msg.setChargingAmpsAction;
+          action = CarServer_SetChargingAmpsAction_init_default;
+          action.charging_amps = amps;
+        },
+        output_buffer,
+        output_length);
+  }
+
+  int Client::buildChargingSetLimitMessage(int32_t percent, pb_byte_t *output_buffer, size_t *output_length)
+  {
+    return buildVehicleActionMessage<int32_t>(
+        CarServer_VehicleAction_chargingSetLimitAction_tag,
+        percent,
+        [](CarServer_VehicleAction &va, const int32_t &percent)
+        {
+          auto &action = va.vehicle_action_msg.chargingSetLimitAction;
+          action = CarServer_ChargingSetLimitAction_init_default;
+          action.percent = percent;
+        },
+        output_buffer,
+        output_length);
+  }
+
+  int Client::buildHVACMessage(bool isOn, pb_byte_t *output_buffer, size_t *output_length)
+  {
+    return buildToggleActionMessage(
+        CarServer_VehicleAction_hvacAutoAction_tag,
+        isOn,
+        [](CarServer_VehicleAction &va, bool isOn)
+    {
+          auto &action = va.vehicle_action_msg.hvacAutoAction;
+          action = CarServer_HvacAutoAction_init_default;
+          action.power_on = isOn;
+        },
+        output_buffer,
+        output_length);
+  }
+
+  int Client::buildHVACSteeringHeaterMessage(
+      bool isOn,
                                        pb_byte_t *output_buffer,
                                        size_t *output_length)
   {
-    CarServer_Action action = CarServer_Action_init_default;
-    action.which_action_msg = CarServer_Action_vehicleAction_tag;
-
-    CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-    vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_setChargingAmpsAction_tag;
-    CarServer_SetChargingAmpsAction set_charging_amps_action = CarServer_SetChargingAmpsAction_init_default;
-    set_charging_amps_action.charging_amps = amps;
-    vehicle_action.vehicle_action_msg.setChargingAmpsAction = set_charging_amps_action;
-    action.action_msg.vehicleAction = vehicle_action;
-
-    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
-    if (status != 0)
-    {
-      LOG_ERROR("Failed to build car action message");
-      return status;
-    }
-    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
-                        output_buffer, output_length);
-    return 0;
-  }
-
-  int Client::buildChargingSetLimitMessage(int32_t percent,
-                                           pb_byte_t *output_buffer,
-                                           size_t *output_length)
-  {
-    CarServer_Action action = CarServer_Action_init_default;
-    action.which_action_msg = CarServer_Action_vehicleAction_tag;
-
-    CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-    vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_chargingSetLimitAction_tag;
-    CarServer_ChargingSetLimitAction charging_set_limit_action = CarServer_ChargingSetLimitAction_init_default;
-    charging_set_limit_action.percent = percent;
-    vehicle_action.vehicle_action_msg.chargingSetLimitAction = charging_set_limit_action;
-    action.action_msg.vehicleAction = vehicle_action;
-
-    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
-    if (status != 0)
-    {
-      LOG_ERROR("Failed to build car action message");
-      return status;
-    }
-    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
-                        output_buffer, output_length);
-    return 0;
-  }
-  int Client::buildChargingSwitchMessage(bool isOn,
-                                         pb_byte_t *output_buffer,
-                                         size_t *output_length)
-  {
-    CarServer_Action action = CarServer_Action_init_default;
-    action.which_action_msg = CarServer_Action_vehicleAction_tag;
-
-    CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-    vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_chargingStartStopAction_tag;
-    CarServer_ChargingStartStopAction vehicle_action_msg = CarServer_ChargingStartStopAction_init_default;
-    if (isOn)
-    {
-      vehicle_action_msg.which_charging_action = CarServer_ChargingStartStopAction_start_tag;
-      vehicle_action_msg.charging_action.stop = CarServer_Void_init_default;
-    }
-    else
-    {
-      vehicle_action_msg.which_charging_action = CarServer_ChargingStartStopAction_stop_tag;
-      vehicle_action_msg.charging_action.start = CarServer_Void_init_default;
-    }
-    vehicle_action.vehicle_action_msg.chargingStartStopAction = vehicle_action_msg;
-    action.action_msg.vehicleAction = vehicle_action;
-
-    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
-    if (status != 0)
-    {
-      LOG_ERROR("Failed to build car action message");
-      return status;
-    }
-    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
-                        output_buffer, output_length);
-    return 0;
-  }
-
-  int Client::buildSentrySwitchMessage(bool isOn,
-                                       pb_byte_t *output_buffer,
-                                       size_t *output_length)
-  {
-    CarServer_Action action = CarServer_Action_init_default;
-    action.which_action_msg = CarServer_Action_vehicleAction_tag;
-
-    CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-    vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag;
-    CarServer_VehicleControlSetSentryModeAction vehicle_action_msg = CarServer_VehicleControlSetSentryModeAction_init_default;
-    vehicle_action_msg.on = isOn;
-    vehicle_action.vehicle_action_msg.vehicleControlSetSentryModeAction = vehicle_action_msg;
-    action.action_msg.vehicleAction = vehicle_action;
-
-    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
-    if (status != 0)
-    {
-      LOG_ERROR("Failed to build car action message");
-      return status;
-    }
-    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
-                        output_buffer, output_length);
-    return 0;
+    return buildToggleActionMessage(
+        CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag,
+        isOn,
+        [](CarServer_VehicleAction &va, bool isOn)
+        {
+          auto &action = va.vehicle_action_msg.hvacSteeringWheelHeaterAction;
+          action = CarServer_HvacSteeringWheelHeaterAction_init_default;
+          action.power_on = isOn;
+        },
+        output_buffer,
+        output_length);
   }
         
-  int Client::buildHVACMessage(bool isOn,
+  int Client::buildChargingSwitchMessage(
+      bool isOn,
                                pb_byte_t *output_buffer,
                                size_t *output_length)
   {
-    CarServer_Action action = CarServer_Action_init_default;
-    action.which_action_msg = CarServer_Action_vehicleAction_tag;
-
-    CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-    vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_hvacAutoAction_tag;
-    CarServer_HvacAutoAction vehicle_action_msg = CarServer_HvacAutoAction_init_default;
-    vehicle_action_msg.power_on = isOn;
-    vehicle_action.vehicle_action_msg.hvacAutoAction = vehicle_action_msg;
-    action.action_msg.vehicleAction = vehicle_action;
-
-    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
-    if (status != 0)
-    {
-      LOG_ERROR("Failed to build car action message");
-      return status;
-    }
-    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
-                        output_buffer, output_length);
-    return 0;
+    return buildToggleActionMessage(
+        CarServer_VehicleAction_chargingStartStopAction_tag,
+        isOn,
+        [](CarServer_VehicleAction &va, bool isOn)
+        {
+          auto &action = va.vehicle_action_msg.chargingStartStopAction;
+          action = CarServer_ChargingStartStopAction_init_default;
+          if (isOn)
+          {
+            action.which_charging_action = CarServer_ChargingStartStopAction_start_tag;
+            action.charging_action.stop = CarServer_Void_init_default;
+          }
+          else
+          {
+            action.which_charging_action = CarServer_ChargingStartStopAction_stop_tag;
+            action.charging_action.start = CarServer_Void_init_default;
+          }
+        },
+        output_buffer,
+        output_length);
   }
 
-  int Client::buildHVACSteeringHeaterMessage(bool isOn,
-                               pb_byte_t *output_buffer,
-                               size_t *output_length)
+  int Client::buildSentrySwitchMessage(bool isOn, pb_byte_t *output_buffer, size_t *output_length)
   {
-    CarServer_Action action = CarServer_Action_init_default;
-    action.which_action_msg = CarServer_Action_vehicleAction_tag;
-
-    CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-    vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag;
-    CarServer_HvacSteeringWheelHeaterAction vehicle_action_msg = CarServer_HvacSteeringWheelHeaterAction_init_default;
-    vehicle_action_msg.power_on = isOn;
-    vehicle_action.vehicle_action_msg.hvacSteeringWheelHeaterAction = vehicle_action_msg;
-    action.action_msg.vehicleAction = vehicle_action;
-
-    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
-    if (status != 0)
-    {
-      LOG_ERROR("Failed to build car action message");
-      return status;
-    }
-    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
-                        output_buffer, output_length);
-    return 0;
+    return buildToggleActionMessage(
+        CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag,
+        isOn,
+        [](CarServer_VehicleAction &va, bool isOn)
+        {
+          auto &action = va.vehicle_action_msg.vehicleControlSetSentryModeAction;
+          action = CarServer_VehicleControlSetSentryModeAction_init_default;
+          action.on = isOn;
+        },
+        output_buffer,
+        output_length);
   }
 
   int Client::buildVCSECActionMessage(const VCSEC_RKEAction_E action, pb_byte_t *output_buffer,

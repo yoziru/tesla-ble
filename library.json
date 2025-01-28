@@ -22,6 +22,6 @@
     "espidf"
   ],
   "dependencies": {
-    "nanopb/Nanopb": "^0.4.8"
+    "nanopb/Nanopb": "^0.4.91"
   }
 }

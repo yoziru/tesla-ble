@@ -6,6 +6,7 @@ test.md
 test.py
 .DS_Store
 keys/
+.cache
 
 ### C++ ###
 # Prerequisites

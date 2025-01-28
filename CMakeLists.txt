@@ -11,12 +11,12 @@ set(CMAKE_CXX_STANDARD 23)
 set(MBEDTLS_AS_SUBPROJECT ON)
 set(ENABLE_PROGRAMS OFF)
 set(ENABLE_TESTING OFF)
-set(BUILD_EXAMPLES ON)
+set(BUILD_EXAMPLES OFF)
 
 FetchContent_Declare(
         nanopb
         GIT_REPOSITORY https://github.com/nanopb/nanopb.git
-        GIT_TAG 0.4.8
+        GIT_TAG 0.4.9.1
         GIT_SHALLOW    TRUE
 )
 FetchContent_Declare(

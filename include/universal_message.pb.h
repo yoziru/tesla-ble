@@ -83,7 +83,7 @@ typedef struct _UniversalMessage_SessionInfoRequest {
 } UniversalMessage_SessionInfoRequest;
 
 typedef PB_BYTES_ARRAY_T(300) UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t;
-typedef PB_BYTES_ARRAY_T(300) UniversalMessage_RoutableMessage_session_info_t;
+typedef PB_BYTES_ARRAY_T(100) UniversalMessage_RoutableMessage_session_info_t;
 typedef PB_BYTES_ARRAY_T(16) UniversalMessage_RoutableMessage_request_uuid_t;
 typedef PB_BYTES_ARRAY_T(16) UniversalMessage_RoutableMessage_uuid_t;
 typedef struct _UniversalMessage_RoutableMessage {

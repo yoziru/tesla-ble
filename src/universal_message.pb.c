@@ -16,14 +16,3 @@ PB_BIND(UniversalMessage_SessionInfoRequest, UniversalMessage_SessionInfoRequest
 
 
 PB_BIND(UniversalMessage_RoutableMessage, UniversalMessage_RoutableMessage, 2)
-
-
-
-
-
-
-
-
-
-
-

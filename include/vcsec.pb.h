@@ -132,7 +132,7 @@ typedef enum _VCSEC_UserPresence_E {
 } VCSEC_UserPresence_E;
 
 /* Struct definitions */
-typedef PB_BYTES_ARRAY_T(100) VCSEC_SignedMessage_protobufMessageAsBytes_t;
+typedef PB_BYTES_ARRAY_T(300) VCSEC_SignedMessage_protobufMessageAsBytes_t;
 typedef struct _VCSEC_SignedMessage {
     VCSEC_SignedMessage_protobufMessageAsBytes_t protobufMessageAsBytes;
     VCSEC_SignatureType signatureType;
@@ -770,11 +770,11 @@ extern const pb_msgdesc_t VCSEC_FromVCSECMessage_msg;
 #define VCSEC_PermissionChange_size              77
 #define VCSEC_PublicKey_size                     67
 #define VCSEC_ReplaceKey_size                    142
-#define VCSEC_SignedMessage_size                 104
+#define VCSEC_SignedMessage_size                 305
 #define VCSEC_SignedMessage_status_size          8
-#define VCSEC_ToVCSECMessage_size                106
+#define VCSEC_ToVCSECMessage_size                308
 #define VCSEC_UnsignedMessage_size               154
-#define VCSEC_VCSEC_PB_H_MAX_SIZE                VCSEC_UnsignedMessage_size
+#define VCSEC_VCSEC_PB_H_MAX_SIZE                VCSEC_ToVCSECMessage_size
 #define VCSEC_VehicleStatus_size                 32
 #define VCSEC_WhitelistEntryInfo_size            89
 #define VCSEC_WhitelistOperation_size            150

@@ -121,37 +121,3 @@ PB_BIND(CarServer_MediaDetailState, CarServer_MediaDetailState, AUTO)
 
 
 PB_BIND(CarServer_ShiftState, CarServer_ShiftState, AUTO)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

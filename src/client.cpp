@@ -12,7 +12,7 @@
 #include <cstring>
 #include <ctime>
 #include <iomanip>
-#include <esphome/core/helpers.h>
+//#include <esphome/core/helpers.h> Doesn't seem needed and wasn't compiling!
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/ecdh.h>
 #include <mbedtls/entropy.h>

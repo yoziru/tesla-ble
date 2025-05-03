@@ -812,17 +812,48 @@ namespace TeslaBLE
     return 0;
   }
 
-  int Client::buildCarServerGetVehicleDataMessage(pb_byte_t *output_buffer,
-                                                  size_t *output_length)
+  int Client::buildCarServerGetVehicleDataMessage (pb_byte_t *output_buffer,
+                                                   size_t *output_length,
+                                                   int which_get
+                                                  )
+  /*
+  *   Function to build a CarServer_GetVehicleData message.
+  */
   {
+    // Build generic part
     CarServer_Action action = CarServer_Action_init_default;
     action.which_action_msg = CarServer_Action_vehicleAction_tag;
-
     CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
     vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_getVehicleData_tag;
     CarServer_GetVehicleData get_vehicle_data = CarServer_GetVehicleData_init_default;
-    get_vehicle_data.getChargeState = CarServer_GetChargeState_init_default;
-    get_vehicle_data.has_getChargeState = true;
+    // Now the get specific part
+    switch (which_get)
+    {
+      case CarServer_GetVehicleData_getChargeState_tag:
+        get_vehicle_data.getChargeState = CarServer_GetChargeState_init_default;
+        get_vehicle_data.has_getChargeState = true;
+        break;
+      case CarServer_GetVehicleData_getClimateState_tag:
+        get_vehicle_data.getClimateState = CarServer_GetClimateState_init_default;
+        get_vehicle_data.has_getClimateState = true;
+        break;
+      case CarServer_GetVehicleData_getDriveState_tag:
+        get_vehicle_data.getDriveState = CarServer_GetDriveState_init_default;
+        get_vehicle_data.has_getDriveState = true;
+        break;
+      case CarServer_GetVehicleData_getLocationState_tag:
+        get_vehicle_data.getLocationState = CarServer_GetLocationState_init_default;
+        get_vehicle_data.has_getLocationState = true;
+        break;
+      case CarServer_GetVehicleData_getClosuresState_tag:
+        get_vehicle_data.getClosuresState = CarServer_GetClosuresState_init_default;
+        get_vehicle_data.has_getClosuresState = true;
+        break;
+      default:
+        LOG_ERROR ("Invalid which_get type, action message not built");
+        return 1;
+    }
+    // Add it to the message
     vehicle_action.vehicle_action_msg.getVehicleData = get_vehicle_data;
     action.action_msg.vehicleAction = vehicle_action;
 
@@ -838,114 +869,6 @@ namespace TeslaBLE
                         output_buffer, output_length);
     return 0;
   }
-
-int Client::buildCarServerGetClimateStateMessage(pb_byte_t *output_buffer,
-  size_t *output_length)
-  {
-    CarServer_Action action = CarServer_Action_init_default;
-    action.which_action_msg = CarServer_Action_vehicleAction_tag;
-
-    CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-    vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_getVehicleData_tag;
-    CarServer_GetVehicleData get_vehicle_data = CarServer_GetVehicleData_init_default;
-    get_vehicle_data.getClimateState = CarServer_GetClimateState_init_default;
-    get_vehicle_data.has_getClimateState = true;
-    vehicle_action.vehicle_action_msg.getVehicleData = get_vehicle_data;
-    action.action_msg.vehicleAction = vehicle_action;
-
-    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
-    if (status != 0)
-    {
-      LOG_ERROR("Failed to build car action get climate message");
-      return status;
-    }
-  this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
-    output_buffer, output_length);
-    return 0;
-  }
-
-  int Client::buildCarServerGetDriveStateMessage (pb_byte_t *output_buffer,
-    size_t *output_length)
-    {
-      CarServer_Action action = CarServer_Action_init_default;
-      action.which_action_msg = CarServer_Action_vehicleAction_tag;
-  
-      CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-      vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_getVehicleData_tag;
-      CarServer_GetVehicleData get_vehicle_data = CarServer_GetVehicleData_init_default;
-      get_vehicle_data.getDriveState = CarServer_GetDriveState_init_default;
-      get_vehicle_data.has_getDriveState = true;
-      vehicle_action.vehicle_action_msg.getVehicleData = get_vehicle_data;
-      action.action_msg.vehicleAction = vehicle_action;
-  
-      size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-      pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-      int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
-      if (status != 0)
-      {
-        LOG_ERROR("Failed to build car action get climate message");
-        return status;
-      }
-    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
-      output_buffer, output_length);
-      return 0;
-    }
-
-  int Client::buildCarServerGetLocationStateMessage (pb_byte_t *output_buffer,
-    size_t *output_length)
-    {
-      CarServer_Action action = CarServer_Action_init_default;
-      action.which_action_msg = CarServer_Action_vehicleAction_tag;
-  
-      CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-      vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_getVehicleData_tag;
-      CarServer_GetVehicleData get_vehicle_data = CarServer_GetVehicleData_init_default;
-      get_vehicle_data.getLocationState = CarServer_GetLocationState_init_default;
-      get_vehicle_data.has_getLocationState = true;
-      vehicle_action.vehicle_action_msg.getVehicleData = get_vehicle_data;
-      action.action_msg.vehicleAction = vehicle_action;
-  
-      size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-      pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-      int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
-      if (status != 0)
-      {
-        LOG_ERROR("Failed to build car action get climate message");
-        return status;
-      }
-    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
-      output_buffer, output_length);
-      return 0;
-    }
-
-  int Client::buildCarServerGetClosureStateMessage (pb_byte_t *output_buffer,
-    size_t *output_length)
-    {
-      CarServer_Action action = CarServer_Action_init_default;
-      action.which_action_msg = CarServer_Action_vehicleAction_tag;
-  
-      CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-      vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_getVehicleData_tag;
-      CarServer_GetVehicleData get_vehicle_data = CarServer_GetVehicleData_init_default;
-      get_vehicle_data.getClosuresState = CarServer_GetClosuresState_init_default;
-      get_vehicle_data.has_getClosuresState = true;
-      vehicle_action.vehicle_action_msg.getVehicleData = get_vehicle_data;
-      action.action_msg.vehicleAction = vehicle_action;
-  
-      size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-      pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-      int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
-      if (status != 0)
-      {
-        LOG_ERROR("Failed to build car action get climate message");
-        return status;
-      }
-    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
-      output_buffer, output_length);
-      return 0;
-    }
 
   // Original method declarations, now implemented using the generic helpers
   int Client::buildChargingAmpsMessage(int32_t amps, pb_byte_t *output_buffer, size_t *output_length)

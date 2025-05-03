@@ -205,23 +205,8 @@ namespace TeslaBLE
 
     int buildCarServerGetVehicleDataMessage(
         pb_byte_t *output_buffer,
-        size_t *output_length);
-
-    int buildCarServerGetClimateStateMessage (
-        pb_byte_t *output_buffer,
-        size_t *output_length);
-
-    int buildCarServerGetDriveStateMessage (
-        pb_byte_t *output_buffer,
-        size_t *output_length);
-
-    int buildCarServerGetLocationStateMessage (
-        pb_byte_t *output_buffer,
-        size_t *output_length);
-
-    int buildCarServerGetClosureStateMessage (
-        pb_byte_t *output_buffer,
-        size_t *output_length);
+        size_t *output_length,
+        int which_get);
 
     int buildChargingAmpsMessage(
         int32_t amps,

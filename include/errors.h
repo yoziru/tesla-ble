@@ -14,6 +14,7 @@ namespace TeslaBLE
         TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED = 4, /* Private key not initialized. */
         TeslaBLE_Status_E_ERROR_INVALID_SESSION = 5,         /* Invalid session from vehicle. */
         TeslaBLE_Status_E_ERROR_ENCRYPT = 6,         /* Error encrypting payload. */
+        TeslaBLE_Status_E_ERROR_INVALID_PARAMS = 7,  /* Invalid input parameters. */
     } TeslaBLE_Status_E;
 
     // add helper functions to convert error codes to strings

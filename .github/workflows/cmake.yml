@@ -1,28 +1,59 @@
-name: CMake build
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main", "develop"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main", "develop"]
+
+env:
+  BUILD_TYPE: Release
 
 jobs:
-  build-project:
-    name: Build Project
+  test:
+    name: Build and Test
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.7
-      
-      - name: Install Protobuf
-        run: sudo apt-get install protobuf-compiler
 
-      - name: Configure and Build Project
-        uses: threeal/cmake-action@v2.1.0
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler build-essential
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ github.job }}-${{ matrix.os || 'ubuntu-latest' }}
+
+      - name: Set reusable strings
+        id: strings
+        shell: bash
+        run: |
+          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+      - name: Configure CMake
+        run: >
+          cmake -B ${{ steps.strings.outputs.build-output-dir }}
+          -DCMAKE_CXX_COMPILER=g++
+          -DCMAKE_C_COMPILER=gcc
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -S ${{ github.workspace }}
+
+      - name: Build Library
+        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release
+
+      - name: Run Tests
+        working-directory: ${{ steps.strings.outputs.build-output-dir }}
+        run: ctest --build-config Release --output-on-failure --verbose -R "Tesla|Client|Key|Message|Session|Utils"
 
       - name: Build and run example
         run: |
           mkdir -p build-example && cd build-example
-          cmake ../examples/simple
-          cmake --build .
+          cmake ../examples/simple -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --build . --config Release
           ./simple

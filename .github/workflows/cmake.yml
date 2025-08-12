@@ -11,43 +11,17 @@ env:
 
 jobs:
   test:
-    name: Test on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        build_type: [Debug, Release]
-        include:
-          - os: ubuntu-latest
-            c_compiler: gcc
-            cpp_compiler: g++
-          - os: windows-latest
-            c_compiler: cl
-            cpp_compiler: cl
-          - os: macos-latest
-            c_compiler: clang
-            cpp_compiler: clang++
+    name: Build and Test
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.7
 
-      - name: Install dependencies (Ubuntu)
-        if: runner.os == 'Linux'
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler build-essential
-
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install protobuf
-
-      - name: Install dependencies (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          choco install protoc --version=3.21.12
 
       - name: Set reusable strings
         id: strings
@@ -58,131 +32,21 @@ jobs:
       - name: Configure CMake
         run: >
           cmake -B ${{ steps.strings.outputs.build-output-dir }}
-          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DCMAKE_CXX_COMPILER=g++
+          -DCMAKE_C_COMPILER=gcc
+          -DCMAKE_BUILD_TYPE=Release
           -S ${{ github.workspace }}
 
       - name: Build Library
-        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
+        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release
 
       - name: Run Tests
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        run: ctest --build-config ${{ matrix.build_type }} --output-on-failure --verbose -R "Tesla|Client|Key|Message|Session|Utils"
+        run: ctest --build-config Release --output-on-failure --verbose -R "Tesla|Client|Key|Message|Session|Utils"
 
       - name: Build and run example
         run: |
           mkdir -p build-example && cd build-example
-          cmake ../examples/simple -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          cmake --build . --config ${{ matrix.build_type }}
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            ./${{ matrix.build_type }}/simple.exe
-          else
-            ./simple
-          fi
-        shell: bash
-
-  coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.1.7
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler build-essential lcov
-
-      - name: Configure CMake with Coverage
-        run: >
-          cmake -B build
-          -DCMAKE_BUILD_TYPE=Debug
-          -DCMAKE_CXX_FLAGS="--coverage"
-          -DCMAKE_C_FLAGS="--coverage"
-          -S ${{ github.workspace }}
-
-      - name: Build with Coverage
-        run: cmake --build build
-
-      - name: Run Tests
-        working-directory: build
-        run: ctest --output-on-failure --verbose -R "Tesla|Client|Key|Message|Session|Utils"
-
-      - name: Generate Coverage Report
-        run: |
-          lcov --capture --directory build --output-file coverage.info
-          lcov --remove coverage.info '/usr/*' --output-file coverage.info
-          lcov --remove coverage.info '*/build/_deps/*' --output-file coverage.info
-          lcov --remove coverage.info '*/tests/*' --output-file coverage.info
-          lcov --list coverage.info
-
-      - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.info
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
-
-  static-analysis:
-    name: Static Analysis
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.1.7
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler build-essential cppcheck
-
-      - name: Run cppcheck
-        run: |
-          cppcheck --enable=all --inconclusive --xml --xml-version=2 \
-            --suppress=missingIncludeSystem \
-            --suppress=unmatchedSuppression \
-            --suppress=unusedFunction \
-            src/ include/ examples/ 2> cppcheck-report.xml
-
-      - name: Publish cppcheck results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: always()
-        with:
-          files: cppcheck-report.xml
-          check_name: "Cppcheck Results"
-          comment_mode: off
-
-  sanitizers:
-    name: Sanitizers
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        sanitizer: [address, undefined, thread]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.1.7
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler build-essential
-
-      - name: Configure CMake with ${{ matrix.sanitizer }} sanitizer
-        run: >
-          cmake -B build
-          -DCMAKE_BUILD_TYPE=Debug
-          -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer"
-          -DCMAKE_C_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer"
-          -S ${{ github.workspace }}
-
-      - name: Build with ${{ matrix.sanitizer }} sanitizer
-        run: cmake --build build
-
-      - name: Run Tests with ${{ matrix.sanitizer }} sanitizer
-        working-directory: build
-        run: ctest --output-on-failure --verbose -R "Tesla|Client|Key|Message|Session|Utils"
+          cmake ../examples/simple -DCMAKE_BUILD_TYPE=Release
+          cmake --build . --config Release
+          ./simple

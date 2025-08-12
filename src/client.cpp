@@ -346,6 +346,14 @@ namespace TeslaBLE
                                     size_t input_buffer_length,
                                     UniversalMessage_RoutableMessage *output)
   {
+    // Validate input parameters
+    if (input_buffer == nullptr || output == nullptr || input_buffer_length == 0)
+    {
+      LOG_ERROR("Invalid parameters: input_buffer=%p, output=%p, length=%zu", 
+                input_buffer, output, input_buffer_length);
+      return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    }
+
     pb_istream_t stream = pb_istream_from_buffer(input_buffer, input_buffer_length);
     bool status =
         pb_decode(&stream, UniversalMessage_RoutableMessage_fields, output);
@@ -372,6 +380,13 @@ namespace TeslaBLE
   int Client::parsePayloadSessionInfo(UniversalMessage_RoutableMessage_session_info_t *input_buffer,
                                       Signatures_SessionInfo *output)
   {
+    // Validate input parameters
+    if (input_buffer == nullptr || output == nullptr)
+    {
+      LOG_ERROR("Invalid parameters: input_buffer=%p, output=%p", input_buffer, output);
+      return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    }
+
     pb_istream_t stream = pb_istream_from_buffer(input_buffer->bytes, input_buffer->size);
     bool status =
         pb_decode(&stream, Signatures_SessionInfo_fields, output);
@@ -885,6 +900,57 @@ namespace TeslaBLE
         },
         output_buffer,
         output_length);
+  }
+
+  int Client::buildOpenChargePortDoorMessage(pb_byte_t *output_buffer,
+                                       size_t *output_length)
+  {
+    CarServer_Action action = CarServer_Action_init_default;
+    action.which_action_msg = CarServer_Action_vehicleAction_tag;
+    CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
+    vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_chargePortDoorOpen_tag;
+    CarServer_ChargePortDoorOpen vehicle_action_msg = CarServer_ChargePortDoorOpen_init_default;
+    vehicle_action_msg.dummy_field = 1;
+    vehicle_action.vehicle_action_msg.chargePortDoorOpen = vehicle_action_msg;
+    action.action_msg.vehicleAction = vehicle_action;
+
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
+    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
+    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
+    if (status != 0)
+    {
+      LOG_ERROR("Failed to build car action message");
+      return status;
+    }
+    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
+                        output_buffer, output_length);
+    return 0;
+  }
+  
+  int Client::buildCloseChargePortDoorMessage(pb_byte_t *output_buffer,
+                                       size_t *output_length)
+  {
+    CarServer_Action action = CarServer_Action_init_default;
+    action.which_action_msg = CarServer_Action_vehicleAction_tag;
+
+    CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
+    vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_chargePortDoorClose_tag;
+    CarServer_ChargePortDoorClose vehicle_action_msg = CarServer_ChargePortDoorClose_init_default;
+    vehicle_action_msg.dummy_field = 1;
+    vehicle_action.vehicle_action_msg.chargePortDoorClose = vehicle_action_msg;
+    action.action_msg.vehicleAction = vehicle_action;
+
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
+    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
+    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
+    if (status != 0)
+    {
+      LOG_ERROR("Failed to build car action message");
+      return status;
+    }
+    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
+                        output_buffer, output_length);
+    return 0;
   }
         
   int Client::buildChargingSwitchMessage(

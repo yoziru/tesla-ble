@@ -5,7 +5,7 @@
   "keywords": "tesla, ble",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pmdroid/tesla-ble.git"
+    "url": "https://github.com/yoziru/tesla-ble.git"
   },
   "authors": [
     {
@@ -18,9 +18,7 @@
   "license": "MIT",
   "homepage": "https://github.com/yoziru/tesla-ble/wiki",
   "frameworks": "*",
-  "platforms": [
-    "espidf"
-  ],
+  "platforms": ["espressif32"],
   "dependencies": {
     "nanopb/Nanopb": "^0.4.91"
   }

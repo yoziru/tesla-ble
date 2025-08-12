@@ -23,6 +23,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler build-essential
 
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ github.job }}-${{ matrix.os || 'ubuntu-latest' }}
+
       - name: Set reusable strings
         id: strings
         shell: bash
@@ -35,6 +40,8 @@ jobs:
           -DCMAKE_CXX_COMPILER=g++
           -DCMAKE_C_COMPILER=gcc
           -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           -S ${{ github.workspace }}
 
       - name: Build Library
@@ -47,6 +54,6 @@ jobs:
       - name: Build and run example
         run: |
           mkdir -p build-example && cd build-example
-          cmake ../examples/simple -DCMAKE_BUILD_TYPE=Release
+          cmake ../examples/simple -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           cmake --build . --config Release
           ./simple

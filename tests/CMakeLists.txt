@@ -28,6 +28,8 @@ add_executable(
   test_message_parsing.cpp
   test_session_management.cpp
   test_utils.cpp
+  test_error_handling.cpp
+  test_pb_utils.cpp
   ../examples/simple/log.cpp
 )
 
@@ -75,6 +77,14 @@ add_executable(test_utils test_utils.cpp ../examples/simple/log.cpp)
 target_link_libraries(test_utils gtest_main TeslaBLE)
 target_include_directories(test_utils PRIVATE ../include ../examples/simple)
 
+add_executable(test_error_handling test_error_handling.cpp ../examples/simple/log.cpp)
+target_link_libraries(test_error_handling gtest_main TeslaBLE)
+target_include_directories(test_error_handling PRIVATE ../include ../examples/simple)
+
+add_executable(test_pb_utils test_pb_utils.cpp ../examples/simple/log.cpp)
+target_link_libraries(test_pb_utils gtest_main TeslaBLE)
+target_include_directories(test_pb_utils PRIVATE ../include ../examples/simple)
+
 # Register individual tests
 gtest_discover_tests(test_client)
 gtest_discover_tests(test_key_generation)
@@ -82,3 +92,5 @@ gtest_discover_tests(test_message_building)
 gtest_discover_tests(test_message_parsing)
 gtest_discover_tests(test_session_management)
 gtest_discover_tests(test_utils)
+gtest_discover_tests(test_error_handling)
+gtest_discover_tests(test_pb_utils)

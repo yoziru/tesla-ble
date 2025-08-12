@@ -75,6 +75,9 @@ PB_BIND(CarServer_ChargingStartStopAction, CarServer_ChargingStartStopAction, AU
 PB_BIND(CarServer_DrivingClearSpeedLimitPinAction, CarServer_DrivingClearSpeedLimitPinAction, AUTO)
 
 
+PB_BIND(CarServer_DrivingClearSpeedLimitPinAdminAction, CarServer_DrivingClearSpeedLimitPinAdminAction, AUTO)
+
+
 PB_BIND(CarServer_DrivingSetSpeedLimitAction, CarServer_DrivingSetSpeedLimitAction, AUTO)
 
 
@@ -223,6 +226,9 @@ PB_BIND(CarServer_VehicleControlSetPinToDriveAction, CarServer_VehicleControlSet
 
 
 PB_BIND(CarServer_VehicleControlResetPinToDriveAction, CarServer_VehicleControlResetPinToDriveAction, AUTO)
+
+
+PB_BIND(CarServer_VehicleControlResetPinToDriveAdminAction, CarServer_VehicleControlResetPinToDriveAdminAction, AUTO)
 
 
 

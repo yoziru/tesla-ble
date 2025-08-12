@@ -169,6 +169,10 @@ typedef struct _CarServer_DrivingClearSpeedLimitPinAction {
     pb_callback_t pin;
 } CarServer_DrivingClearSpeedLimitPinAction;
 
+typedef struct _CarServer_DrivingClearSpeedLimitPinAdminAction {
+    char dummy_field;
+} CarServer_DrivingClearSpeedLimitPinAdminAction;
+
 typedef struct _CarServer_DrivingSetSpeedLimitAction {
     double limit_mph;
 } CarServer_DrivingSetSpeedLimitAction;
@@ -485,6 +489,10 @@ typedef struct _CarServer_VehicleControlResetPinToDriveAction {
     char dummy_field;
 } CarServer_VehicleControlResetPinToDriveAction;
 
+typedef struct _CarServer_VehicleControlResetPinToDriveAdminAction {
+    char dummy_field;
+} CarServer_VehicleControlResetPinToDriveAdminAction;
+
 typedef struct _CarServer_VehicleAction {
     pb_size_t which_vehicle_action_msg;
     union {
@@ -533,6 +541,8 @@ typedef struct _CarServer_VehicleAction {
         CarServer_EraseUserDataAction eraseUserDataAction;
         CarServer_VehicleControlSetPinToDriveAction vehicleControlSetPinToDriveAction;
         CarServer_VehicleControlResetPinToDriveAction vehicleControlResetPinToDriveAction;
+        CarServer_DrivingClearSpeedLimitPinAdminAction drivingClearSpeedLimitPinAdminAction;
+        CarServer_VehicleControlResetPinToDriveAdminAction vehicleControlResetPinToDriveAdminAction;
         CarServer_ChargeSchedule addChargeScheduleAction;
         CarServer_RemoveChargeScheduleAction removeChargeScheduleAction;
         CarServer_PreconditionSchedule addPreconditionScheduleAction;
@@ -609,6 +619,7 @@ extern "C" {
 
 
 
+
 #define CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction_seat_cooler_level_ENUMTYPE CarServer_HvacSeatCoolerActions_HvacSeatCoolerLevel_E
 #define CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction_seat_position_ENUMTYPE CarServer_HvacSeatCoolerActions_HvacSeatCoolerPosition_E
 
@@ -660,6 +671,7 @@ extern "C" {
 
 
 
+
 /* Initializer values for message structs */
 #define CarServer_Action_init_default            {0, {CarServer_VehicleAction_init_default}}
 #define CarServer_VehicleAction_init_default     {0, {CarServer_GetVehicleData_init_default}}
@@ -684,6 +696,7 @@ extern "C" {
 #define CarServer_ChargingSetLimitAction_init_default {0}
 #define CarServer_ChargingStartStopAction_init_default {0, {CarServer_Void_init_default}}
 #define CarServer_DrivingClearSpeedLimitPinAction_init_default {{{NULL}, NULL}}
+#define CarServer_DrivingClearSpeedLimitPinAdminAction_init_default {0}
 #define CarServer_DrivingSetSpeedLimitAction_init_default {0}
 #define CarServer_DrivingSpeedLimitAction_init_default {0, {{NULL}, NULL}}
 #define CarServer_HvacAutoAction_init_default    {0, 0}
@@ -734,6 +747,7 @@ extern "C" {
 #define CarServer_SetCopTempAction_init_default  {_CarServer_ClimateState_CopActivationTemp_MIN}
 #define CarServer_VehicleControlSetPinToDriveAction_init_default {0, {{NULL}, NULL}}
 #define CarServer_VehicleControlResetPinToDriveAction_init_default {0}
+#define CarServer_VehicleControlResetPinToDriveAdminAction_init_default {0}
 #define CarServer_Action_init_zero               {0, {CarServer_VehicleAction_init_zero}}
 #define CarServer_VehicleAction_init_zero        {0, {CarServer_GetVehicleData_init_zero}}
 #define CarServer_GetVehicleData_init_zero       {false, CarServer_GetChargeState_init_zero, false, CarServer_GetClimateState_init_zero, false, CarServer_GetDriveState_init_zero, false, CarServer_GetLocationState_init_zero, false, CarServer_GetClosuresState_init_zero, false, CarServer_GetChargeScheduleState_init_zero, false, CarServer_GetPreconditioningScheduleState_init_zero, false, CarServer_GetTirePressureState_init_zero, false, CarServer_GetMediaState_init_zero, false, CarServer_GetMediaDetailState_init_zero, false, CarServer_GetSoftwareUpdateState_init_zero, false, CarServer_GetParentalControlsState_init_zero}
@@ -757,6 +771,7 @@ extern "C" {
 #define CarServer_ChargingSetLimitAction_init_zero {0}
 #define CarServer_ChargingStartStopAction_init_zero {0, {CarServer_Void_init_zero}}
 #define CarServer_DrivingClearSpeedLimitPinAction_init_zero {{{NULL}, NULL}}
+#define CarServer_DrivingClearSpeedLimitPinAdminAction_init_zero {0}
 #define CarServer_DrivingSetSpeedLimitAction_init_zero {0}
 #define CarServer_DrivingSpeedLimitAction_init_zero {0, {{NULL}, NULL}}
 #define CarServer_HvacAutoAction_init_zero       {0, 0}
@@ -807,6 +822,7 @@ extern "C" {
 #define CarServer_SetCopTempAction_init_zero     {_CarServer_ClimateState_CopActivationTemp_MIN}
 #define CarServer_VehicleControlSetPinToDriveAction_init_zero {0, {{NULL}, NULL}}
 #define CarServer_VehicleControlResetPinToDriveAction_init_zero {0}
+#define CarServer_VehicleControlResetPinToDriveAdminAction_init_zero {0}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define CarServer_GetVehicleData_getChargeState_tag 2
@@ -998,6 +1014,8 @@ extern "C" {
 #define CarServer_VehicleAction_eraseUserDataAction_tag 72
 #define CarServer_VehicleAction_vehicleControlSetPinToDriveAction_tag 77
 #define CarServer_VehicleAction_vehicleControlResetPinToDriveAction_tag 78
+#define CarServer_VehicleAction_drivingClearSpeedLimitPinAdminAction_tag 79
+#define CarServer_VehicleAction_vehicleControlResetPinToDriveAdminAction_tag 89
 #define CarServer_VehicleAction_addChargeScheduleAction_tag 97
 #define CarServer_VehicleAction_removeChargeScheduleAction_tag 98
 #define CarServer_VehicleAction_addPreconditionScheduleAction_tag 99
@@ -1059,6 +1077,8 @@ X(a, STATIC,   ONEOF,    MESSAGE,  (vehicle_action_msg,setCopTempAction,vehicle_
 X(a, STATIC,   ONEOF,    MESSAGE,  (vehicle_action_msg,eraseUserDataAction,vehicle_action_msg.eraseUserDataAction),  72) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (vehicle_action_msg,vehicleControlSetPinToDriveAction,vehicle_action_msg.vehicleControlSetPinToDriveAction),  77) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (vehicle_action_msg,vehicleControlResetPinToDriveAction,vehicle_action_msg.vehicleControlResetPinToDriveAction),  78) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (vehicle_action_msg,drivingClearSpeedLimitPinAdminAction,vehicle_action_msg.drivingClearSpeedLimitPinAdminAction),  79) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (vehicle_action_msg,vehicleControlResetPinToDriveAdminAction,vehicle_action_msg.vehicleControlResetPinToDriveAdminAction),  89) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (vehicle_action_msg,addChargeScheduleAction,vehicle_action_msg.addChargeScheduleAction),  97) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (vehicle_action_msg,removeChargeScheduleAction,vehicle_action_msg.removeChargeScheduleAction),  98) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (vehicle_action_msg,addPreconditionScheduleAction,vehicle_action_msg.addPreconditionScheduleAction),  99) \
@@ -1112,6 +1132,8 @@ X(a, STATIC,   ONEOF,    MESSAGE,  (vehicle_action_msg,batchRemoveChargeSchedule
 #define CarServer_VehicleAction_vehicle_action_msg_eraseUserDataAction_MSGTYPE CarServer_EraseUserDataAction
 #define CarServer_VehicleAction_vehicle_action_msg_vehicleControlSetPinToDriveAction_MSGTYPE CarServer_VehicleControlSetPinToDriveAction
 #define CarServer_VehicleAction_vehicle_action_msg_vehicleControlResetPinToDriveAction_MSGTYPE CarServer_VehicleControlResetPinToDriveAction
+#define CarServer_VehicleAction_vehicle_action_msg_drivingClearSpeedLimitPinAdminAction_MSGTYPE CarServer_DrivingClearSpeedLimitPinAdminAction
+#define CarServer_VehicleAction_vehicle_action_msg_vehicleControlResetPinToDriveAdminAction_MSGTYPE CarServer_VehicleControlResetPinToDriveAdminAction
 #define CarServer_VehicleAction_vehicle_action_msg_addChargeScheduleAction_MSGTYPE CarServer_ChargeSchedule
 #define CarServer_VehicleAction_vehicle_action_msg_removeChargeScheduleAction_MSGTYPE CarServer_RemoveChargeScheduleAction
 #define CarServer_VehicleAction_vehicle_action_msg_addPreconditionScheduleAction_MSGTYPE CarServer_PreconditionSchedule
@@ -1268,6 +1290,11 @@ X(a, STATIC,   ONEOF,    MESSAGE,  (charging_action,stop,charging_action.stop), 
 X(a, CALLBACK, SINGULAR, STRING,   pin,               1)
 #define CarServer_DrivingClearSpeedLimitPinAction_CALLBACK pb_default_field_callback
 #define CarServer_DrivingClearSpeedLimitPinAction_DEFAULT NULL
+
+#define CarServer_DrivingClearSpeedLimitPinAdminAction_FIELDLIST(X, a) \
+
+#define CarServer_DrivingClearSpeedLimitPinAdminAction_CALLBACK NULL
+#define CarServer_DrivingClearSpeedLimitPinAdminAction_DEFAULT NULL
 
 #define CarServer_DrivingSetSpeedLimitAction_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, DOUBLE,   limit_mph,         1)
@@ -1632,6 +1659,11 @@ X(a, CALLBACK, SINGULAR, STRING,   password,          2)
 #define CarServer_VehicleControlResetPinToDriveAction_CALLBACK NULL
 #define CarServer_VehicleControlResetPinToDriveAction_DEFAULT NULL
 
+#define CarServer_VehicleControlResetPinToDriveAdminAction_FIELDLIST(X, a) \
+
+#define CarServer_VehicleControlResetPinToDriveAdminAction_CALLBACK NULL
+#define CarServer_VehicleControlResetPinToDriveAdminAction_DEFAULT NULL
+
 extern const pb_msgdesc_t CarServer_Action_msg;
 extern const pb_msgdesc_t CarServer_VehicleAction_msg;
 extern const pb_msgdesc_t CarServer_GetVehicleData_msg;
@@ -1655,6 +1687,7 @@ extern const pb_msgdesc_t CarServer_EncryptedData_msg;
 extern const pb_msgdesc_t CarServer_ChargingSetLimitAction_msg;
 extern const pb_msgdesc_t CarServer_ChargingStartStopAction_msg;
 extern const pb_msgdesc_t CarServer_DrivingClearSpeedLimitPinAction_msg;
+extern const pb_msgdesc_t CarServer_DrivingClearSpeedLimitPinAdminAction_msg;
 extern const pb_msgdesc_t CarServer_DrivingSetSpeedLimitAction_msg;
 extern const pb_msgdesc_t CarServer_DrivingSpeedLimitAction_msg;
 extern const pb_msgdesc_t CarServer_HvacAutoAction_msg;
@@ -1705,6 +1738,7 @@ extern const pb_msgdesc_t CarServer_ChargePortDoorOpen_msg;
 extern const pb_msgdesc_t CarServer_SetCopTempAction_msg;
 extern const pb_msgdesc_t CarServer_VehicleControlSetPinToDriveAction_msg;
 extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAction_msg;
+extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAdminAction_msg;
 
 /* Defines for backwards compatibility with code written before nanopb-0.4.0 */
 #define CarServer_Action_fields &CarServer_Action_msg
@@ -1730,6 +1764,7 @@ extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAction_msg;
 #define CarServer_ChargingSetLimitAction_fields &CarServer_ChargingSetLimitAction_msg
 #define CarServer_ChargingStartStopAction_fields &CarServer_ChargingStartStopAction_msg
 #define CarServer_DrivingClearSpeedLimitPinAction_fields &CarServer_DrivingClearSpeedLimitPinAction_msg
+#define CarServer_DrivingClearSpeedLimitPinAdminAction_fields &CarServer_DrivingClearSpeedLimitPinAdminAction_msg
 #define CarServer_DrivingSetSpeedLimitAction_fields &CarServer_DrivingSetSpeedLimitAction_msg
 #define CarServer_DrivingSpeedLimitAction_fields &CarServer_DrivingSpeedLimitAction_msg
 #define CarServer_HvacAutoAction_fields &CarServer_HvacAutoAction_msg
@@ -1780,6 +1815,7 @@ extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAction_msg;
 #define CarServer_SetCopTempAction_fields &CarServer_SetCopTempAction_msg
 #define CarServer_VehicleControlSetPinToDriveAction_fields &CarServer_VehicleControlSetPinToDriveAction_msg
 #define CarServer_VehicleControlResetPinToDriveAction_fields &CarServer_VehicleControlResetPinToDriveAction_msg
+#define CarServer_VehicleControlResetPinToDriveAdminAction_fields &CarServer_VehicleControlResetPinToDriveAdminAction_msg
 
 /* Maximum encoded size of messages (where known) */
 /* CarServer_Action_size depends on runtime parameters */
@@ -1809,6 +1845,7 @@ extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAction_msg;
 #define CarServer_ChargePortDoorOpen_size        0
 #define CarServer_ChargingSetLimitAction_size    11
 #define CarServer_ChargingStartStopAction_size   2
+#define CarServer_DrivingClearSpeedLimitPinAdminAction_size 0
 #define CarServer_DrivingSetSpeedLimitAction_size 9
 #define CarServer_GetChargeScheduleState_size    0
 #define CarServer_GetChargeState_size            0
@@ -1851,6 +1888,7 @@ extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAction_msg;
 #define CarServer_VehicleControlFlashLightsAction_size 0
 #define CarServer_VehicleControlHonkHornAction_size 0
 #define CarServer_VehicleControlResetPinToDriveAction_size 0
+#define CarServer_VehicleControlResetPinToDriveAdminAction_size 0
 #define CarServer_VehicleControlResetValetPinAction_size 0
 #define CarServer_VehicleControlScheduleSoftwareUpdateAction_size 11
 #define CarServer_VehicleControlSetSentryModeAction_size 2

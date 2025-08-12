@@ -823,6 +823,7 @@ namespace TeslaBLE
     CarServer_GetVehicleData get_vehicle_data = CarServer_GetVehicleData_init_default;
     get_vehicle_data.getChargeState = CarServer_GetChargeState_init_default;
     get_vehicle_data.has_getChargeState = true;
+    vehicle_action.vehicle_action_msg.getVehicleData = get_vehicle_data;
     action.action_msg.vehicleAction = vehicle_action;
 
     size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;

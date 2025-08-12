@@ -12,6 +12,7 @@ set(MBEDTLS_AS_SUBPROJECT ON)
 set(ENABLE_PROGRAMS OFF)
 set(ENABLE_TESTING OFF)
 set(BUILD_EXAMPLES OFF)
+set(MBEDTLS_INSTALL OFF)
 
 FetchContent_Declare(
         nanopb
@@ -78,3 +79,9 @@ set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/signatures.pb.h)
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/universal_message.pb.h)
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/vcsec.pb.h)
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/vehicle.pb.h)
+
+# Enable testing
+enable_testing()
+
+# Add tests subdirectory
+add_subdirectory(tests)

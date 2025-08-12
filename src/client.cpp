@@ -345,6 +345,14 @@ namespace TeslaBLE
                                     size_t input_buffer_length,
                                     UniversalMessage_RoutableMessage *output)
   {
+    // Validate input parameters
+    if (input_buffer == nullptr || output == nullptr || input_buffer_length == 0)
+    {
+      LOG_ERROR("Invalid parameters: input_buffer=%p, output=%p, length=%zu", 
+                input_buffer, output, input_buffer_length);
+      return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    }
+
     pb_istream_t stream = pb_istream_from_buffer(input_buffer, input_buffer_length);
     bool status =
         pb_decode(&stream, UniversalMessage_RoutableMessage_fields, output);
@@ -368,6 +376,13 @@ namespace TeslaBLE
   int Client::parsePayloadSessionInfo(UniversalMessage_RoutableMessage_session_info_t *input_buffer,
                                       Signatures_SessionInfo *output)
   {
+    // Validate input parameters
+    if (input_buffer == nullptr || output == nullptr)
+    {
+      LOG_ERROR("Invalid parameters: input_buffer=%p, output=%p", input_buffer, output);
+      return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    }
+
     pb_istream_t stream = pb_istream_from_buffer(input_buffer->bytes, input_buffer->size);
     bool status =
         pb_decode(&stream, Signatures_SessionInfo_fields, output);

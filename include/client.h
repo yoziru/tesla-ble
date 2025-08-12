@@ -16,6 +16,7 @@
 #include "universal_message.pb.h"
 #include "vcsec.pb.h"
 #include "keys.pb.h"
+#include "errors.h"
 
 namespace TeslaBLE
 {
@@ -39,6 +40,12 @@ namespace TeslaBLE
             pb_byte_t *output_buffer,
             size_t *output_length)
         {
+            // Validate input parameters
+            if (output_buffer == nullptr || output_length == nullptr)
+            {
+                return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+            }
+
             CarServer_Action action = CarServer_Action_init_default;
             action.which_action_msg = CarServer_Action_vehicleAction_tag;
 

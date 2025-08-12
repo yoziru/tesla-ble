@@ -22,6 +22,8 @@ namespace TeslaBLE
             return "ERROR_INVALID_SESSION";
         case TeslaBLE_Status_E_ERROR_ENCRYPT:
             return "ERROR_ENCRYPT";
+        case TeslaBLE_Status_E_ERROR_INVALID_PARAMS:
+            return "ERROR_INVALID_PARAMS";
         default:
             return "ERROR_UNKNOWN";
         }

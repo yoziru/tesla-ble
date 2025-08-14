@@ -819,7 +819,9 @@ namespace TeslaBLE
   }
 
   int Client::buildCarServerGetVehicleDataMessage(pb_byte_t *output_buffer,
-                                                  size_t *output_length)
+                                                  size_t *output_length,
+                                                  int32_t which_vehicle_data
+                                                )
   {
     CarServer_Action action = CarServer_Action_init_default;
     action.which_action_msg = CarServer_Action_vehicleAction_tag;
@@ -827,10 +829,65 @@ namespace TeslaBLE
     CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
     vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_getVehicleData_tag;
     CarServer_GetVehicleData get_vehicle_data = CarServer_GetVehicleData_init_default;
-    get_vehicle_data.getChargeState = CarServer_GetChargeState_init_default;
-    get_vehicle_data.has_getChargeState = true;
+
+    switch (which_vehicle_data)
+    {
+      case CarServer_GetVehicleData_getChargeState_tag:
+        get_vehicle_data.getChargeState = CarServer_GetChargeState_init_default;
+        get_vehicle_data.has_getChargeState = true;
+        break;
+      case CarServer_GetVehicleData_getClimateState_tag:
+        get_vehicle_data.getClimateState = CarServer_GetClimateState_init_default;
+        get_vehicle_data.has_getClimateState = true;
+        break;
+      case CarServer_GetVehicleData_getDriveState_tag:
+        get_vehicle_data.getDriveState = CarServer_GetDriveState_init_default;
+        get_vehicle_data.has_getDriveState = true;
+        break;
+      case CarServer_GetVehicleData_getLocationState_tag:
+        get_vehicle_data.getLocationState = CarServer_GetLocationState_init_default;
+        get_vehicle_data.has_getLocationState = true;
+        break;
+      case CarServer_GetVehicleData_getClosuresState_tag:
+        get_vehicle_data.getClosuresState = CarServer_GetClosuresState_init_default;
+        get_vehicle_data.has_getClosuresState = true;
+        break;
+      case CarServer_GetVehicleData_getChargeScheduleState_tag:
+        get_vehicle_data.getChargeScheduleState = CarServer_GetChargeScheduleState_init_default;
+        get_vehicle_data.has_getChargeScheduleState = true;
+        break;
+      case CarServer_GetVehicleData_getPreconditioningScheduleState_tag:
+        get_vehicle_data.getPreconditioningScheduleState = CarServer_GetPreconditioningScheduleState_init_default;
+        get_vehicle_data.has_getPreconditioningScheduleState = true;
+        break;
+      case CarServer_GetVehicleData_getTirePressureState_tag:
+        get_vehicle_data.getTirePressureState = CarServer_GetTirePressureState_init_default;
+        get_vehicle_data.has_getTirePressureState = true;
+        break;
+      case CarServer_GetVehicleData_getMediaState_tag:
+        get_vehicle_data.getMediaState = CarServer_GetMediaState_init_default;
+        get_vehicle_data.has_getMediaState = true;
+        break;
+      case CarServer_GetVehicleData_getMediaDetailState_tag:
+        get_vehicle_data.getMediaDetailState = CarServer_GetMediaDetailState_init_default;
+        get_vehicle_data.has_getMediaDetailState = true;
+        break;
+      case CarServer_GetVehicleData_getSoftwareUpdateState_tag:
+        get_vehicle_data.getSoftwareUpdateState = CarServer_GetSoftwareUpdateState_init_default;
+        get_vehicle_data.has_getSoftwareUpdateState = true;
+        break;
+      case CarServer_GetVehicleData_getParentalControlsState_tag:
+        get_vehicle_data.getParentalControlsState = CarServer_GetParentalControlsState_init_default;
+        get_vehicle_data.has_getParentalControlsState = true;
+        break;
+      default:
+        LOG_ERROR("Invalid vehicle data type");
+        return 1;
+    }
+
     vehicle_action.vehicle_action_msg.getVehicleData = get_vehicle_data;
     action.action_msg.vehicleAction = vehicle_action;
+
 
     size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];

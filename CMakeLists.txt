@@ -1,3 +1,4 @@
+
 cmake_minimum_required(VERSION 3.22)
 
 include(FetchContent)
@@ -8,11 +9,13 @@ project(TeslaBLE
 )
 set(CMAKE_CXX_STANDARD 23)
 
+
+# Ensure mbedtls tests and programs are disabled
 set(MBEDTLS_AS_SUBPROJECT ON)
-set(ENABLE_PROGRAMS OFF)
-set(ENABLE_TESTING OFF)
-set(BUILD_EXAMPLES OFF)
-set(MBEDTLS_INSTALL OFF)
+set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
+set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(MBEDTLS_INSTALL OFF CACHE BOOL "" FORCE)
 
 FetchContent_Declare(
         nanopb

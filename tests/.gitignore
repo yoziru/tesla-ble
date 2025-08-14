@@ -1,0 +1,11 @@
+*.cmake
+# Executables
+tesla_ble_tests
+test_client
+test_key_generation
+test_message_building
+test_message_parsing
+test_session_management
+test_utils
+test_error_handling
+test_pb_utils

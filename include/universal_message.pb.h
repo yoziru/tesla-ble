@@ -82,7 +82,7 @@ typedef struct _UniversalMessage_SessionInfoRequest {
     UniversalMessage_SessionInfoRequest_challenge_t challenge;
 } UniversalMessage_SessionInfoRequest;
 
-typedef PB_BYTES_ARRAY_T(100) UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t;
+typedef PB_BYTES_ARRAY_T(512) UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t;
 typedef PB_BYTES_ARRAY_T(100) UniversalMessage_RoutableMessage_session_info_t;
 typedef PB_BYTES_ARRAY_T(16) UniversalMessage_RoutableMessage_request_uuid_t;
 typedef PB_BYTES_ARRAY_T(16) UniversalMessage_RoutableMessage_uuid_t;
@@ -219,7 +219,7 @@ extern const pb_msgdesc_t UniversalMessage_RoutableMessage_msg;
 #define UNIVERSALMESSAGE_UNIVERSAL_MESSAGE_PB_H_MAX_SIZE UniversalMessage_RoutableMessage_size
 #define UniversalMessage_Destination_size        18
 #define UniversalMessage_MessageStatus_size      4
-#define UniversalMessage_RoutableMessage_size    329
+#define UniversalMessage_RoutableMessage_size    741
 #define UniversalMessage_SessionInfoRequest_size 101
 
 #ifdef __cplusplus

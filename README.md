@@ -88,7 +88,7 @@ The repository includes a comprehensive test runner script with various options:
 ```bash
 # Build and run all Tesla BLE tests (excludes dependency tests)
 cd build
-ctest --output-on-failure --verbose -R "Tesla|Client|Key|Message|Session|Utils"
+ctest --output-on-failure --verbose
 
 # Run specific test suites
 ./tests/test_client

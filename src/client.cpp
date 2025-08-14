@@ -432,7 +432,13 @@ namespace TeslaBLE
                                                size_t *output_length,
                                                bool encryptPayload)
   {
-    UniversalMessage_RoutableMessage universal_message = UniversalMessage_RoutableMessage_init_default;
+  // Reject empty or null payloads
+  if (payload == nullptr || payload_length == 0) {
+    LOG_ERROR("[buildUniversalMessageWithPayload] Payload is null or empty");
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+
+  UniversalMessage_RoutableMessage universal_message = UniversalMessage_RoutableMessage_init_default;
 
     UniversalMessage_Destination to_destination = UniversalMessage_Destination_init_default;
     to_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;

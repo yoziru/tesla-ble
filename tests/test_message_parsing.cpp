@@ -2,6 +2,7 @@
 #include <client.h>
 #include <universal_message.pb.h>
 #include <signatures.pb.h>
+#include <car_server.pb.h>
 #include <cstring>
 
 // Mock data
@@ -184,4 +185,89 @@ TEST_F(MessageParsingTest, ParseSessionInfoWithNullOutput) {
     );
     
     EXPECT_NE(session_result, 0) << "Parsing session info with null output should fail";
+}
+
+TEST_F(MessageParsingTest, ParsePayloadCarServerResponsePlaintext) {
+    // Create a minimal valid CarServer Response with just actionStatus
+    // Based on protobuf wire format: field 1 (actionStatus) with result = 0 (OK)
+    pb_byte_t mock_response_data[] = {
+        0x0A, 0x02, 0x08, 0x00  // actionStatus { result: OPERATIONSTATUS_OK }
+    };
+    
+    // Create input buffer structure
+    UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t input_buffer;
+    input_buffer.size = sizeof(mock_response_data);
+    memcpy(input_buffer.bytes, mock_response_data, sizeof(mock_response_data));
+    
+    // Parse the response (plaintext, no encryption)
+    CarServer_Response parsed_response = CarServer_Response_init_default;
+    Signatures_SignatureData signature_data = Signatures_SignatureData_init_default;
+    
+    int result = client->parsePayloadCarServerResponse(
+        &input_buffer,
+        &signature_data,
+        0,  // which_sub_sigData = 0 means plaintext
+        UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE,
+        &parsed_response
+    );
+    
+    EXPECT_EQ(result, 0) << "Parsing plaintext CarServer response should succeed";
+    EXPECT_TRUE(parsed_response.has_actionStatus) << "Parsed response should have action status";
+    EXPECT_EQ(parsed_response.actionStatus.result, CarServer_OperationStatus_E_OPERATIONSTATUS_OK) << "Action status should be OK";
+}
+
+TEST_F(MessageParsingTest, ParsePayloadCarServerResponseInvalidData) {
+    // Create invalid protobuf data
+    UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t input_buffer;
+    pb_byte_t invalid_data[] = {0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x01, 0x02};
+    input_buffer.size = sizeof(invalid_data);
+    memcpy(input_buffer.bytes, invalid_data, sizeof(invalid_data));
+    
+    CarServer_Response parsed_response = CarServer_Response_init_default;
+    Signatures_SignatureData signature_data = Signatures_SignatureData_init_default;
+    
+    int result = client->parsePayloadCarServerResponse(
+        &input_buffer,
+        &signature_data,
+        0,  // plaintext
+        UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE,
+        &parsed_response
+    );
+    
+    EXPECT_NE(result, 0) << "Parsing invalid CarServer response data should fail";
+}
+
+TEST_F(MessageParsingTest, ParsePayloadCarServerResponseEdgeCases) {
+    CarServer_Response parsed_response = CarServer_Response_init_default;
+    Signatures_SignatureData signature_data = Signatures_SignatureData_init_default;
+    
+    // Test with buffer containing only invalid protobuf data
+    UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t invalid_buffer;
+    pb_byte_t invalid_data[] = {0xFF, 0xFF, 0xFF};  // Invalid protobuf wire format
+    invalid_buffer.size = sizeof(invalid_data);
+    memcpy(invalid_buffer.bytes, invalid_data, sizeof(invalid_data));
+    
+    int result = client->parsePayloadCarServerResponse(
+        &invalid_buffer,
+        &signature_data,
+        0,
+        UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE,
+        &parsed_response
+    );
+    EXPECT_NE(result, 0) << "Parsing with invalid protobuf data should fail";
+    
+    // Test with truncated valid data
+    UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t truncated_buffer;
+    pb_byte_t truncated_data[] = {0x0A, 0x02};  // Incomplete actionStatus field
+    truncated_buffer.size = sizeof(truncated_data);
+    memcpy(truncated_buffer.bytes, truncated_data, sizeof(truncated_data));
+    
+    int result2 = client->parsePayloadCarServerResponse(
+        &truncated_buffer,
+        &signature_data,
+        0,
+        UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE,
+        &parsed_response
+    );
+    EXPECT_NE(result2, 0) << "Parsing with truncated data should fail";
 }

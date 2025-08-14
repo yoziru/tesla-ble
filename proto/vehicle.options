@@ -1,0 +1,20 @@
+# "vehicle.proto"
+
+CarServer.ClosuresState.timestamp type:FT_IGNORE
+CarServer.ChargeScheduleState.timestamp type:FT_IGNORE
+CarServer.PreconditioningScheduleState.timestamp type:FT_IGNORE
+CarServer.ParentalControlsState.timestamp type:FT_IGNORE
+CarServer.SoftwareUpdateState.timestamp type:FT_IGNORE
+CarServer.DriveState.timestamp type:FT_IGNORE
+CarServer.DriveState.last_traffic_update type:FT_IGNORE
+CarServer.ChargeState.scheduled_departure_time type:FT_IGNORE
+CarServer.ChargeState.timestamp type:FT_IGNORE
+CarServer.ClimateState.timestamp type:FT_IGNORE
+CarServer.TirePressureState.timestamp type:FT_IGNORE
+CarServer.TirePressureState.tpms_last_seen_pressure_time_fl type:FT_IGNORE
+CarServer.TirePressureState.tpms_last_seen_pressure_time_fr type:FT_IGNORE
+CarServer.TirePressureState.tpms_last_seen_pressure_time_rl type:FT_IGNORE
+CarServer.TirePressureState.tpms_last_seen_pressure_time_rr type:FT_IGNORE
+CarServer.MediaState.timestamp type:FT_IGNORE
+CarServer.MediaDetailState.timestamp type:FT_IGNORE
+CarServer.LocationState.timestamp type:FT_IGNORE

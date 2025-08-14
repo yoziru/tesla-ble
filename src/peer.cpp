@@ -244,7 +244,11 @@ namespace TeslaBLE
       const char *VIN,
       uint32_t expires_at,
       pb_byte_t *output_buffer,
-      size_t *output_length) const
+      size_t *output_length,
+      uint32_t flags,
+      const pb_byte_t* request_hash,
+      size_t request_hash_length,
+      uint32_t fault) const
   {
     size_t index = 0;
 
@@ -287,18 +291,177 @@ namespace TeslaBLE
     output_buffer[index++] = (this->counter_ >> 8) & 0xFF;
     output_buffer[index++] = this->counter_ & 0xFF;
 
+    if (flags > 0 || signature_type == Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE) {
+      // Flags (always included for responses, don't include for request)
+      // For backwards compatibility, message flags are only explicitly added to
+      // the metadata hash if at least one of them is set. (If a MITM
+      // clears these bits, the hashes will not match, as desired).
+      output_buffer[index++] = Signatures_Tag_TAG_FLAGS;
+      output_buffer[index++] = 0x04;
+      output_buffer[index++] = (flags >> 24) & 0xFF;
+      output_buffer[index++] = (flags >> 16) & 0xFF;
+      output_buffer[index++] = (flags >> 8) & 0xFF;
+      output_buffer[index++] = flags & 0xFF;
+    }
+
+    if (signature_type == Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE)
+    {
+      // Request hash
+      if (request_hash != nullptr && request_hash_length > 0) {
+        output_buffer[index++] = Signatures_Tag_TAG_REQUEST_HASH;
+        output_buffer[index++] = request_hash_length;
+        memcpy(output_buffer + index, request_hash, request_hash_length);
+        index += request_hash_length;
+      }
+
+      // Fault (for responses)
+      output_buffer[index++] = Signatures_Tag_TAG_FAULT;
+      output_buffer[index++] = 0x04;
+      output_buffer[index++] = (fault >> 24) & 0xFF;
+      output_buffer[index++] = (fault >> 16) & 0xFF;
+      output_buffer[index++] = (fault >> 8) & 0xFF;
+      output_buffer[index++] = fault & 0xFF;
+    }
+
     // Terminal byte
     output_buffer[index++] = Signatures_Tag_TAG_END;
 
-    // // ad buffer needs to be multiple of 16
-    // while (index % 16 != 0)
-    // {
-    //   output_buffer[index++] = 0x00;
-    // }
-
     *output_length = index;
+    return 0;
+  }
+
+  int Peer::ConstructRequestHash(
+      Signatures_SignatureType auth_type,
+      const pb_byte_t* auth_tag,
+      size_t auth_tag_length,
+      pb_byte_t* request_hash,
+      size_t* request_hash_length) const
+  {
+    if (auth_tag == nullptr || request_hash == nullptr || request_hash_length == nullptr) {
+      LOG_ERROR("Invalid parameters for ConstructRequestHash");
+      return TeslaBLE_Status_E_ERROR_ENCRYPT;
+    }
+
+    // First byte is the authentication type
+    request_hash[0] = auth_type;
+
+    // For Vehicle Security domain, truncate HMAC-SHA256 to 16 bytes
+    size_t tag_length = (auth_type == Signatures_SignatureType_SIGNATURE_TYPE_HMAC_PERSONALIZED &&
+                        this->domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)
+                       ? 16
+                       : auth_tag_length;
+
+    memcpy(request_hash + 1, auth_tag, tag_length);
+    *request_hash_length = tag_length + 1;  // +1 for the auth type byte
 
     return 0;
+  }
+
+  int Peer::DecryptResponse(
+      const pb_byte_t* input_buffer,
+      size_t input_length,
+      const pb_byte_t* nonce,
+      pb_byte_t* tag,
+      const pb_byte_t* request_hash,
+      size_t request_hash_length,
+      uint32_t flags,
+      uint32_t fault,
+      pb_byte_t* output_buffer,
+      size_t output_buffer_length,
+      size_t* output_length) const
+  {
+    if (!isPrivateKeyInitialized()) {
+      LOG_ERROR("[DecryptResponse] Private key not initialized");
+      return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
+    }
+
+    mbedtls_gcm_context aes_context;
+    mbedtls_gcm_init(&aes_context);
+
+    // Set up AES-GCM with the shared key
+    int return_code = mbedtls_gcm_setkey(&aes_context, MBEDTLS_CIPHER_ID_AES,
+                                        this->shared_secret_sha1_, 128);
+    if (return_code != 0) {
+      LOG_ERROR("[DecryptResponse] GCM set key error: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_DECRYPT;
+    }
+
+    // Construct AD buffer for response
+    pb_byte_t ad_buffer[256];
+    size_t ad_length;
+    return_code = ConstructADBuffer(
+        Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE,
+        this->vin_.c_str(),
+        0,  // expires_at not used for responses
+        ad_buffer,
+        &ad_length,
+        flags,
+        request_hash,
+        request_hash_length,
+        fault);
+
+    if (return_code != 0) {
+      LOG_ERROR("[DecryptResponse] Failed to construct AD buffer");
+      return return_code;
+    }
+
+    // Hash the AD buffer
+    unsigned char ad_hash[32];
+    return_code = mbedtls_sha256(ad_buffer, ad_length, ad_hash, 0);
+    if (return_code != 0) {
+      LOG_ERROR("[DecryptResponse] AD metadata SHA256 hash error: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_DECRYPT;
+    }
+
+    // Start decryption
+    return_code = mbedtls_gcm_starts(&aes_context, MBEDTLS_GCM_DECRYPT,
+                                    nonce, 12);  // nonce is always 12 bytes
+    if (return_code != 0) {
+      LOG_ERROR("[DecryptResponse] GCM start error: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_DECRYPT;
+    }
+
+    // Set AD hash as AAD
+    mbedtls_gcm_update_ad(&aes_context, ad_hash, sizeof(ad_hash));
+
+    // Decrypt the message
+    return_code = mbedtls_gcm_update(&aes_context, input_buffer, input_length,
+                                    output_buffer, output_buffer_length, output_length);
+    if (return_code != 0) {
+      LOG_ERROR("[DecryptResponse] Decryption error in gcm_update: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_DECRYPT;
+    }
+
+    // Finalize and verify the tag
+    size_t finish_length = 0;
+    pb_byte_t finish_buffer[16];
+    return_code = mbedtls_gcm_finish(&aes_context, finish_buffer, sizeof(finish_buffer),
+                                    &finish_length, tag, 16);  // tag is always 16 bytes
+    if (return_code != 0) {
+      LOG_ERROR("[DecryptResponse] Authentication failed in gcm_finish: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_DECRYPT;
+    }
+
+    mbedtls_gcm_free(&aes_context);
+    return 0;
+  }
+
+  bool Peer::ValidateResponseCounter(uint32_t counter, uint32_t request_id) {
+    std::lock_guard<std::mutex> guard(this->counter_mutex_);
+    
+    // Check if we've seen this counter for this request before
+    auto it = response_counters_.find(request_id);
+    if (it != response_counters_.end()) {
+      const auto& used_counters = it->second;
+      if (used_counters.find(counter) != used_counters.end()) {
+        LOG_ERROR("Counter %" PRIu32 " has been previously used for request %" PRIu32, counter, request_id);
+        return false;
+      }
+    }
+    
+    // Store the counter
+    response_counters_[request_id].insert(counter);
+    return true;
   }
 
   int Peer::Encrypt(pb_byte_t *input_buffer, size_t input_buffer_length,

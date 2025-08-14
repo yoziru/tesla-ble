@@ -47,11 +47,17 @@ typedef enum _UniversalMessage_MessageFault_E {
     UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_TIME_TO_LIVE_TOO_LONG = 20, /* Vehicle rejected command because its expiration time was too far in the future. This is a security precaution. */
     UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_REMOTE_ACCESS_DISABLED = 21, /* The vehicle owner has disabled Mobile access. */
     UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_REMOTE_SERVICE_ACCESS_DISABLED = 22, /* The command was authorized with a Service key, but the vehicle has not been configured to permit remote service commands. */
-    UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_COMMAND_REQUIRES_ACCOUNT_CREDENTIALS = 23 /* The command requires proof of Tesla account credentials but was not sent over a channel that provides this proof. Resend the command using Fleet API. */
+    UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_COMMAND_REQUIRES_ACCOUNT_CREDENTIALS = 23, /* The command requires proof of Tesla account credentials but was not sent over a channel that provides this proof. Resend the command using Fleet API. */
+    UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_REQUEST_MTU_EXCEEDED = 24, /* Client sent a request with a field that exceeds MTU */
+    UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_RESPONSE_MTU_EXCEEDED = 25, /* Client's request was received, but response size exceeded MTU */
+    UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_REPEATED_COUNTER = 26,
+    UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_KEY_HANDLE = 27,
+    UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_REQUIRES_RESPONSE_ENCRYPTION = 28
 } UniversalMessage_MessageFault_E;
 
 typedef enum _UniversalMessage_Flags {
-    UniversalMessage_Flags_FLAG_USER_COMMAND = 0
+    UniversalMessage_Flags_FLAG_USER_COMMAND = 0,
+    UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE = 1
 } UniversalMessage_Flags;
 
 /* Struct definitions */
@@ -117,12 +123,12 @@ extern "C" {
 #define _UniversalMessage_OperationStatus_E_ARRAYSIZE ((UniversalMessage_OperationStatus_E)(UniversalMessage_OperationStatus_E_OPERATIONSTATUS_ERROR+1))
 
 #define _UniversalMessage_MessageFault_E_MIN UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE
-#define _UniversalMessage_MessageFault_E_MAX UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_COMMAND_REQUIRES_ACCOUNT_CREDENTIALS
-#define _UniversalMessage_MessageFault_E_ARRAYSIZE ((UniversalMessage_MessageFault_E)(UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_COMMAND_REQUIRES_ACCOUNT_CREDENTIALS+1))
+#define _UniversalMessage_MessageFault_E_MAX UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_REQUIRES_RESPONSE_ENCRYPTION
+#define _UniversalMessage_MessageFault_E_ARRAYSIZE ((UniversalMessage_MessageFault_E)(UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_REQUIRES_RESPONSE_ENCRYPTION+1))
 
 #define _UniversalMessage_Flags_MIN UniversalMessage_Flags_FLAG_USER_COMMAND
-#define _UniversalMessage_Flags_MAX UniversalMessage_Flags_FLAG_USER_COMMAND
-#define _UniversalMessage_Flags_ARRAYSIZE ((UniversalMessage_Flags)(UniversalMessage_Flags_FLAG_USER_COMMAND+1))
+#define _UniversalMessage_Flags_MAX UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE
+#define _UniversalMessage_Flags_ARRAYSIZE ((UniversalMessage_Flags)(UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE+1))
 
 #define UniversalMessage_Destination_sub_destination_domain_ENUMTYPE UniversalMessage_Domain
 

@@ -26,7 +26,7 @@ jobs:
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: ${{ github.job }}-${{ matrix.os || 'ubuntu-latest' }}
+          key: ${{ github.job }}-${{ matrix.os || 'ubuntu-latest' }}-mbedtls-3.6.2
 
       - name: Set reusable strings
         id: strings

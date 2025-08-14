@@ -23,7 +23,7 @@ FetchContent_Declare(
 FetchContent_Declare(
         mbedtls
         GIT_REPOSITORY https://github.com/espressif/mbedtls.git
-        GIT_TAG mbedtls-3.5.2-idf
+        GIT_TAG mbedtls-3.6.2-idf
         GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(nanopb mbedtls)

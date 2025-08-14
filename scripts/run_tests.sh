@@ -144,7 +144,6 @@ cd "$BUILD_DIR"
 CTEST_FLAGS=(
     "--build-config" "$BUILD_TYPE"
     "--output-on-failure"
-    "-R" "Tesla|Client|Key|Message|Session|Utils"
 )
 
 if [ "$VERBOSE" = true ]; then

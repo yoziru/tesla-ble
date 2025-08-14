@@ -49,7 +49,7 @@ jobs:
 
       - name: Run Tests
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        run: ctest --build-config Release --output-on-failure --verbose -R "Tesla|Client|Key|Message|Session|Utils"
+        run: ctest --build-config Release --output-on-failure --verbose
 
       - name: Build and run example
         run: |

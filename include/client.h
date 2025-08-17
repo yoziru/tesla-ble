@@ -18,6 +18,20 @@
 #include "keys.pb.h"
 #include "errors.h"
 
+// Vehicle Action Type Constants for easier API usage
+namespace VehicleActionType {
+    constexpr int32_t FLASH_LIGHTS = CarServer_VehicleAction_vehicleControlFlashLightsAction_tag;
+    constexpr int32_t HONK_HORN = CarServer_VehicleAction_vehicleControlHonkHornAction_tag;
+    constexpr int32_t CHARGE_PORT_OPEN = CarServer_VehicleAction_chargePortDoorOpen_tag;
+    constexpr int32_t CHARGE_PORT_CLOSE = CarServer_VehicleAction_chargePortDoorClose_tag;
+    constexpr int32_t SENTRY_MODE = CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag;
+    constexpr int32_t HVAC_AUTO = CarServer_VehicleAction_hvacAutoAction_tag;
+    constexpr int32_t HVAC_STEERING_HEATER = CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag;
+    constexpr int32_t CHARGING_START_STOP = CarServer_VehicleAction_chargingStartStopAction_tag;
+    constexpr int32_t CHARGING_SET_LIMIT = CarServer_VehicleAction_chargingSetLimitAction_tag;
+    constexpr int32_t CHARGING_SET_AMPS = CarServer_VehicleAction_setChargingAmpsAction_tag;
+}
+
 namespace TeslaBLE
 {
   class Client
@@ -215,6 +229,12 @@ namespace TeslaBLE
         size_t *output_length,
         int32_t which_vehicle_data);
 
+    int buildCarServerVehicleActionMessage(
+        pb_byte_t *output_buffer,
+        size_t *output_length,
+        int32_t which_vehicle_action,
+        const void *action_data = nullptr);
+
     int buildChargingAmpsMessage(
         int32_t amps,
         pb_byte_t *output_buffer,
@@ -250,6 +270,14 @@ namespace TeslaBLE
         size_t *output_length);
 
     int buildCloseChargePortDoorMessage(
+        pb_byte_t *output_buffer,
+        size_t *output_length);
+
+    int buildFlashLightsMessage(
+        pb_byte_t *output_buffer,
+        size_t *output_length);
+
+    int buildHonkHornMessage(
         pb_byte_t *output_buffer,
         size_t *output_length);
         

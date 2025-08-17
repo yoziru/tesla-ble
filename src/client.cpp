@@ -902,50 +902,165 @@ namespace TeslaBLE
     return 0;
   }
 
+  int Client::buildCarServerVehicleActionMessage(pb_byte_t *output_buffer,
+                                                size_t *output_length,
+                                                int32_t which_vehicle_action,
+                                                const void *action_data)
+  {
+    CarServer_Action action = CarServer_Action_init_default;
+    action.which_action_msg = CarServer_Action_vehicleAction_tag;
+
+    CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
+    vehicle_action.which_vehicle_action_msg = which_vehicle_action;
+
+    // Configure the specific action based on the type
+    switch (which_vehicle_action)
+    {
+      case CarServer_VehicleAction_vehicleControlFlashLightsAction_tag:
+        vehicle_action.vehicle_action_msg.vehicleControlFlashLightsAction = CarServer_VehicleControlFlashLightsAction_init_default;
+        break;
+      case CarServer_VehicleAction_vehicleControlHonkHornAction_tag:
+        vehicle_action.vehicle_action_msg.vehicleControlHonkHornAction = CarServer_VehicleControlHonkHornAction_init_default;
+        break;
+      case CarServer_VehicleAction_chargePortDoorOpen_tag:
+        vehicle_action.vehicle_action_msg.chargePortDoorOpen = CarServer_ChargePortDoorOpen_init_default;
+        break;
+      case CarServer_VehicleAction_chargePortDoorClose_tag:
+        vehicle_action.vehicle_action_msg.chargePortDoorClose = CarServer_ChargePortDoorClose_init_default;
+        break;
+      case CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag:
+        if (action_data != nullptr)
+        {
+          bool isOn = *static_cast<const bool*>(action_data);
+          vehicle_action.vehicle_action_msg.vehicleControlSetSentryModeAction = CarServer_VehicleControlSetSentryModeAction_init_default;
+          vehicle_action.vehicle_action_msg.vehicleControlSetSentryModeAction.on = isOn;
+        }
+        else
+        {
+          LOG_ERROR("Sentry mode action requires boolean data");
+          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+        break;
+      case CarServer_VehicleAction_hvacAutoAction_tag:
+        if (action_data != nullptr)
+        {
+          bool isOn = *static_cast<const bool*>(action_data);
+          vehicle_action.vehicle_action_msg.hvacAutoAction = CarServer_HvacAutoAction_init_default;
+          vehicle_action.vehicle_action_msg.hvacAutoAction.power_on = isOn;
+        }
+        else
+        {
+          LOG_ERROR("HVAC action requires boolean data");
+          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+        break;
+      case CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag:
+        if (action_data != nullptr)
+        {
+          bool isOn = *static_cast<const bool*>(action_data);
+          vehicle_action.vehicle_action_msg.hvacSteeringWheelHeaterAction = CarServer_HvacSteeringWheelHeaterAction_init_default;
+          vehicle_action.vehicle_action_msg.hvacSteeringWheelHeaterAction.power_on = isOn;
+        }
+        else
+        {
+          LOG_ERROR("Steering wheel heater action requires boolean data");
+          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+        break;
+      case CarServer_VehicleAction_chargingStartStopAction_tag:
+        if (action_data != nullptr)
+        {
+          bool isOn = *static_cast<const bool*>(action_data);
+          vehicle_action.vehicle_action_msg.chargingStartStopAction = CarServer_ChargingStartStopAction_init_default;
+          if (isOn)
+          {
+            vehicle_action.vehicle_action_msg.chargingStartStopAction.which_charging_action = CarServer_ChargingStartStopAction_start_tag;
+            vehicle_action.vehicle_action_msg.chargingStartStopAction.charging_action.start = CarServer_Void_init_default;
+          }
+          else
+          {
+            vehicle_action.vehicle_action_msg.chargingStartStopAction.which_charging_action = CarServer_ChargingStartStopAction_stop_tag;
+            vehicle_action.vehicle_action_msg.chargingStartStopAction.charging_action.stop = CarServer_Void_init_default;
+          }
+        }
+        else
+        {
+          LOG_ERROR("Charging action requires boolean data");
+          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+        break;
+      case CarServer_VehicleAction_chargingSetLimitAction_tag:
+        if (action_data != nullptr)
+        {
+          int32_t percent = *static_cast<const int32_t*>(action_data);
+          vehicle_action.vehicle_action_msg.chargingSetLimitAction = CarServer_ChargingSetLimitAction_init_default;
+          vehicle_action.vehicle_action_msg.chargingSetLimitAction.percent = percent;
+        }
+        else
+        {
+          LOG_ERROR("Charging set limit action requires int32_t data");
+          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+        break;
+      case CarServer_VehicleAction_setChargingAmpsAction_tag:
+        if (action_data != nullptr)
+        {
+          int32_t amps = *static_cast<const int32_t*>(action_data);
+          vehicle_action.vehicle_action_msg.setChargingAmpsAction = CarServer_SetChargingAmpsAction_init_default;
+          vehicle_action.vehicle_action_msg.setChargingAmpsAction.charging_amps = amps;
+        }
+        else
+        {
+          LOG_ERROR("Set charging amps action requires int32_t data");
+          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+        break;
+      default:
+        LOG_ERROR("Unsupported vehicle action type: %d", which_vehicle_action);
+        return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    }
+
+    action.action_msg.vehicleAction = vehicle_action;
+
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
+    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
+    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
+    if (status != 0)
+    {
+      LOG_ERROR("Failed to build car action message");
+      return status;
+    }
+    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
+                        output_buffer, output_length);
+    return 0;
+  }
+
   // Original method declarations, now implemented using the generic helpers
   int Client::buildChargingAmpsMessage(int32_t amps, pb_byte_t *output_buffer, size_t *output_length)
   {
-    return buildVehicleActionMessage<int32_t>(
-        CarServer_VehicleAction_setChargingAmpsAction_tag,
-        amps,
-        [](CarServer_VehicleAction &va, const int32_t &amps)
-        {
-          auto &action = va.vehicle_action_msg.setChargingAmpsAction;
-          action = CarServer_SetChargingAmpsAction_init_default;
-          action.charging_amps = amps;
-        },
+    return buildCarServerVehicleActionMessage(
         output_buffer,
-        output_length);
+        output_length,
+        CarServer_VehicleAction_setChargingAmpsAction_tag,
+        &amps);
   }
 
   int Client::buildChargingSetLimitMessage(int32_t percent, pb_byte_t *output_buffer, size_t *output_length)
   {
-    return buildVehicleActionMessage<int32_t>(
-        CarServer_VehicleAction_chargingSetLimitAction_tag,
-        percent,
-        [](CarServer_VehicleAction &va, const int32_t &percent)
-        {
-          auto &action = va.vehicle_action_msg.chargingSetLimitAction;
-          action = CarServer_ChargingSetLimitAction_init_default;
-          action.percent = percent;
-        },
+    return buildCarServerVehicleActionMessage(
         output_buffer,
-        output_length);
+        output_length,
+        CarServer_VehicleAction_chargingSetLimitAction_tag,
+        &percent);
   }
 
   int Client::buildHVACMessage(bool isOn, pb_byte_t *output_buffer, size_t *output_length)
   {
-    return buildToggleActionMessage(
-        CarServer_VehicleAction_hvacAutoAction_tag,
-        isOn,
-        [](CarServer_VehicleAction &va, bool isOn)
-    {
-          auto &action = va.vehicle_action_msg.hvacAutoAction;
-          action = CarServer_HvacAutoAction_init_default;
-          action.power_on = isOn;
-        },
+    return buildCarServerVehicleActionMessage(
         output_buffer,
-        output_length);
+        output_length,
+        CarServer_VehicleAction_hvacAutoAction_tag,
+        &isOn);
   }
 
   int Client::buildHVACSteeringHeaterMessage(
@@ -953,68 +1068,45 @@ namespace TeslaBLE
                                        pb_byte_t *output_buffer,
                                        size_t *output_length)
   {
-    return buildToggleActionMessage(
-        CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag,
-        isOn,
-        [](CarServer_VehicleAction &va, bool isOn)
-        {
-          auto &action = va.vehicle_action_msg.hvacSteeringWheelHeaterAction;
-          action = CarServer_HvacSteeringWheelHeaterAction_init_default;
-          action.power_on = isOn;
-        },
+    return buildCarServerVehicleActionMessage(
         output_buffer,
-        output_length);
+        output_length,
+        CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag,
+        &isOn);
   }
 
   int Client::buildOpenChargePortDoorMessage(pb_byte_t *output_buffer,
                                        size_t *output_length)
   {
-    CarServer_Action action = CarServer_Action_init_default;
-    action.which_action_msg = CarServer_Action_vehicleAction_tag;
-    CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-    vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_chargePortDoorOpen_tag;
-    CarServer_ChargePortDoorOpen vehicle_action_msg = CarServer_ChargePortDoorOpen_init_default;
-    vehicle_action_msg.dummy_field = 1;
-    vehicle_action.vehicle_action_msg.chargePortDoorOpen = vehicle_action_msg;
-    action.action_msg.vehicleAction = vehicle_action;
-
-    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
-    if (status != 0)
-    {
-      LOG_ERROR("Failed to build car action message");
-      return status;
-    }
-    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
-                        output_buffer, output_length);
-    return 0;
+    return buildCarServerVehicleActionMessage(
+        output_buffer,
+        output_length,
+        CarServer_VehicleAction_chargePortDoorOpen_tag);
   }
   
   int Client::buildCloseChargePortDoorMessage(pb_byte_t *output_buffer,
                                        size_t *output_length)
   {
-    CarServer_Action action = CarServer_Action_init_default;
-    action.which_action_msg = CarServer_Action_vehicleAction_tag;
+    return buildCarServerVehicleActionMessage(
+        output_buffer,
+        output_length,
+        CarServer_VehicleAction_chargePortDoorClose_tag);
+  }
 
-    CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-    vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_chargePortDoorClose_tag;
-    CarServer_ChargePortDoorClose vehicle_action_msg = CarServer_ChargePortDoorClose_init_default;
-    vehicle_action_msg.dummy_field = 1;
-    vehicle_action.vehicle_action_msg.chargePortDoorClose = vehicle_action_msg;
-    action.action_msg.vehicleAction = vehicle_action;
+  int Client::buildFlashLightsMessage(pb_byte_t *output_buffer, size_t *output_length)
+  {
+    return buildCarServerVehicleActionMessage(
+        output_buffer,
+        output_length,
+        CarServer_VehicleAction_vehicleControlFlashLightsAction_tag);
+  }
 
-    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
-    if (status != 0)
-    {
-      LOG_ERROR("Failed to build car action message");
-      return status;
-    }
-    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
-                        output_buffer, output_length);
-    return 0;
+  int Client::buildHonkHornMessage(pb_byte_t *output_buffer, size_t *output_length)
+  {
+    return buildCarServerVehicleActionMessage(
+        output_buffer,
+        output_length,
+        CarServer_VehicleAction_vehicleControlHonkHornAction_tag);
   }
         
   int Client::buildChargingSwitchMessage(
@@ -1022,41 +1114,20 @@ namespace TeslaBLE
                                pb_byte_t *output_buffer,
                                size_t *output_length)
   {
-    return buildToggleActionMessage(
-        CarServer_VehicleAction_chargingStartStopAction_tag,
-        isOn,
-        [](CarServer_VehicleAction &va, bool isOn)
-        {
-          auto &action = va.vehicle_action_msg.chargingStartStopAction;
-          action = CarServer_ChargingStartStopAction_init_default;
-          if (isOn)
-          {
-            action.which_charging_action = CarServer_ChargingStartStopAction_start_tag;
-            action.charging_action.stop = CarServer_Void_init_default;
-          }
-          else
-          {
-            action.which_charging_action = CarServer_ChargingStartStopAction_stop_tag;
-            action.charging_action.start = CarServer_Void_init_default;
-          }
-        },
+    return buildCarServerVehicleActionMessage(
         output_buffer,
-        output_length);
+        output_length,
+        CarServer_VehicleAction_chargingStartStopAction_tag,
+        &isOn);
   }
 
   int Client::buildSentrySwitchMessage(bool isOn, pb_byte_t *output_buffer, size_t *output_length)
   {
-    return buildToggleActionMessage(
-        CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag,
-        isOn,
-        [](CarServer_VehicleAction &va, bool isOn)
-        {
-          auto &action = va.vehicle_action_msg.vehicleControlSetSentryModeAction;
-          action = CarServer_VehicleControlSetSentryModeAction_init_default;
-          action.on = isOn;
-        },
+    return buildCarServerVehicleActionMessage(
         output_buffer,
-        output_length);
+        output_length,
+        CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag,
+        &isOn);
   }
 
   int Client::buildVCSECActionMessage(const VCSEC_RKEAction_E action, pb_byte_t *output_buffer,

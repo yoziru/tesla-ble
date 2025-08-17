@@ -4,6 +4,7 @@
 #include <universal_message.pb.h>
 #include <vcsec.pb.h>
 #include <signatures.pb.h>
+#include <car_server.pb.h>
 
 // Mock data
 static const char *MOCK_VIN = "5YJ30123456789ABC";
@@ -217,6 +218,91 @@ TEST_F(MessageBuildingTest, BuildMessagesWithInvalidParameters) {
     // Test with null length pointer
     int result2 = client->buildChargingAmpsMessage(12, buffer, nullptr);
     EXPECT_NE(result2, 0) << "Building message with null length pointer should fail";
+}
+
+TEST_F(MessageBuildingTest, BuildCarServerGetVehicleDataMessage) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    // Test with charge state data
+    int result = client->buildCarServerGetVehicleDataMessage(buffer, &length, CarServer_GetVehicleData_getChargeState_tag);
+    EXPECT_EQ(result, 0) << "Building get charge state message should succeed";
+    EXPECT_GT(length, 0) << "Get charge state message should have non-zero length";
+    EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer";
+    
+    // Test with climate state data
+    length = 0;
+    result = client->buildCarServerGetVehicleDataMessage(buffer, &length, CarServer_GetVehicleData_getClimateState_tag);
+    EXPECT_EQ(result, 0) << "Building get climate state message should succeed";
+    EXPECT_GT(length, 0) << "Get climate state message should have non-zero length";
+    
+    // Test with drive state data
+    length = 0;
+    result = client->buildCarServerGetVehicleDataMessage(buffer, &length, CarServer_GetVehicleData_getDriveState_tag);
+    EXPECT_EQ(result, 0) << "Building get drive state message should succeed";
+    EXPECT_GT(length, 0) << "Get drive state message should have non-zero length";
+    
+    // Test with location state data
+    length = 0;
+    result = client->buildCarServerGetVehicleDataMessage(buffer, &length, CarServer_GetVehicleData_getLocationState_tag);
+    EXPECT_EQ(result, 0) << "Building get location state message should succeed";
+    EXPECT_GT(length, 0) << "Get location state message should have non-zero length";
+}
+
+TEST_F(MessageBuildingTest, BuildCarServerGetVehicleDataMessageAllTypes) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    // Use nanopb's auto-generated FIELDLIST macro to dynamically discover all vehicle data types
+    // This leverages the existing CarServer_GetVehicleData_FIELDLIST macro from car_server.pb.h
+    // which is automatically generated from the proto definition
+    struct VehicleDataTag {
+        const char* name;
+        int32_t tag;
+    };
+    
+    std::vector<VehicleDataTag> all_vehicle_data_tags;
+    
+    // Extract field names and tag numbers from the nanopb FIELDLIST macro
+    // This macro is automatically generated and will include any new fields added to the proto
+#define EXTRACT_FIELD_INFO(a, type, label, datatype, name, tag_num) \
+    all_vehicle_data_tags.push_back({#name, CarServer_GetVehicleData_##name##_tag});
+    
+    CarServer_GetVehicleData_FIELDLIST(EXTRACT_FIELD_INFO, unused)
+    
+#undef EXTRACT_FIELD_INFO
+    
+    // Verify tags are unique (no duplicates)
+    std::set<int32_t> unique_tags;
+    for (const auto& tag_info : all_vehicle_data_tags) {
+        ASSERT_TRUE(unique_tags.insert(tag_info.tag).second) 
+            << "Duplicate tag value " << tag_info.tag << " found for " << tag_info.name;
+    }
+    
+    // Test each vehicle data type discovered from the proto
+    for (const auto& tag_info : all_vehicle_data_tags) {
+        length = 0;  // Reset for each test
+        int result = client->buildCarServerGetVehicleDataMessage(buffer, &length, tag_info.tag);
+        EXPECT_EQ(result, 0) << "Building get vehicle data message with type " << tag_info.name << " (" << tag_info.tag << ") should succeed";
+        EXPECT_GT(length, 0) << "Get vehicle data message should have non-zero length for type " << tag_info.name << " (" << tag_info.tag << ")";
+        EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer for type " << tag_info.name << " (" << tag_info.tag << ")";
+    }
+    
+    // This test will automatically include any new vehicle data types added to the proto
+    // without requiring manual updates to the test code
+    std::cout << "Tested " << all_vehicle_data_tags.size() << " vehicle data types discovered from proto definition:" << std::endl;
+    for (const auto& tag_info : all_vehicle_data_tags) {
+        std::cout << "  " << tag_info.name << " = " << tag_info.tag << std::endl;
+    }
+}
+
+TEST_F(MessageBuildingTest, BuildCarServerGetVehicleDataMessageInvalidType) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    // Test with invalid vehicle data type
+    int result = client->buildCarServerGetVehicleDataMessage(buffer, &length, 999);
+    EXPECT_NE(result, 0) << "Building get vehicle data message with invalid type should fail";
 }
 
 TEST_F(MessageBuildingTest, BuildMessagesWithValidParameterRanges) {

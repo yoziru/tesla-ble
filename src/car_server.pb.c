@@ -12,10 +12,49 @@ PB_BIND(CarServer_Action, CarServer_Action, AUTO)
 PB_BIND(CarServer_VehicleAction, CarServer_VehicleAction, 2)
 
 
+PB_BIND(CarServer_GetVehicleData, CarServer_GetVehicleData, AUTO)
+
+
+PB_BIND(CarServer_GetTirePressureState, CarServer_GetTirePressureState, AUTO)
+
+
+PB_BIND(CarServer_GetMediaState, CarServer_GetMediaState, AUTO)
+
+
+PB_BIND(CarServer_GetMediaDetailState, CarServer_GetMediaDetailState, AUTO)
+
+
+PB_BIND(CarServer_GetSoftwareUpdateState, CarServer_GetSoftwareUpdateState, AUTO)
+
+
+PB_BIND(CarServer_GetChargeState, CarServer_GetChargeState, AUTO)
+
+
+PB_BIND(CarServer_GetClimateState, CarServer_GetClimateState, AUTO)
+
+
+PB_BIND(CarServer_GetDriveState, CarServer_GetDriveState, AUTO)
+
+
+PB_BIND(CarServer_GetLocationState, CarServer_GetLocationState, AUTO)
+
+
+PB_BIND(CarServer_GetClosuresState, CarServer_GetClosuresState, AUTO)
+
+
+PB_BIND(CarServer_GetChargeScheduleState, CarServer_GetChargeScheduleState, AUTO)
+
+
+PB_BIND(CarServer_GetPreconditioningScheduleState, CarServer_GetPreconditioningScheduleState, AUTO)
+
+
+PB_BIND(CarServer_GetParentalControlsState, CarServer_GetParentalControlsState, AUTO)
+
+
 PB_BIND(CarServer_EraseUserDataAction, CarServer_EraseUserDataAction, AUTO)
 
 
-PB_BIND(CarServer_Response, CarServer_Response, AUTO)
+PB_BIND(CarServer_Response, CarServer_Response, 2)
 
 
 PB_BIND(CarServer_ActionStatus, CarServer_ActionStatus, AUTO)
@@ -34,6 +73,9 @@ PB_BIND(CarServer_ChargingStartStopAction, CarServer_ChargingStartStopAction, AU
 
 
 PB_BIND(CarServer_DrivingClearSpeedLimitPinAction, CarServer_DrivingClearSpeedLimitPinAction, AUTO)
+
+
+PB_BIND(CarServer_DrivingClearSpeedLimitPinAdminAction, CarServer_DrivingClearSpeedLimitPinAdminAction, AUTO)
 
 
 PB_BIND(CarServer_DrivingSetSpeedLimitAction, CarServer_DrivingSetSpeedLimitAction, AUTO)
@@ -153,6 +195,18 @@ PB_BIND(CarServer_HvacClimateKeeperAction, CarServer_HvacClimateKeeperAction, AU
 PB_BIND(CarServer_SetChargingAmpsAction, CarServer_SetChargingAmpsAction, AUTO)
 
 
+PB_BIND(CarServer_RemoveChargeScheduleAction, CarServer_RemoveChargeScheduleAction, AUTO)
+
+
+PB_BIND(CarServer_BatchRemoveChargeSchedulesAction, CarServer_BatchRemoveChargeSchedulesAction, AUTO)
+
+
+PB_BIND(CarServer_BatchRemovePreconditionSchedulesAction, CarServer_BatchRemovePreconditionSchedulesAction, AUTO)
+
+
+PB_BIND(CarServer_RemovePreconditionScheduleAction, CarServer_RemovePreconditionScheduleAction, AUTO)
+
+
 PB_BIND(CarServer_SetCabinOverheatProtectionAction, CarServer_SetCabinOverheatProtectionAction, AUTO)
 
 
@@ -172,6 +226,9 @@ PB_BIND(CarServer_VehicleControlSetPinToDriveAction, CarServer_VehicleControlSet
 
 
 PB_BIND(CarServer_VehicleControlResetPinToDriveAction, CarServer_VehicleControlResetPinToDriveAction, AUTO)
+
+
+PB_BIND(CarServer_VehicleControlResetPinToDriveAdminAction, CarServer_VehicleControlResetPinToDriveAdminAction, AUTO)
 
 
 

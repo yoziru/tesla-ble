@@ -161,8 +161,11 @@ namespace TeslaBLE
         UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
         VCSEC_UnsignedMessage *output);
 
-    static int parsePayloadCarServerResponse(
+    int parsePayloadCarServerResponse(
         UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+        Signatures_SignatureData *signature_data,
+        pb_size_t which_sub_sigData,       
+        UniversalMessage_MessageFault_E signed_message_fault,
         CarServer_Response *output);
 
     int buildSessionInfoRequestMessage(
@@ -206,6 +209,11 @@ namespace TeslaBLE
         const CarServer_VehicleAction *vehicle_action,
         pb_byte_t *output_buffer,
         size_t *output_length);
+
+    int buildCarServerGetVehicleDataMessage(
+        pb_byte_t *output_buffer,
+        size_t *output_length,
+        int32_t which_vehicle_data);
 
     int buildChargingAmpsMessage(
         int32_t amps,
@@ -270,6 +278,12 @@ namespace TeslaBLE
     size_t public_key_size_;
     pb_byte_t connectionID[16];
     const char *VIN = "";
+
+        pb_byte_t last_request_tag_[16];             // Store the last request's authentication tag
+        Signatures_SignatureType last_request_type_; // Store the authentication type used
+
+        pb_byte_t last_request_hash_[17]; // 1 byte type + 16 bytes tag
+    size_t last_request_hash_length_;
 
     static void prependLength(
         const pb_byte_t *input_buffer,

@@ -12,10 +12,23 @@ PB_BIND(CarServer_Void, CarServer_Void, AUTO)
 PB_BIND(CarServer_LatLong, CarServer_LatLong, AUTO)
 
 
+PB_BIND(CarServer_ChargePortLatchState, CarServer_ChargePortLatchState, AUTO)
+
+
 PB_BIND(CarServer_PreconditioningTimes, CarServer_PreconditioningTimes, AUTO)
 
 
 PB_BIND(CarServer_OffPeakChargingTimes, CarServer_OffPeakChargingTimes, AUTO)
+
+
+PB_BIND(CarServer_ChargeSchedule, CarServer_ChargeSchedule, AUTO)
+
+
+PB_BIND(CarServer_PreconditionSchedule, CarServer_PreconditionSchedule, AUTO)
+
+
+
+
 
 
 

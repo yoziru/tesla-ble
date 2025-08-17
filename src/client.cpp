@@ -27,6 +27,7 @@
 #include "universal_message.pb.h"
 #include "vcsec.pb.h"
 #include "peer.h"
+#include "vehicle.pb.h"
 #include "tb_utils.h"
 #include "errors.h"
 
@@ -325,7 +326,7 @@ namespace TeslaBLE
         pb_decode(&stream, VCSEC_InformationRequest_fields, output);
     if (!status)
     {
-      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      LOG_ERROR("[parseVCSECInformationRequest] Decoding failed: %s", PB_GET_ERROR(&stream));
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
@@ -358,9 +359,12 @@ namespace TeslaBLE
         pb_decode(&stream, UniversalMessage_RoutableMessage_fields, output);
     if (!status)
     {
-      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      LOG_ERROR("[parseUniversalMessage] Decoding failed: %s", PB_GET_ERROR(&stream));
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
+
+    // If the response includes a signature_data.AES_GCM_Response_data field, then the protobuf_message_as_bytes payload is encrypted. Otherwise, the payload is plaintext.
+    // TODO
 
     return 0;
   }
@@ -388,7 +392,7 @@ namespace TeslaBLE
         pb_decode(&stream, Signatures_SessionInfo_fields, output);
     if (!status)
     {
-      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      LOG_ERROR("[parsePayloadSessionInfo] Decoding failed: %s", PB_GET_ERROR(&stream));
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
@@ -403,23 +407,82 @@ namespace TeslaBLE
         pb_decode(&stream, VCSEC_UnsignedMessage_fields, output);
     if (!status)
     {
-      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      LOG_ERROR("[parsePayloadUnsignedMessage] Decoding failed: %s", PB_GET_ERROR(&stream));
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
     return 0;
   }
 
-  int Client::parsePayloadCarServerResponse(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
-                                            CarServer_Response *output)
+  int Client::parsePayloadCarServerResponse(
+      UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+      Signatures_SignatureData *signature_data,
+      pb_size_t which_sub_sigData,
+      UniversalMessage_MessageFault_E signed_message_fault,
+      CarServer_Response *output)
   {
+    // If encrypted, decrypt the payload
+    if (which_sub_sigData != 0)
+    {
+    switch (signature_data->which_sig_type)
+    {
+      case Signatures_SignatureData_AES_GCM_Response_data_tag:
+      {
+        LOG_DEBUG("AES_GCM_Response_data found in signature_data");
+        auto session = this->getPeer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+        if (!session->isInitialized())
+        {
+          LOG_ERROR("Session not initialized");
+          return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+        }
+
+        UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t decrypt_buffer;
+        size_t decrypt_length;
+        int return_code = session->DecryptResponse(
+            input_buffer->bytes,
+            input_buffer->size,
+            signature_data->sig_type.AES_GCM_Response_data.nonce,
+            signature_data->sig_type.AES_GCM_Response_data.tag,
+            this->last_request_hash_,
+            this->last_request_hash_length_,
+            UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE,
+            signed_message_fault,
+            decrypt_buffer.bytes,
+            sizeof(decrypt_buffer.bytes),
+            &decrypt_length);
+        if (return_code != 0)
+        {
+          LOG_ERROR("[parsePayloadCarServerResponse] Failed to decrypt response");
+          return TeslaBLE_Status_E_ERROR_DECRYPT;
+        }
+
+        // Set the size of the decrypted buffer
+        decrypt_buffer.size = decrypt_length;
+
+        pb_istream_t stream = pb_istream_from_buffer(decrypt_buffer.bytes, decrypt_buffer.size);
+        bool status =
+            pb_decode(&stream, CarServer_Response_fields, output);
+        if (!status)
+        {
+          LOG_ERROR("[parsePayloadCarServerResponse] Decoding failed: %s", PB_GET_ERROR(&stream));
+          return TeslaBLE_Status_E_ERROR_PB_DECODING;
+        }
+        break;
+      }
+      default:
+        LOG_DEBUG("No AES_GCM_Response_data found in signature_data");
+        return TeslaBLE_Status_E_ERROR_DECRYPT;
+      }
+    }
+    else {
     pb_istream_t stream = pb_istream_from_buffer(input_buffer->bytes, input_buffer->size);
     bool status =
         pb_decode(&stream, CarServer_Response_fields, output);
     if (!status)
     {
-      LOG_ERROR("Decoding failed: %s", PB_GET_ERROR(&stream));
+      LOG_ERROR("[parsePayloadCarServerResponse] Decoding failed: %s", PB_GET_ERROR(&stream));
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
+      }
     }
 
     return 0;
@@ -459,6 +522,13 @@ namespace TeslaBLE
     universal_message.from_destination = from_destination;
 
     universal_message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
+    
+    // The `flags` field is a bit mask of `universal_message.Flags` values.
+    // Vehicles authenticate this value, but ignore unrecognized bits. Clients
+    // should always set the `FLAG_ENCRYPT_RESPONSE` bit, which instructs vehicles
+    // with compatible firmware (2024.38+) to encrypt the response.
+    universal_message.flags = (1 << UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE);
+
     if (encryptPayload)
     {
       if (!session->isInitialized())
@@ -467,47 +537,63 @@ namespace TeslaBLE
         return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
       }
 
-      pb_byte_t signature[16];
-      // encrypt the payload
+      pb_byte_t signature[16]; // AES-GCM tag
       pb_byte_t encrypted_payload[100];
       size_t encrypted_output_length = 0;
-
       uint32_t expires_at = session->generateExpiresAt(5);
-
-      // Next, we construct the serialized metadata string from values in the table
-      // below. The metadata string is used as the associated authenticated data (AAD)
-      // field of AES-GCM.
-      // std::string epoch_hex;
       const pb_byte_t *epoch = session->getEpoch();
 
+      // Construct AD buffer for encryption
       pb_byte_t ad_buffer[56];
       size_t ad_buffer_length = 0;
       session->ConstructADBuffer(
           Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-          this->VIN, expires_at, ad_buffer, &ad_buffer_length);
+          this->VIN,
+          expires_at,
+          ad_buffer,
+          &ad_buffer_length,
+          universal_message.flags
+      );
 
+      // Generate nonce and encrypt payload
       pb_byte_t nonce[12];
-      int return_code = session->Encrypt(payload, payload_length, encrypted_payload, sizeof encrypted_payload, &encrypted_output_length, signature, ad_buffer, ad_buffer_length, nonce);
+      int return_code = session->Encrypt(
+          payload,
+          payload_length,
+          encrypted_payload,
+          sizeof(encrypted_payload),
+          &encrypted_output_length,
+          signature, // This will contain the AES-GCM tag
+          ad_buffer,
+          ad_buffer_length,
+          nonce);
+
       if (return_code != 0)
       {
         LOG_ERROR("Failed to encrypt payload");
         return TeslaBLE_Status_E_ERROR_ENCRYPT;
       }
 
-      // payload length
-      memcpy(universal_message.payload.protobuf_message_as_bytes.bytes, encrypted_payload, encrypted_output_length);
+      // Set encrypted payload
+      memcpy(universal_message.payload.protobuf_message_as_bytes.bytes,
+            encrypted_payload,
+            encrypted_output_length);
       universal_message.payload.protobuf_message_as_bytes.size = encrypted_output_length;
 
-      // set signature
-      // set public key
+      // Prepare signature data
       Signatures_SignatureData signature_data = Signatures_SignatureData_init_default;
+      
+      // Set signer identity (public key)
       Signatures_KeyIdentity signer_identity = Signatures_KeyIdentity_init_default;
       signer_identity.which_identity_type = Signatures_KeyIdentity_public_key_tag;
-      memcpy(signer_identity.identity_type.public_key.bytes, this->public_key_, this->public_key_size_);
+      memcpy(signer_identity.identity_type.public_key.bytes,
+            this->public_key_,
+            this->public_key_size_);
       signer_identity.identity_type.public_key.size = this->public_key_size_;
       signature_data.has_signer_identity = true;
       signature_data.signer_identity = signer_identity;
 
+      // Set AES-GCM signature data
       Signatures_AES_GCM_Personalized_Signature_Data aes_gcm_signature_data = Signatures_AES_GCM_Personalized_Signature_Data_init_default;
       signature_data.which_sig_type = Signatures_SignatureData_AES_GCM_Personalized_data_tag;
       signature_data.sig_type.AES_GCM_Personalized_data.counter = session->getCounter();
@@ -516,6 +602,30 @@ namespace TeslaBLE
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.epoch, epoch, 16);
       memcpy(signature_data.sig_type.AES_GCM_Personalized_data.tag, signature, sizeof signature);
 
+      // After storing the signature/tag, construct and store request hash for later use in decrypting responses
+      pb_byte_t request_hash[17]; // Max size: 1 byte type + 16 bytes tag
+      size_t request_hash_length;
+      return_code = session->ConstructRequestHash(
+          Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+          signature, // The tag we just generated
+          sizeof(signature),
+          request_hash,
+          &request_hash_length);
+          
+      if (return_code != 0)
+      {
+          LOG_ERROR("Failed to construct request hash");
+          return return_code;
+      }
+
+      // Store the request hash for later use
+      memcpy(this->last_request_hash_, request_hash, request_hash_length);
+      this->last_request_hash_length_ = request_hash_length;
+
+      // Store the tag for later use in request hash construction
+      memcpy(this->last_request_tag_, signature, sizeof(signature));
+      this->last_request_type_ = Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED;
+
       universal_message.which_sub_sigData = UniversalMessage_RoutableMessage_signature_data_tag;
       universal_message.sub_sigData.signature_data = signature_data;
     }
@@ -523,11 +633,6 @@ namespace TeslaBLE
     {
       memcpy(universal_message.payload.protobuf_message_as_bytes.bytes, payload, payload_length);
       universal_message.payload.protobuf_message_as_bytes.size = payload_length;
-    }
-
-    // set gcm data
-    if (encryptPayload)
-    {
     }
 
     // random 16 bytes using rand()
@@ -699,6 +804,90 @@ namespace TeslaBLE
     CarServer_Action action = CarServer_Action_init_default;
     action.which_action_msg = CarServer_Action_vehicleAction_tag;
     action.action_msg.vehicleAction = *vehicle_action;
+
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
+    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
+    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
+    if (status != 0)
+    {
+      LOG_ERROR("Failed to build car action message");
+      return status;
+    }
+    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
+                        output_buffer, output_length);
+    return 0;
+  }
+
+  int Client::buildCarServerGetVehicleDataMessage(pb_byte_t *output_buffer,
+                                                  size_t *output_length,
+                                                  int32_t which_vehicle_data
+                                                )
+  {
+    CarServer_Action action = CarServer_Action_init_default;
+    action.which_action_msg = CarServer_Action_vehicleAction_tag;
+
+    CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
+    vehicle_action.which_vehicle_action_msg = CarServer_VehicleAction_getVehicleData_tag;
+    CarServer_GetVehicleData get_vehicle_data = CarServer_GetVehicleData_init_default;
+
+    switch (which_vehicle_data)
+    {
+      case CarServer_GetVehicleData_getChargeState_tag:
+        get_vehicle_data.getChargeState = CarServer_GetChargeState_init_default;
+        get_vehicle_data.has_getChargeState = true;
+        break;
+      case CarServer_GetVehicleData_getClimateState_tag:
+        get_vehicle_data.getClimateState = CarServer_GetClimateState_init_default;
+        get_vehicle_data.has_getClimateState = true;
+        break;
+      case CarServer_GetVehicleData_getDriveState_tag:
+        get_vehicle_data.getDriveState = CarServer_GetDriveState_init_default;
+        get_vehicle_data.has_getDriveState = true;
+        break;
+      case CarServer_GetVehicleData_getLocationState_tag:
+        get_vehicle_data.getLocationState = CarServer_GetLocationState_init_default;
+        get_vehicle_data.has_getLocationState = true;
+        break;
+      case CarServer_GetVehicleData_getClosuresState_tag:
+        get_vehicle_data.getClosuresState = CarServer_GetClosuresState_init_default;
+        get_vehicle_data.has_getClosuresState = true;
+        break;
+      case CarServer_GetVehicleData_getChargeScheduleState_tag:
+        get_vehicle_data.getChargeScheduleState = CarServer_GetChargeScheduleState_init_default;
+        get_vehicle_data.has_getChargeScheduleState = true;
+        break;
+      case CarServer_GetVehicleData_getPreconditioningScheduleState_tag:
+        get_vehicle_data.getPreconditioningScheduleState = CarServer_GetPreconditioningScheduleState_init_default;
+        get_vehicle_data.has_getPreconditioningScheduleState = true;
+        break;
+      case CarServer_GetVehicleData_getTirePressureState_tag:
+        get_vehicle_data.getTirePressureState = CarServer_GetTirePressureState_init_default;
+        get_vehicle_data.has_getTirePressureState = true;
+        break;
+      case CarServer_GetVehicleData_getMediaState_tag:
+        get_vehicle_data.getMediaState = CarServer_GetMediaState_init_default;
+        get_vehicle_data.has_getMediaState = true;
+        break;
+      case CarServer_GetVehicleData_getMediaDetailState_tag:
+        get_vehicle_data.getMediaDetailState = CarServer_GetMediaDetailState_init_default;
+        get_vehicle_data.has_getMediaDetailState = true;
+        break;
+      case CarServer_GetVehicleData_getSoftwareUpdateState_tag:
+        get_vehicle_data.getSoftwareUpdateState = CarServer_GetSoftwareUpdateState_init_default;
+        get_vehicle_data.has_getSoftwareUpdateState = true;
+        break;
+      case CarServer_GetVehicleData_getParentalControlsState_tag:
+        get_vehicle_data.getParentalControlsState = CarServer_GetParentalControlsState_init_default;
+        get_vehicle_data.has_getParentalControlsState = true;
+        break;
+      default:
+        LOG_ERROR("Invalid vehicle data type");
+        return 1;
+    }
+
+    vehicle_action.vehicle_action_msg.getVehicleData = get_vehicle_data;
+    action.action_msg.vehicleAction = vehicle_action;
+
 
     size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];

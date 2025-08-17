@@ -83,8 +83,11 @@ set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/universal_messag
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/vcsec.pb.h)
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/vehicle.pb.h)
 
-# Enable testing
-enable_testing()
-
-# Add tests subdirectory
-add_subdirectory(tests)
+# Only build tests if this is the main project
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    # Enable testing
+    enable_testing()
+    
+    # Add tests subdirectory
+    add_subdirectory(tests)
+endif()

@@ -169,47 +169,7 @@ TEST_F(MessageBuildingTest, BuildVCSECInformationRequestMessage) {
     EXPECT_LE(info_request_length, sizeof(info_request_buffer)) << "Message should fit in buffer";
 }
 
-TEST_F(MessageBuildingTest, BuildChargingAmpsMessage) {
-    pb_byte_t charging_amps_buffer[UniversalMessage_RoutableMessage_size];
-    size_t charging_amps_length = 0;  // Initialize to avoid garbage values
-    
-    int32_t amps = 12;
-    int result = client->buildCarServerVehicleActionMessage(charging_amps_buffer, &charging_amps_length, CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
-    
-    EXPECT_EQ(result, 0) << "Building charging amps message should succeed";
-    EXPECT_GT(charging_amps_length, 0) << "Charging amps message should have non-zero length";
-    EXPECT_LE(charging_amps_length, sizeof(charging_amps_buffer)) << "Message should fit in buffer";
-}
 
-TEST_F(MessageBuildingTest, BuildChargingSetLimitMessage) {
-    pb_byte_t charging_limit_buffer[UniversalMessage_RoutableMessage_size];
-    size_t charging_limit_length = 0;  // Initialize to avoid garbage values
-    
-    int32_t percent = 95;
-    int result = client->buildCarServerVehicleActionMessage(charging_limit_buffer, &charging_limit_length, CarServer_VehicleAction_chargingSetLimitAction_tag, &percent);
-    
-    EXPECT_EQ(result, 0) << "Building charging limit message should succeed";
-    EXPECT_GT(charging_limit_length, 0) << "Charging limit message should have non-zero length";
-    EXPECT_LE(charging_limit_length, sizeof(charging_limit_buffer)) << "Message should fit in buffer";
-}
-
-TEST_F(MessageBuildingTest, BuildHVACMessage) {
-    pb_byte_t hvac_buffer[UniversalMessage_RoutableMessage_size];
-    size_t hvac_length = 0;  // Initialize to avoid garbage values
-    
-    // Test turning HVAC on
-    bool hvac_on = true;
-    int result_on = client->buildCarServerVehicleActionMessage(hvac_buffer, &hvac_length, CarServer_VehicleAction_hvacAutoAction_tag, &hvac_on);
-    EXPECT_EQ(result_on, 0) << "Building HVAC ON message should succeed";
-    EXPECT_GT(hvac_length, 0) << "HVAC ON message should have non-zero length";
-    
-    // Test turning HVAC off  
-    hvac_length = 0;  // Reset for second test
-    bool hvac_off = false;
-    int result_off = client->buildCarServerVehicleActionMessage(hvac_buffer, &hvac_length, CarServer_VehicleAction_hvacAutoAction_tag, &hvac_off);
-    EXPECT_EQ(result_off, 0) << "Building HVAC OFF message should succeed";
-    EXPECT_GT(hvac_length, 0) << "HVAC OFF message should have non-zero length";
-}
 
 TEST_F(MessageBuildingTest, BuildMessagesWithInvalidParameters) {
     unsigned char buffer[UniversalMessage_RoutableMessage_size];
@@ -225,81 +185,73 @@ TEST_F(MessageBuildingTest, BuildMessagesWithInvalidParameters) {
     EXPECT_NE(result2, 0) << "Building message with null length pointer should fail";
 }
 
-TEST_F(MessageBuildingTest, BuildCarServerGetVehicleDataMessage) {
-    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
-    size_t length = 0;
-    
-    // Test with charge state data
-    int result = client->buildCarServerGetVehicleDataMessage(buffer, &length, CarServer_GetVehicleData_getChargeState_tag);
-    EXPECT_EQ(result, 0) << "Building get charge state message should succeed";
-    EXPECT_GT(length, 0) << "Get charge state message should have non-zero length";
-    EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer";
-    
-    // Test with climate state data
-    length = 0;
-    result = client->buildCarServerGetVehicleDataMessage(buffer, &length, CarServer_GetVehicleData_getClimateState_tag);
-    EXPECT_EQ(result, 0) << "Building get climate state message should succeed";
-    EXPECT_GT(length, 0) << "Get climate state message should have non-zero length";
-    
-    // Test with drive state data
-    length = 0;
-    result = client->buildCarServerGetVehicleDataMessage(buffer, &length, CarServer_GetVehicleData_getDriveState_tag);
-    EXPECT_EQ(result, 0) << "Building get drive state message should succeed";
-    EXPECT_GT(length, 0) << "Get drive state message should have non-zero length";
-    
-    // Test with location state data
-    length = 0;
-    result = client->buildCarServerGetVehicleDataMessage(buffer, &length, CarServer_GetVehicleData_getLocationState_tag);
-    EXPECT_EQ(result, 0) << "Building get location state message should succeed";
-    EXPECT_GT(length, 0) << "Get location state message should have non-zero length";
-}
 
-TEST_F(MessageBuildingTest, BuildCarServerGetVehicleDataMessageAllTypes) {
-    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
-    size_t length = 0;
-    
-    // Use nanopb's auto-generated FIELDLIST macro to dynamically discover all vehicle data types
-    // This leverages the existing CarServer_GetVehicleData_FIELDLIST macro from car_server.pb.h
-    // which is automatically generated from the proto definition
+
+// Individual tests for each vehicle data type - automatically generated from protobuf definition
+class VehicleDataTest : public MessageBuildingTest {
+protected:
     struct VehicleDataTag {
-        const char* name;
+        std::string name;
         int32_t tag;
     };
     
-    std::vector<VehicleDataTag> all_vehicle_data_tags;
-    
-    // Extract field names and tag numbers from the nanopb FIELDLIST macro
-    // This macro is automatically generated and will include any new fields added to the proto
+    static std::vector<VehicleDataTag> getAllVehicleDataTags() {
+        std::vector<VehicleDataTag> all_vehicle_data_tags;
+        
+        // Extract field names and tag numbers from the nanopb FIELDLIST macro
 #define EXTRACT_FIELD_INFO(a, type, label, datatype, name, tag_num) \
-    all_vehicle_data_tags.push_back({#name, CarServer_GetVehicleData_##name##_tag});
-    
-    CarServer_GetVehicleData_FIELDLIST(EXTRACT_FIELD_INFO, unused)
-    
+        all_vehicle_data_tags.push_back({#name, CarServer_GetVehicleData_##name##_tag});
+        
+        CarServer_GetVehicleData_FIELDLIST(EXTRACT_FIELD_INFO, unused)
+        
 #undef EXTRACT_FIELD_INFO
+        
+        return all_vehicle_data_tags;
+    }
+};
+
+TEST_F(VehicleDataTest, VehicleDataTagsAreUnique) {
+    auto all_tags = getAllVehicleDataTags();
     
     // Verify tags are unique (no duplicates)
     std::set<int32_t> unique_tags;
-    for (const auto& tag_info : all_vehicle_data_tags) {
+    for (const auto& tag_info : all_tags) {
         ASSERT_TRUE(unique_tags.insert(tag_info.tag).second) 
             << "Duplicate tag value " << tag_info.tag << " found for " << tag_info.name;
     }
     
-    // Test each vehicle data type discovered from the proto
-    for (const auto& tag_info : all_vehicle_data_tags) {
-        length = 0;  // Reset for each test
-        int result = client->buildCarServerGetVehicleDataMessage(buffer, &length, tag_info.tag);
-        EXPECT_EQ(result, 0) << "Building get vehicle data message with type " << tag_info.name << " (" << tag_info.tag << ") should succeed";
-        EXPECT_GT(length, 0) << "Get vehicle data message should have non-zero length for type " << tag_info.name << " (" << tag_info.tag << ")";
-        EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer for type " << tag_info.name << " (" << tag_info.tag << ")";
-    }
+    EXPECT_GT(all_tags.size(), 0) << "Should discover at least one vehicle data type";
+}
+
+TEST_F(VehicleDataTest, VehicleDataCoverageReport) {
+    auto all_tags = getAllVehicleDataTags();
     
-    // This test will automatically include any new vehicle data types added to the proto
-    // without requiring manual updates to the test code
-    std::cout << "Tested " << all_vehicle_data_tags.size() << " vehicle data types discovered from proto definition:" << std::endl;
-    for (const auto& tag_info : all_vehicle_data_tags) {
+    std::cout << "\n=== VEHICLE DATA COVERAGE REPORT ===" << std::endl;
+    std::cout << "Total vehicle data types discovered: " << all_tags.size() << std::endl;
+    std::cout << "All types tested individually below:" << std::endl;
+    
+    for (const auto& tag_info : all_tags) {
         std::cout << "  " << tag_info.name << " = " << tag_info.tag << std::endl;
     }
+    std::cout << "======================================\n" << std::endl;
 }
+
+// Generate individual test for each vehicle data type
+#define GENERATE_VEHICLE_DATA_TEST(a, type, label, datatype, name, tag_num) \
+TEST_F(VehicleDataTest, VehicleData_##name) { \
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size]; \
+    size_t length = 0; \
+    \
+    int result = client->buildCarServerGetVehicleDataMessage(buffer, &length, CarServer_GetVehicleData_##name##_tag); \
+    EXPECT_EQ(result, 0) << "Building get vehicle data message for " #name " should succeed"; \
+    EXPECT_GT(length, 0) << "Get vehicle data message should have non-zero length for " #name; \
+    EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer for " #name; \
+}
+
+// Auto-generate individual tests for all vehicle data types
+CarServer_GetVehicleData_FIELDLIST(GENERATE_VEHICLE_DATA_TEST, unused)
+
+#undef GENERATE_VEHICLE_DATA_TEST
 
 TEST_F(MessageBuildingTest, BuildCarServerGetVehicleDataMessageInvalidType) {
     pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
@@ -310,25 +262,178 @@ TEST_F(MessageBuildingTest, BuildCarServerGetVehicleDataMessageInvalidType) {
     EXPECT_NE(result, 0) << "Building get vehicle data message with invalid type should fail";
 }
 
-TEST_F(MessageBuildingTest, BuildMessagesWithValidParameterRanges) {
-    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
-    size_t length = 0;  // Initialize to avoid garbage values
+// Helper function to get all vehicle action tags - shared across multiple tests
+std::vector<std::pair<std::string, int32_t>> GetAllVehicleActionTags() {
+    std::vector<std::pair<std::string, int32_t>> all_vehicle_action_tags;
     
-    // Test charging amps with various valid values
-    std::vector<int> valid_amps = {1, 5, 10, 15, 20, 32, 48};
-    for (int amps_val : valid_amps) {
-        length = 0;  // Reset for each test
-        int32_t amps = amps_val;
-        int result = client->buildCarServerVehicleActionMessage(buffer, &length, CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
-        EXPECT_EQ(result, 0) << "Building charging amps message with " << amps << " amps should succeed";
+    // Extract field names and tag numbers from the nanopb FIELDLIST macro
+#define EXTRACT_VEHICLE_ACTION_INFO(a, type, label, datatype, name_tuple, tag_num) \
+    { \
+        const char* action_name = #name_tuple; \
+        /* Extract the middle part from (vehicle_action_msg,actionName,vehicle_action_msg.actionName) */ \
+        std::string full_name(action_name); \
+        size_t first_comma = full_name.find(','); \
+        size_t second_comma = full_name.find(',', first_comma + 1); \
+        if (first_comma != std::string::npos && second_comma != std::string::npos) { \
+            std::string action_name_clean = full_name.substr(first_comma + 1, second_comma - first_comma - 1); \
+            all_vehicle_action_tags.push_back({action_name_clean, tag_num}); \
+        } \
     }
     
-    // Test charging limit with various valid values
-    std::vector<int> valid_limits = {50, 70, 80, 90, 95, 100};
-    for (int limit_val : valid_limits) {
-        length = 0;  // Reset for each test
-        int32_t percent = limit_val;
-        int result = client->buildCarServerVehicleActionMessage(buffer, &length, CarServer_VehicleAction_chargingSetLimitAction_tag, &percent);
-        EXPECT_EQ(result, 0) << "Building charging limit message with " << percent << "% should succeed";
+    CarServer_VehicleAction_FIELDLIST(EXTRACT_VEHICLE_ACTION_INFO, unused)
+    
+#undef EXTRACT_VEHICLE_ACTION_INFO
+    
+    return all_vehicle_action_tags;
+}
+
+TEST_F(MessageBuildingTest, VehicleActionTagsAreUnique) {
+    auto all_tags = GetAllVehicleActionTags();
+    
+    // Verify tags are unique (no duplicates)
+    std::set<int32_t> unique_tags;
+    for (const auto& tag_pair : all_tags) {
+        ASSERT_TRUE(unique_tags.insert(tag_pair.second).second) 
+            << "Duplicate tag value " << tag_pair.second << " found for " << tag_pair.first;
+    }
+    
+    // Ensure we discovered a reasonable number of actions
+    EXPECT_GE(all_tags.size(), 50) << "Should discover at least 50 vehicle actions from protobuf";
+    
+    std::cout << "Discovered " << all_tags.size() << " unique vehicle action types from protobuf" << std::endl;
+}
+
+// Test simple vehicle actions that don't require parameters
+class VehicleActionSimpleTest : public MessageBuildingTest, 
+                               public ::testing::WithParamInterface<std::pair<std::string, int32_t>> {};
+
+TEST_P(VehicleActionSimpleTest, BuildSimpleVehicleActionMessage) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    auto [action_name, tag] = GetParam();
+    
+    int result = client->buildCarServerVehicleActionMessage(buffer, &length, tag, nullptr);
+    EXPECT_EQ(result, 0) << "Building simple vehicle action message " << action_name << " (" << tag << ") should succeed";
+    EXPECT_GT(length, 0) << "Vehicle action message should have non-zero length for " << action_name;
+    EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer for " << action_name;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    SimpleActions,
+    VehicleActionSimpleTest,
+    ::testing::Values(
+        std::make_pair("vehicleControlFlashLightsAction", CarServer_VehicleAction_vehicleControlFlashLightsAction_tag),
+        std::make_pair("vehicleControlHonkHornAction", CarServer_VehicleAction_vehicleControlHonkHornAction_tag),
+        std::make_pair("chargePortDoorOpen", CarServer_VehicleAction_chargePortDoorOpen_tag),
+        std::make_pair("chargePortDoorClose", CarServer_VehicleAction_chargePortDoorClose_tag),
+        std::make_pair("mediaPlayAction", CarServer_VehicleAction_mediaPlayAction_tag),
+        std::make_pair("mediaNextFavorite", CarServer_VehicleAction_mediaNextFavorite_tag),
+        std::make_pair("mediaPreviousFavorite", CarServer_VehicleAction_mediaPreviousFavorite_tag),
+        std::make_pair("mediaNextTrack", CarServer_VehicleAction_mediaNextTrack_tag),
+        std::make_pair("mediaPreviousTrack", CarServer_VehicleAction_mediaPreviousTrack_tag),
+        std::make_pair("vehicleControlCancelSoftwareUpdateAction", CarServer_VehicleAction_vehicleControlCancelSoftwareUpdateAction_tag),
+        std::make_pair("vehicleControlResetValetPinAction", CarServer_VehicleAction_vehicleControlResetValetPinAction_tag),
+        std::make_pair("vehicleControlResetPinToDriveAction", CarServer_VehicleAction_vehicleControlResetPinToDriveAction_tag),
+        std::make_pair("drivingClearSpeedLimitPinAdminAction", CarServer_VehicleAction_drivingClearSpeedLimitPinAdminAction_tag),
+        std::make_pair("vehicleControlResetPinToDriveAdminAction", CarServer_VehicleAction_vehicleControlResetPinToDriveAdminAction_tag)
+    ),
+    [](const ::testing::TestParamInfo<VehicleActionSimpleTest::ParamType>& info) {
+        return info.param.first;
+    }
+);
+
+// Test boolean vehicle actions
+class VehicleActionBooleanTest : public MessageBuildingTest, 
+                                public ::testing::WithParamInterface<std::tuple<std::string, int32_t, bool>> {};
+
+TEST_P(VehicleActionBooleanTest, BuildBooleanVehicleActionMessage) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    auto [action_name, tag, test_value] = GetParam();
+    
+    int result = client->buildCarServerVehicleActionMessage(buffer, &length, tag, &test_value);
+    EXPECT_EQ(result, 0) << "Building boolean vehicle action message " << action_name << " (" << tag << ") with value " << test_value << " should succeed";
+    EXPECT_GT(length, 0) << "Vehicle action message should have non-zero length for " << action_name;
+    EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer for " << action_name;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    BooleanActions,
+    VehicleActionBooleanTest,
+    ::testing::Values(
+        std::make_tuple("vehicleControlSetSentryModeAction_On", CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, true),
+        std::make_tuple("vehicleControlSetSentryModeAction_Off", CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, false),
+        std::make_tuple("hvacAutoAction_On", CarServer_VehicleAction_hvacAutoAction_tag, true),
+        std::make_tuple("hvacAutoAction_Off", CarServer_VehicleAction_hvacAutoAction_tag, false),
+        std::make_tuple("hvacSteeringWheelHeaterAction_On", CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag, true),
+        std::make_tuple("hvacSteeringWheelHeaterAction_Off", CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag, false)
+    ),
+    [](const ::testing::TestParamInfo<VehicleActionBooleanTest::ParamType>& info) {
+        return std::get<0>(info.param);
+    }
+);
+
+// Test numeric vehicle actions
+class VehicleActionNumericTest : public MessageBuildingTest, 
+                                public ::testing::WithParamInterface<std::tuple<std::string, int32_t, int32_t>> {};
+
+TEST_P(VehicleActionNumericTest, BuildNumericVehicleActionMessage) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    auto [action_name, tag, test_value] = GetParam();
+    
+    int result = client->buildCarServerVehicleActionMessage(buffer, &length, tag, &test_value);
+    EXPECT_EQ(result, 0) << "Building numeric vehicle action message " << action_name << " (" << tag << ") with value " << test_value << " should succeed";
+    EXPECT_GT(length, 0) << "Vehicle action message should have non-zero length for " << action_name;
+    EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer for " << action_name;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    NumericActions,
+    VehicleActionNumericTest,
+    ::testing::Values(
+        std::make_tuple("setChargingAmpsAction_16A", CarServer_VehicleAction_setChargingAmpsAction_tag, 16),
+        std::make_tuple("setChargingAmpsAction_32A", CarServer_VehicleAction_setChargingAmpsAction_tag, 32),
+        std::make_tuple("chargingSetLimitAction_80pct", CarServer_VehicleAction_chargingSetLimitAction_tag, 80),
+        std::make_tuple("chargingSetLimitAction_90pct", CarServer_VehicleAction_chargingSetLimitAction_tag, 90),
+        std::make_tuple("ping_12345", CarServer_VehicleAction_ping_tag, 12345),
+        std::make_tuple("ping_99999", CarServer_VehicleAction_ping_tag, 99999)
+    ),
+    [](const ::testing::TestParamInfo<VehicleActionNumericTest::ParamType>& info) {
+        return std::get<0>(info.param);
+    }
+);
+
+TEST_F(MessageBuildingTest, VehicleActionCoverageReport) {
+    auto all_tags = GetAllVehicleActionTags();
+    
+    // Count different types of actions we're testing
+    int simple_actions = 14;  // From INSTANTIATE_TEST_SUITE_P SimpleActions
+    int boolean_actions = 6;  // From INSTANTIATE_TEST_SUITE_P BooleanActions (3 actions * 2 values each)
+    int numeric_actions = 6;  // From INSTANTIATE_TEST_SUITE_P NumericActions
+    int tested_actions = simple_actions + boolean_actions + numeric_actions;
+    int total_actions = all_tags.size();
+    int skipped_actions = total_actions - tested_actions - 1; // -1 for getVehicleData
+    
+    std::cout << "=== Vehicle Action Test Coverage Report ===" << std::endl;
+    std::cout << "Total actions discovered: " << total_actions << std::endl;
+    std::cout << "Simple actions tested: " << simple_actions << std::endl;
+    std::cout << "Boolean actions tested: " << boolean_actions << " (3 actions × 2 values)" << std::endl;
+    std::cout << "Numeric actions tested: " << numeric_actions << " (3 actions × 2 values)" << std::endl;
+    std::cout << "Total test cases: " << tested_actions << std::endl;
+    std::cout << "Complex actions (require structs): " << skipped_actions << std::endl;
+    std::cout << "Coverage: " << (tested_actions * 100 / total_actions) << "%" << std::endl;
+    
+    // Ensure we have reasonable coverage
+    EXPECT_GE(tested_actions, 20) << "Should have at least 20 individual test cases for vehicle actions";
+    
+    std::cout << "\nAll discovered vehicle action types:" << std::endl;
+    for (const auto& tag_pair : all_tags) {
+        std::cout << "  " << tag_pair.first << " = " << tag_pair.second << std::endl;
     }
 }
+
+

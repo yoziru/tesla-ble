@@ -199,7 +199,9 @@ int main()
   LOG_INFO("Building charging amps message");
   pb_byte_t charging_amps_message_buffer[UniversalMessage_RoutableMessage_size];
   size_t charging_amps_message_length;
-  return_code = client.buildChargingAmpsMessage(12, charging_amps_message_buffer, &charging_amps_message_length);
+  CarServer_SetChargingAmpsAction charging_amps_action = CarServer_SetChargingAmpsAction_init_default;
+  charging_amps_action.charging_amps = 12;
+  return_code = client.buildCarServerVehicleActionMessage(charging_amps_message_buffer, &charging_amps_message_length, CarServer_VehicleAction_setChargingAmpsAction_tag, &charging_amps_action);
   if (return_code != 0)
   {
     LOG_ERROR("Failed to build charging amps message");
@@ -211,7 +213,9 @@ int main()
   LOG_INFO("Set charging limit message");
   pb_byte_t charging_limit_message_buffer[UniversalMessage_RoutableMessage_size];
   size_t charging_limit_message_length;
-  return_code = client.buildChargingSetLimitMessage(95, charging_limit_message_buffer, &charging_limit_message_length);
+  CarServer_ChargingSetLimitAction charging_limit_action = CarServer_ChargingSetLimitAction_init_default;
+  charging_limit_action.percent = 95;
+  return_code = client.buildCarServerVehicleActionMessage(charging_limit_message_buffer, &charging_limit_message_length, CarServer_VehicleAction_chargingSetLimitAction_tag, &charging_limit_action);
   if (return_code != 0)
   {
     LOG_ERROR("Failed to build charging limit message");
@@ -223,7 +227,10 @@ int main()
   LOG_INFO("Turn on HVAC limit message");
   pb_byte_t hvac_on_message_buffer[UniversalMessage_RoutableMessage_size];
   size_t hvac_on_message_length;
-  return_code = client.buildHVACMessage(true, hvac_on_message_buffer, &hvac_on_message_length);
+  CarServer_HvacAutoAction hvac_action = CarServer_HvacAutoAction_init_default;
+  hvac_action.power_on = true;
+  hvac_action.manual_override = false;
+  return_code = client.buildCarServerVehicleActionMessage(hvac_on_message_buffer, &hvac_on_message_length, CarServer_VehicleAction_hvacAutoAction_tag, &hvac_action);
   if (return_code != 0)
   {
     LOG_ERROR("Failed to build HVAC message");

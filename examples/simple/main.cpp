@@ -235,7 +235,7 @@ int main()
   LOG_INFO("Get charge data message");
   pb_byte_t get_data_message_buffer[UniversalMessage_RoutableMessage_size];
   size_t get_data_message_length;
-  return_code = client.buildCarServerGetVehicleDataMessage(get_data_message_buffer, &get_data_message_length);
+  return_code = client.buildCarServerGetVehicleDataMessage(get_data_message_buffer, &get_data_message_length, CarServer_GetVehicleData_getChargeState_tag);
   if (return_code != 0)
   {
     LOG_ERROR("Failed to buildCarServerGetVehicleDataMessage");

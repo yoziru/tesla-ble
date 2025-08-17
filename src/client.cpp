@@ -787,37 +787,6 @@ namespace TeslaBLE
     return 0;
   }
 
-  /*/
-   * This will build an carserver action message to for
-   * example open the trunk
-   *
-   * @param message Pointer to the message
-   * @param output_buffer Pointer to the output buffer
-   * @param output_length Size of the output buffer
-   * @return int result code 0 for successful
-   */
-
-  int Client::buildCarServerActionMessage(const CarServer_VehicleAction *vehicle_action,
-                                          pb_byte_t *output_buffer,
-                                          size_t *output_length)
-  {
-    CarServer_Action action = CarServer_Action_init_default;
-    action.which_action_msg = CarServer_Action_vehicleAction_tag;
-    action.action_msg.vehicleAction = *vehicle_action;
-
-    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-    pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-    int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
-    if (status != 0)
-    {
-      LOG_ERROR("Failed to build car action message");
-      return status;
-    }
-    this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
-                        output_buffer, output_length);
-    return 0;
-  }
-
   int Client::buildCarServerGetVehicleDataMessage(pb_byte_t *output_buffer,
                                                   size_t *output_length,
                                                   int32_t which_vehicle_data
@@ -907,6 +876,12 @@ namespace TeslaBLE
                                                 int32_t which_vehicle_action,
                                                 const void *action_data)
   {
+    // Validate input parameters
+    if (output_buffer == nullptr || output_length == nullptr)
+    {
+      return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    }
+
     CarServer_Action action = CarServer_Action_init_default;
     action.which_action_msg = CarServer_Action_vehicleAction_tag;
 
@@ -993,6 +968,12 @@ namespace TeslaBLE
         if (action_data != nullptr)
         {
           int32_t percent = *static_cast<const int32_t*>(action_data);
+          // Validate percent range
+          if (percent < 50 || percent > 100)
+          {
+            LOG_ERROR("Invalid charging limit percentage: %d (must be 50-100)", percent);
+            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+          }
           vehicle_action.vehicle_action_msg.chargingSetLimitAction = CarServer_ChargingSetLimitAction_init_default;
           vehicle_action.vehicle_action_msg.chargingSetLimitAction.percent = percent;
         }
@@ -1006,6 +987,12 @@ namespace TeslaBLE
         if (action_data != nullptr)
         {
           int32_t amps = *static_cast<const int32_t*>(action_data);
+          // Validate amps range (typical Tesla charging range is 1-48 amps)
+          if (amps < 1 || amps > 48)
+          {
+            LOG_ERROR("Invalid charging amps value: %d (must be 1-48)", amps);
+            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+          }
           vehicle_action.vehicle_action_msg.setChargingAmpsAction = CarServer_SetChargingAmpsAction_init_default;
           vehicle_action.vehicle_action_msg.setChargingAmpsAction.charging_amps = amps;
         }
@@ -1033,101 +1020,6 @@ namespace TeslaBLE
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
                         output_buffer, output_length);
     return 0;
-  }
-
-  // Original method declarations, now implemented using the generic helpers
-  int Client::buildChargingAmpsMessage(int32_t amps, pb_byte_t *output_buffer, size_t *output_length)
-  {
-    return buildCarServerVehicleActionMessage(
-        output_buffer,
-        output_length,
-        CarServer_VehicleAction_setChargingAmpsAction_tag,
-        &amps);
-  }
-
-  int Client::buildChargingSetLimitMessage(int32_t percent, pb_byte_t *output_buffer, size_t *output_length)
-  {
-    return buildCarServerVehicleActionMessage(
-        output_buffer,
-        output_length,
-        CarServer_VehicleAction_chargingSetLimitAction_tag,
-        &percent);
-  }
-
-  int Client::buildHVACMessage(bool isOn, pb_byte_t *output_buffer, size_t *output_length)
-  {
-    return buildCarServerVehicleActionMessage(
-        output_buffer,
-        output_length,
-        CarServer_VehicleAction_hvacAutoAction_tag,
-        &isOn);
-  }
-
-  int Client::buildHVACSteeringHeaterMessage(
-      bool isOn,
-                                       pb_byte_t *output_buffer,
-                                       size_t *output_length)
-  {
-    return buildCarServerVehicleActionMessage(
-        output_buffer,
-        output_length,
-        CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag,
-        &isOn);
-  }
-
-  int Client::buildOpenChargePortDoorMessage(pb_byte_t *output_buffer,
-                                       size_t *output_length)
-  {
-    return buildCarServerVehicleActionMessage(
-        output_buffer,
-        output_length,
-        CarServer_VehicleAction_chargePortDoorOpen_tag);
-  }
-  
-  int Client::buildCloseChargePortDoorMessage(pb_byte_t *output_buffer,
-                                       size_t *output_length)
-  {
-    return buildCarServerVehicleActionMessage(
-        output_buffer,
-        output_length,
-        CarServer_VehicleAction_chargePortDoorClose_tag);
-  }
-
-  int Client::buildFlashLightsMessage(pb_byte_t *output_buffer, size_t *output_length)
-  {
-    return buildCarServerVehicleActionMessage(
-        output_buffer,
-        output_length,
-        CarServer_VehicleAction_vehicleControlFlashLightsAction_tag);
-  }
-
-  int Client::buildHonkHornMessage(pb_byte_t *output_buffer, size_t *output_length)
-  {
-    return buildCarServerVehicleActionMessage(
-        output_buffer,
-        output_length,
-        CarServer_VehicleAction_vehicleControlHonkHornAction_tag);
-  }
-        
-  int Client::buildChargingSwitchMessage(
-      bool isOn,
-                               pb_byte_t *output_buffer,
-                               size_t *output_length)
-  {
-    return buildCarServerVehicleActionMessage(
-        output_buffer,
-        output_length,
-        CarServer_VehicleAction_chargingStartStopAction_tag,
-        &isOn);
-  }
-
-  int Client::buildSentrySwitchMessage(bool isOn, pb_byte_t *output_buffer, size_t *output_length)
-  {
-    return buildCarServerVehicleActionMessage(
-        output_buffer,
-        output_length,
-        CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag,
-        &isOn);
   }
 
   int Client::buildVCSECActionMessage(const VCSEC_RKEAction_E action, pb_byte_t *output_buffer,

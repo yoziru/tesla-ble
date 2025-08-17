@@ -66,13 +66,16 @@ TEST_F(ErrorHandlingTest, BuildMessageWithoutPrivateKey) {
     size_t length = 0;
     
     // Try to build messages without loading a private key first
-    int result1 = client->buildChargingAmpsMessage(12, buffer, &length);
+    int32_t amps = 12;
+    int result1 = client->buildCarServerVehicleActionMessage(buffer, &length, CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
     EXPECT_NE(result1, 0) << "Building message without private key should fail";
     
-    int result2 = client->buildChargingSetLimitMessage(80, buffer, &length);
+    int32_t percent = 80;
+    int result2 = client->buildCarServerVehicleActionMessage(buffer, &length, CarServer_VehicleAction_chargingSetLimitAction_tag, &percent);
     EXPECT_NE(result2, 0) << "Building charging limit message without private key should fail";
     
-    int result3 = client->buildHVACMessage(true, buffer, &length);
+    bool hvac_on = true;
+    int result3 = client->buildCarServerVehicleActionMessage(buffer, &length, CarServer_VehicleAction_hvacAutoAction_tag, &hvac_on);
     EXPECT_NE(result3, 0) << "Building HVAC message without private key should fail";
 }
 
@@ -81,15 +84,16 @@ TEST_F(ErrorHandlingTest, BuildMessageWithNullParameters) {
     size_t length = 0;
     
     // Test with null buffer
-    int result1 = client->buildChargingAmpsMessage(12, nullptr, &length);
+    int32_t amps = 12;
+    int result1 = client->buildCarServerVehicleActionMessage(nullptr, &length, CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
     EXPECT_EQ(result1, TeslaBLE::TeslaBLE_Status_E_ERROR_INVALID_PARAMS) << "Null buffer should return INVALID_PARAMS";
     
     // Test with null length pointer
-    int result2 = client->buildChargingAmpsMessage(12, buffer, nullptr);
+    int result2 = client->buildCarServerVehicleActionMessage(buffer, nullptr, CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
     EXPECT_EQ(result2, TeslaBLE::TeslaBLE_Status_E_ERROR_INVALID_PARAMS) << "Null length pointer should return INVALID_PARAMS";
     
     // Test with both null
-    int result3 = client->buildChargingAmpsMessage(12, nullptr, nullptr);
+    int result3 = client->buildCarServerVehicleActionMessage(nullptr, nullptr, CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
     EXPECT_EQ(result3, TeslaBLE::TeslaBLE_Status_E_ERROR_INVALID_PARAMS) << "Both null should return INVALID_PARAMS";
 }
 
@@ -143,14 +147,17 @@ TEST_F(ErrorHandlingTest, EdgeCaseFunctionCalls) {
     // Test various boundary conditions
     pb_byte_t small_buffer[1];
     size_t small_length = 0;
-    int result2 = client->buildChargingAmpsMessage(12, small_buffer, &small_length);
+    int32_t amps = 12;
+    int result2 = client->buildCarServerVehicleActionMessage(small_buffer, &small_length, CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
     EXPECT_NE(result2, 0) << "Building message with insufficient buffer should fail";
     
     // Test with boundary charge amounts
-    int result3 = client->buildChargingAmpsMessage(0, buffer, &length);
+    int32_t zero_amps = 0;
+    int result3 = client->buildCarServerVehicleActionMessage(buffer, &length, CarServer_VehicleAction_setChargingAmpsAction_tag, &zero_amps);
     EXPECT_NE(result3, 0) << "Building message with 0 amps should fail";
     
-    int result4 = client->buildChargingSetLimitMessage(101, buffer, &length);
+    int32_t high_percent = 101;
+    int result4 = client->buildCarServerVehicleActionMessage(buffer, &length, CarServer_VehicleAction_chargingSetLimitAction_tag, &high_percent);
     EXPECT_NE(result4, 0) << "Building message with >100% limit should fail";
     
     // Test buildUniversalMessageWithPayload without valid payload

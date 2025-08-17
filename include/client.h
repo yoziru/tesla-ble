@@ -215,14 +215,10 @@ namespace TeslaBLE
         pb_byte_t *output_buffer,
         size_t *output_length,
         uint32_t key_slot = 0);
+
     int buildVCSECActionMessage(
         const VCSEC_RKEAction_E action,
         pb_byte_t *output_buffer, size_t *output_length);
-
-    int buildCarServerActionMessage(
-        const CarServer_VehicleAction *vehicle_action,
-        pb_byte_t *output_buffer,
-        size_t *output_length);
 
     int buildCarServerGetVehicleDataMessage(
         pb_byte_t *output_buffer,
@@ -235,52 +231,6 @@ namespace TeslaBLE
         int32_t which_vehicle_action,
         const void *action_data = nullptr);
 
-    int buildChargingAmpsMessage(
-        int32_t amps,
-        pb_byte_t *output_buffer,
-        size_t *output_length);
-
-    int buildChargingSetLimitMessage(
-        int32_t percent,
-        pb_byte_t *output_buffer,
-        size_t *output_length);
-
-    int buildHVACMessage(
-        bool isOn,
-        pb_byte_t *output_buffer,
-        size_t *output_length);
-
-    int buildHVACSteeringHeaterMessage(
-        bool isOn,
-        pb_byte_t *output_buffer,
-        size_t *output_length);
-
-    int buildChargingSwitchMessage(
-        bool isOn,
-        pb_byte_t *output_buffer,
-        size_t *output_length);
-
-    int buildSentrySwitchMessage(
-        bool isOn,
-        pb_byte_t *output_buffer,
-        size_t *output_length);
-
-    int buildOpenChargePortDoorMessage(
-        pb_byte_t *output_buffer,
-        size_t *output_length);
-
-    int buildCloseChargePortDoorMessage(
-        pb_byte_t *output_buffer,
-        size_t *output_length);
-
-    int buildFlashLightsMessage(
-        pb_byte_t *output_buffer,
-        size_t *output_length);
-
-    int buildHonkHornMessage(
-        pb_byte_t *output_buffer,
-        size_t *output_length);
-        
     Peer *getPeer(UniversalMessage_Domain domain)
     {
       if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)

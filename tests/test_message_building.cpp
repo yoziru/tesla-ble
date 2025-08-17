@@ -173,7 +173,8 @@ TEST_F(MessageBuildingTest, BuildChargingAmpsMessage) {
     pb_byte_t charging_amps_buffer[UniversalMessage_RoutableMessage_size];
     size_t charging_amps_length = 0;  // Initialize to avoid garbage values
     
-    int result = client->buildChargingAmpsMessage(12, charging_amps_buffer, &charging_amps_length);
+    int32_t amps = 12;
+    int result = client->buildCarServerVehicleActionMessage(charging_amps_buffer, &charging_amps_length, CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
     
     EXPECT_EQ(result, 0) << "Building charging amps message should succeed";
     EXPECT_GT(charging_amps_length, 0) << "Charging amps message should have non-zero length";
@@ -184,7 +185,8 @@ TEST_F(MessageBuildingTest, BuildChargingSetLimitMessage) {
     pb_byte_t charging_limit_buffer[UniversalMessage_RoutableMessage_size];
     size_t charging_limit_length = 0;  // Initialize to avoid garbage values
     
-    int result = client->buildChargingSetLimitMessage(95, charging_limit_buffer, &charging_limit_length);
+    int32_t percent = 95;
+    int result = client->buildCarServerVehicleActionMessage(charging_limit_buffer, &charging_limit_length, CarServer_VehicleAction_chargingSetLimitAction_tag, &percent);
     
     EXPECT_EQ(result, 0) << "Building charging limit message should succeed";
     EXPECT_GT(charging_limit_length, 0) << "Charging limit message should have non-zero length";
@@ -196,13 +198,15 @@ TEST_F(MessageBuildingTest, BuildHVACMessage) {
     size_t hvac_length = 0;  // Initialize to avoid garbage values
     
     // Test turning HVAC on
-    int result_on = client->buildHVACMessage(true, hvac_buffer, &hvac_length);
+    bool hvac_on = true;
+    int result_on = client->buildCarServerVehicleActionMessage(hvac_buffer, &hvac_length, CarServer_VehicleAction_hvacAutoAction_tag, &hvac_on);
     EXPECT_EQ(result_on, 0) << "Building HVAC ON message should succeed";
     EXPECT_GT(hvac_length, 0) << "HVAC ON message should have non-zero length";
     
     // Test turning HVAC off  
     hvac_length = 0;  // Reset for second test
-    int result_off = client->buildHVACMessage(false, hvac_buffer, &hvac_length);
+    bool hvac_off = false;
+    int result_off = client->buildCarServerVehicleActionMessage(hvac_buffer, &hvac_length, CarServer_VehicleAction_hvacAutoAction_tag, &hvac_off);
     EXPECT_EQ(result_off, 0) << "Building HVAC OFF message should succeed";
     EXPECT_GT(hvac_length, 0) << "HVAC OFF message should have non-zero length";
 }
@@ -212,11 +216,12 @@ TEST_F(MessageBuildingTest, BuildMessagesWithInvalidParameters) {
     size_t length = 0;  // Initialize to avoid garbage values
     
     // Test with null buffer
-    int result1 = client->buildChargingAmpsMessage(12, nullptr, &length);
+    int32_t amps = 12;
+    int result1 = client->buildCarServerVehicleActionMessage(nullptr, &length, CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
     EXPECT_NE(result1, 0) << "Building message with null buffer should fail";
     
     // Test with null length pointer
-    int result2 = client->buildChargingAmpsMessage(12, buffer, nullptr);
+    int result2 = client->buildCarServerVehicleActionMessage(buffer, nullptr, CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
     EXPECT_NE(result2, 0) << "Building message with null length pointer should fail";
 }
 
@@ -311,17 +316,19 @@ TEST_F(MessageBuildingTest, BuildMessagesWithValidParameterRanges) {
     
     // Test charging amps with various valid values
     std::vector<int> valid_amps = {1, 5, 10, 15, 20, 32, 48};
-    for (int amps : valid_amps) {
+    for (int amps_val : valid_amps) {
         length = 0;  // Reset for each test
-        int result = client->buildChargingAmpsMessage(amps, buffer, &length);
+        int32_t amps = amps_val;
+        int result = client->buildCarServerVehicleActionMessage(buffer, &length, CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
         EXPECT_EQ(result, 0) << "Building charging amps message with " << amps << " amps should succeed";
     }
     
     // Test charging limit with various valid values
     std::vector<int> valid_limits = {50, 70, 80, 90, 95, 100};
-    for (int limit : valid_limits) {
+    for (int limit_val : valid_limits) {
         length = 0;  // Reset for each test
-        int result = client->buildChargingSetLimitMessage(limit, buffer, &length);
-        EXPECT_EQ(result, 0) << "Building charging limit message with " << limit << "% should succeed";
+        int32_t percent = limit_val;
+        int result = client->buildCarServerVehicleActionMessage(buffer, &length, CarServer_VehicleAction_chargingSetLimitAction_tag, &percent);
+        EXPECT_EQ(result, 0) << "Building charging limit message with " << percent << "% should succeed";
     }
 }

@@ -44,6 +44,8 @@ add_library(TeslaBLE
         src/errors.cpp
         src/peer.cpp
         src/tb_utils.cpp
+        src/crypto_context.cpp
+        src/message_builders.cpp
         src/car_server.pb.c
         src/common.pb.c
         src/errors.pb.c

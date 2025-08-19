@@ -10,180 +10,171 @@
 #include <cstring>
 #include <ctime>
 #include <iomanip>
-#include <mbedtls/ctr_drbg.h>
-#include <mbedtls/ecdh.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/error.h>
-#include <mbedtls/gcm.h>
-#include <mbedtls/pk.h>
-#include <mbedtls/sha1.h>
-#include <pb_decode.h>
-#include <pb_encode.h>
 #include <sstream>
 
-#include "car_server.pb.h"
+#include <pb_decode.h>
+#include <pb_encode.h>
+
 #include "client.h"
+#include "crypto_context.h"
+#include "message_builders.h"
+#include "message_builders.h"
+#include "car_server.pb.h"
 #include "keys.pb.h"
 #include "universal_message.pb.h"
 #include "vcsec.pb.h"
-#include "peer.h"
 #include "vehicle.pb.h"
 #include "tb_utils.h"
 #include "errors.h"
 
 namespace TeslaBLE
 {
-  void Client::setVIN(const char *vin)
-  {
-    this->VIN = vin;
-  }
-
-  void Client::setConnectionID(const pb_byte_t *connection_id)
-  {
-    memcpy(this->connectionID, connection_id, 16);
-  }
-
-  /*
-   * This will create a new private key, public key
-   * and generates the key_id
-   *
-   * @return int result code 0 for successful
-   */
-  int Client::createPrivateKey()
-  {
-    mbedtls_entropy_context entropy_context;
-    mbedtls_entropy_init(&entropy_context);
-
-    // Use existing shared pointers, don't create new ones
-    mbedtls_pk_free(private_key_context_.get());
-    mbedtls_pk_init(private_key_context_.get());
-
-    mbedtls_ctr_drbg_free(drbg_context_.get());
-    mbedtls_ctr_drbg_init(drbg_context_.get());
-
-    int return_code = mbedtls_ctr_drbg_seed(drbg_context_.get(), mbedtls_entropy_func,
-                                            &entropy_context, nullptr, 0);
-    if (return_code != 0)
+    Client::Client()
     {
-      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
-      return 1;
+        initializePeers();
     }
 
-    return_code = mbedtls_pk_setup(
-        private_key_context_.get(),
-        mbedtls_pk_info_from_type((mbedtls_pk_type_t)MBEDTLS_PK_ECKEY));
-
-    if (return_code != 0)
+    void Client::initializePeers()
     {
-      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
-      return 1;
+        auto crypto_context_shared = std::shared_ptr<CryptoContext>(&crypto_context_, [](CryptoContext*){});
+        
+        session_vcsec_ = std::make_unique<Peer>(
+            UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+            crypto_context_shared,
+            vin_);
+
+        session_infotainment_ = std::make_unique<Peer>(
+            UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+            crypto_context_shared,
+            vin_);
     }
 
-    return_code = mbedtls_ecp_gen_key(
-        MBEDTLS_ECP_DP_SECP256R1, mbedtls_pk_ec(*private_key_context_.get()),
-        mbedtls_ctr_drbg_random, drbg_context_.get());
-
-    if (return_code != 0)
+    void Client::setVIN(const std::string& vin)
     {
-      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
-      return 1;
+        if (!ParameterValidator::isValidVIN(vin.c_str())) {
+            LOG_WARNING("Invalid VIN format: %s", vin.c_str());
+        }
+        
+        vin_ = vin;
+        
+        // Update peers with new VIN
+        if (session_vcsec_) {
+            session_vcsec_->setVIN(vin);
+        }
+        if (session_infotainment_) {
+            session_infotainment_->setVIN(vin);
+        }
     }
 
-    return this->generatePublicKey();
-  }
-
-  int Client::loadPrivateKey(const uint8_t *private_key_buffer,
-                             size_t private_key_length)
-  {
-    mbedtls_entropy_context entropy_context;
-    mbedtls_entropy_init(&entropy_context);
-
-    // Use existing shared pointers, don't create new ones
-    mbedtls_pk_free(private_key_context_.get());
-    mbedtls_pk_init(private_key_context_.get());
-
-    mbedtls_ctr_drbg_free(drbg_context_.get());
-    mbedtls_ctr_drbg_init(drbg_context_.get());
-
-    int return_code = mbedtls_ctr_drbg_seed(drbg_context_.get(), mbedtls_entropy_func,
-                                            &entropy_context, nullptr, 0);
-    if (return_code != 0)
+    void Client::setConnectionID(const pb_byte_t* connection_id)
     {
-      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
-      return 1;
+        if (!ParameterValidator::isValidConnectionID(connection_id)) {
+            LOG_ERROR("Invalid connection ID");
+            return;
+        }
+        
+        std::memcpy(connection_id_.data(), connection_id, connection_id_.size());
     }
 
-    pb_byte_t password[0];
-    return_code = mbedtls_pk_parse_key(
-        private_key_context_.get(), private_key_buffer, private_key_length,
-        password, 0, mbedtls_ctr_drbg_random, drbg_context_.get());
-
-    if (return_code != 0)
+    /*
+     * Create a new private key, public key and key ID
+     *
+     * @return Error code (0 for success)
+     */
+    int Client::createPrivateKey()
     {
-      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
-      return 1;
+        int result = crypto_context_.createPrivateKey();
+        if (result != TeslaBLE_Status_E_OK) {
+            return result;
+        }
+
+        result = generatePublicKeyData();
+        if (result != TeslaBLE_Status_E_OK) {
+            return result;
+        }
+
+        return TeslaBLE_Status_E_OK;
     }
 
-    session_vcsec_->setPrivateKeyContext(private_key_context_);
-    session_infotainment_->setPrivateKeyContext(private_key_context_);
-
-    return this->generatePublicKey();
-  }
-
-  int Client::getPrivateKey(pb_byte_t *output_buffer,
-                            size_t output_buffer_length, size_t *output_length)
-  {
-    int return_code = mbedtls_pk_write_key_pem(
-        private_key_context_.get(), output_buffer, output_buffer_length);
-
-    if (return_code != 0)
+    int Client::loadPrivateKey(const uint8_t* private_key_buffer, size_t private_key_length)
     {
-      LOG_ERROR("Failed to write private key");
-      return 1;
+        int result = crypto_context_.loadPrivateKey(private_key_buffer, private_key_length);
+        if (result != TeslaBLE_Status_E_OK) {
+            return result;
+        }
+
+        result = generatePublicKeyData();
+        if (result != TeslaBLE_Status_E_OK) {
+            return result;
+        }
+
+        return TeslaBLE_Status_E_OK;
     }
 
-    *output_length = strlen((char *)output_buffer) + 1;
-    return 0;
-  }
-
-  int Client::getPublicKey(pb_byte_t *output_buffer,
-                           size_t *output_buffer_length)
-  {
-    memcpy(output_buffer, this->public_key_, this->public_key_size_);
-    *output_buffer_length = this->public_key_size_;
-    return 0;
-  }
-
-  int Client::generatePublicKey()
-  {
-    int return_code = mbedtls_ecp_point_write_binary(
-        &mbedtls_pk_ec(*private_key_context_.get())->private_grp,
-        &mbedtls_pk_ec(*private_key_context_.get())->private_Q,
-        MBEDTLS_ECP_PF_UNCOMPRESSED, &this->public_key_size_, this->public_key_,
-        sizeof(this->public_key_));
-
-    if (return_code != 0)
+    int Client::getPrivateKey(pb_byte_t* output_buffer, size_t output_buffer_length, size_t* output_length)
     {
-      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
-      return 1;
-    }
-    return this->GenerateKeyId();
-  }
-
-  int Client::GenerateKeyId()
-  {
-    pb_byte_t buffer[20];
-    int return_code = mbedtls_sha1(this->public_key_, this->public_key_size_, buffer);
-    if (return_code != 0)
-    {
-      LOG_ERROR("SHA1 KeyId hash error: -0x%04x", (unsigned int)-return_code);
-      return 1;
+        return crypto_context_.getPrivateKey(output_buffer, output_buffer_length, output_length);
     }
 
-    // we only need the first 4 bytes
-    memcpy(this->public_key_id_, buffer, 4);
-    return 0;
-  }
+    int Client::getPublicKey(pb_byte_t* output_buffer, size_t* output_buffer_length)
+    {
+        if (output_buffer == nullptr || output_buffer_length == nullptr) {
+            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+
+        if (public_key_size_ == 0) {
+            LOG_ERROR("Public key not generated");
+            return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
+        }
+
+        std::memcpy(output_buffer, public_key_.data(), public_key_size_);
+        *output_buffer_length = public_key_size_;
+        return TeslaBLE_Status_E_OK;
+    }
+
+    int Client::generatePublicKeyData()
+    {
+        // Set the buffer size to maximum capacity before calling generatePublicKey
+        public_key_size_ = public_key_.size();
+        
+        int result = crypto_context_.generatePublicKey(public_key_.data(), &public_key_size_);
+        if (result != TeslaBLE_Status_E_OK) {
+            return result;
+        }
+
+        return generateKeyId();
+    }
+
+    int Client::generateKeyId()
+    {
+        return crypto_context_.generateKeyId(public_key_.data(), public_key_size_, public_key_id_.data());
+    }
+
+    Peer* Client::getPeer(UniversalMessage_Domain domain)
+    {
+        switch (domain) {
+            case UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY:
+                return session_vcsec_.get();
+            case UniversalMessage_Domain_DOMAIN_INFOTAINMENT:
+                return session_infotainment_.get();
+            default:
+                LOG_ERROR("Invalid domain: %d", domain);
+                return nullptr;
+        }
+    }
+
+    const Peer* Client::getPeer(UniversalMessage_Domain domain) const
+    {
+        switch (domain) {
+            case UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY:
+                return session_vcsec_.get();
+            case UniversalMessage_Domain_DOMAIN_INFOTAINMENT:
+                return session_infotainment_.get();
+            default:
+                LOG_ERROR("Invalid domain: %d", domain);
+                return nullptr;
+        }
+    }
   /*
    * This prepends the size of the message to the
    * front of the message
@@ -228,16 +219,23 @@ namespace TeslaBLE
                                     size_t *output_length)
   {
     // printf("Building whitelist message\n");
-    if (!mbedtls_pk_can_do(this->private_key_context_.get(), MBEDTLS_PK_ECKEY))
+    if (!crypto_context_.isPrivateKeyInitialized())
     {
       LOG_ERROR("[buildWhiteListMessage] Private key is not initialized");
       return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
     }
 
+    // Validate role parameter - Tesla protocol requires specific role values
+    if (role < _Keys_Role_MIN || role > _Keys_Role_MAX) {
+      LOG_ERROR("[buildWhiteListMessage] Invalid role value: %d (valid range: %d-%d)", 
+                role, _Keys_Role_MIN, _Keys_Role_MAX);
+      return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    }
+
     VCSEC_PermissionChange permissions_action =
         VCSEC_PermissionChange_init_default;
     permissions_action.has_key = true;
-    memcpy(permissions_action.key.PublicKeyRaw.bytes, this->public_key_,
+    memcpy(permissions_action.key.PublicKeyRaw.bytes, public_key_.data(),
            this->public_key_size_);
     permissions_action.key.PublicKeyRaw.size = this->public_key_size_;
     permissions_action.keyRole = role;
@@ -438,12 +436,12 @@ namespace TeslaBLE
 
         UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t decrypt_buffer;
         size_t decrypt_length;
-        int return_code = session->DecryptResponse(
+        int return_code = session->decryptResponse(
             input_buffer->bytes,
             input_buffer->size,
             signature_data->sig_type.AES_GCM_Response_data.nonce,
             signature_data->sig_type.AES_GCM_Response_data.tag,
-            this->last_request_hash_,
+            last_request_hash_.data(),
             this->last_request_hash_length_,
             UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE,
             signed_message_fault,
@@ -495,9 +493,13 @@ namespace TeslaBLE
                                                size_t *output_length,
                                                bool encryptPayload)
   {
+  LOG_DEBUG("[buildUniversalMessageWithPayload] Called with payload=%p, payload_length=%zu, domain=%d", 
+            payload, payload_length, domain);
+  
   // Reject empty or null payloads
   if (payload == nullptr || payload_length == 0) {
-    LOG_ERROR("[buildUniversalMessageWithPayload] Payload is null or empty");
+    LOG_ERROR("[buildUniversalMessageWithPayload] Payload is null or empty (payload=%p, length=%zu)", 
+              payload, payload_length);
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
@@ -516,8 +518,8 @@ namespace TeslaBLE
 
     UniversalMessage_Destination from_destination = UniversalMessage_Destination_init_default;
     from_destination.which_sub_destination = UniversalMessage_Destination_routing_address_tag;
-    memcpy(from_destination.sub_destination.routing_address.bytes, this->connectionID, sizeof(this->connectionID));
-    from_destination.sub_destination.routing_address.size = sizeof(this->connectionID);
+    memcpy(from_destination.sub_destination.routing_address.bytes, connection_id_.data(), connection_id_.size());
+    from_destination.sub_destination.routing_address.size = connection_id_.size();
     universal_message.has_from_destination = true;
     universal_message.from_destination = from_destination;
 
@@ -546,9 +548,9 @@ namespace TeslaBLE
       // Construct AD buffer for encryption
       pb_byte_t ad_buffer[56];
       size_t ad_buffer_length = 0;
-      session->ConstructADBuffer(
+      session->constructADBuffer(
           Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-          this->VIN,
+          vin_.c_str(),
           expires_at,
           ad_buffer,
           &ad_buffer_length,
@@ -557,7 +559,7 @@ namespace TeslaBLE
 
       // Generate nonce and encrypt payload
       pb_byte_t nonce[12];
-      int return_code = session->Encrypt(
+      int return_code = session->encrypt(
           payload,
           payload_length,
           encrypted_payload,
@@ -587,9 +589,9 @@ namespace TeslaBLE
       Signatures_KeyIdentity signer_identity = Signatures_KeyIdentity_init_default;
       signer_identity.which_identity_type = Signatures_KeyIdentity_public_key_tag;
       memcpy(signer_identity.identity_type.public_key.bytes,
-            this->public_key_,
-            this->public_key_size_);
-      signer_identity.identity_type.public_key.size = this->public_key_size_;
+            public_key_.data(),
+            public_key_size_);
+      signer_identity.identity_type.public_key.size = public_key_size_;
       signature_data.has_signer_identity = true;
       signature_data.signer_identity = signer_identity;
 
@@ -605,7 +607,7 @@ namespace TeslaBLE
       // After storing the signature/tag, construct and store request hash for later use in decrypting responses
       pb_byte_t request_hash[17]; // Max size: 1 byte type + 16 bytes tag
       size_t request_hash_length;
-      return_code = session->ConstructRequestHash(
+      return_code = session->constructRequestHash(
           Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
           signature, // The tag we just generated
           sizeof(signature),
@@ -619,11 +621,11 @@ namespace TeslaBLE
       }
 
       // Store the request hash for later use
-      memcpy(this->last_request_hash_, request_hash, request_hash_length);
+      std::copy(request_hash, request_hash + request_hash_length, last_request_hash_.begin());
       this->last_request_hash_length_ = request_hash_length;
 
       // Store the tag for later use in request hash construction
-      memcpy(this->last_request_tag_, signature, sizeof(signature));
+      std::copy(signature, signature + sizeof(signature), last_request_tag_.begin());
       this->last_request_type_ = Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED;
 
       universal_message.which_sub_sigData = UniversalMessage_RoutableMessage_signature_data_tag;
@@ -675,14 +677,14 @@ namespace TeslaBLE
 
     UniversalMessage_Destination from_destination = UniversalMessage_Destination_init_default;
     from_destination.which_sub_destination = UniversalMessage_Destination_routing_address_tag;
-    memcpy(from_destination.sub_destination.routing_address.bytes, this->connectionID, sizeof(this->connectionID));
-    from_destination.sub_destination.routing_address.size = sizeof(this->connectionID);
+    memcpy(from_destination.sub_destination.routing_address.bytes, connection_id_.data(), connection_id_.size());
+    from_destination.sub_destination.routing_address.size = connection_id_.size();
     universal_message.has_from_destination = true;
     universal_message.from_destination = from_destination;
 
     universal_message.which_payload = UniversalMessage_RoutableMessage_session_info_request_tag;
     UniversalMessage_SessionInfoRequest session_info_request = UniversalMessage_SessionInfoRequest_init_default;
-    memcpy(session_info_request.public_key.bytes, this->public_key_, this->public_key_size_);
+    memcpy(session_info_request.public_key.bytes, public_key_.data(), public_key_size_);
     session_info_request.public_key.size = this->public_key_size_;
     universal_message.payload.session_info_request = session_info_request;
 
@@ -882,625 +884,33 @@ namespace TeslaBLE
       return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
     }
 
+    // Create action structure
     CarServer_Action action = CarServer_Action_init_default;
     action.which_action_msg = CarServer_Action_vehicleAction_tag;
 
+    // Create vehicle action and set the action type
     CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
     vehicle_action.which_vehicle_action_msg = which_vehicle_action;
 
-    // Configure the specific action based on the type
-    switch (which_vehicle_action)
-    {
-      // Vehicle data actions
-      case CarServer_VehicleAction_getVehicleData_tag:
-        // This is handled by buildCarServerGetVehicleDataMessage
-        LOG_ERROR("Use buildCarServerGetVehicleDataMessage for vehicle data requests");
-        return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-
-      // Charging actions
-      case CarServer_VehicleAction_chargingSetLimitAction_tag:
-        if (action_data != nullptr)
-        {
-          int32_t percent = *static_cast<const int32_t*>(action_data);
-          // Validate percent range
-          if (percent < 50 || percent > 100)
-          {
-            LOG_ERROR("Invalid charging limit percentage: %d (must be 50-100)", percent);
-            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-          }
-          vehicle_action.vehicle_action_msg.chargingSetLimitAction = CarServer_ChargingSetLimitAction_init_default;
-          vehicle_action.vehicle_action_msg.chargingSetLimitAction.percent = percent;
-        }
-        else
-        {
-          LOG_ERROR("Charging set limit action requires int32_t data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_chargingStartStopAction_tag:
-        if (action_data != nullptr)
-        {
-          bool isOn = *static_cast<const bool*>(action_data);
-          vehicle_action.vehicle_action_msg.chargingStartStopAction = CarServer_ChargingStartStopAction_init_default;
-          if (isOn)
-          {
-            vehicle_action.vehicle_action_msg.chargingStartStopAction.which_charging_action = CarServer_ChargingStartStopAction_start_tag;
-            vehicle_action.vehicle_action_msg.chargingStartStopAction.charging_action.start = CarServer_Void_init_default;
-          }
-          else
-          {
-            vehicle_action.vehicle_action_msg.chargingStartStopAction.which_charging_action = CarServer_ChargingStartStopAction_stop_tag;
-            vehicle_action.vehicle_action_msg.chargingStartStopAction.charging_action.stop = CarServer_Void_init_default;
-          }
-        }
-        else
-        {
-          LOG_ERROR("Charging action requires boolean data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_setChargingAmpsAction_tag:
-        if (action_data != nullptr)
-        {
-          int32_t amps = *static_cast<const int32_t*>(action_data);
-          // Validate amps range (typical Tesla charging range is 1-48 amps)
-          if (amps < 1 || amps > 48)
-          {
-            LOG_ERROR("Invalid charging amps value: %d (must be 1-48)", amps);
-            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-          }
-          vehicle_action.vehicle_action_msg.setChargingAmpsAction = CarServer_SetChargingAmpsAction_init_default;
-          vehicle_action.vehicle_action_msg.setChargingAmpsAction.charging_amps = amps;
-        }
-        else
-        {
-          LOG_ERROR("Set charging amps action requires int32_t data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_chargePortDoorOpen_tag:
-        vehicle_action.vehicle_action_msg.chargePortDoorOpen = CarServer_ChargePortDoorOpen_init_default;
-        break;
-
-      case CarServer_VehicleAction_chargePortDoorClose_tag:
-        vehicle_action.vehicle_action_msg.chargePortDoorClose = CarServer_ChargePortDoorClose_init_default;
-        break;
-
-      case CarServer_VehicleAction_scheduledChargingAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_ScheduledChargingAction* sched_data = static_cast<const CarServer_ScheduledChargingAction*>(action_data);
-          vehicle_action.vehicle_action_msg.scheduledChargingAction = *sched_data;
-        }
-        else
-        {
-          LOG_ERROR("Scheduled charging action requires CarServer_ScheduledChargingAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      // Driving actions
-      case CarServer_VehicleAction_drivingClearSpeedLimitPinAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_DrivingClearSpeedLimitPinAction* pin_data = static_cast<const CarServer_DrivingClearSpeedLimitPinAction*>(action_data);
-          vehicle_action.vehicle_action_msg.drivingClearSpeedLimitPinAction = *pin_data;
-        }
-        else
-        {
-          LOG_ERROR("Clear speed limit pin action requires CarServer_DrivingClearSpeedLimitPinAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_drivingSetSpeedLimitAction_tag:
-        if (action_data != nullptr)
-        {
-          double limit_mph = *static_cast<const double*>(action_data);
-          if (limit_mph < 50.0 || limit_mph > 90.0)
-          {
-            LOG_ERROR("Invalid speed limit: %.1f mph (must be 50-90)", limit_mph);
-            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-          }
-          vehicle_action.vehicle_action_msg.drivingSetSpeedLimitAction = CarServer_DrivingSetSpeedLimitAction_init_default;
-          vehicle_action.vehicle_action_msg.drivingSetSpeedLimitAction.limit_mph = limit_mph;
-        }
-        else
-        {
-          LOG_ERROR("Set speed limit action requires double data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_drivingSpeedLimitAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_DrivingSpeedLimitAction* speed_data = static_cast<const CarServer_DrivingSpeedLimitAction*>(action_data);
-          vehicle_action.vehicle_action_msg.drivingSpeedLimitAction = *speed_data;
-        }
-        else
-        {
-          LOG_ERROR("Speed limit action requires CarServer_DrivingSpeedLimitAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_drivingClearSpeedLimitPinAdminAction_tag:
-        vehicle_action.vehicle_action_msg.drivingClearSpeedLimitPinAdminAction = CarServer_DrivingClearSpeedLimitPinAdminAction_init_default;
-        break;
-
-      // HVAC actions
-      case CarServer_VehicleAction_hvacAutoAction_tag:
-        if (action_data != nullptr)
-        {
-          bool isOn = *static_cast<const bool*>(action_data);
-          vehicle_action.vehicle_action_msg.hvacAutoAction = CarServer_HvacAutoAction_init_default;
-          vehicle_action.vehicle_action_msg.hvacAutoAction.power_on = isOn;
-        }
-        else
-        {
-          LOG_ERROR("HVAC action requires boolean data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_hvacSetPreconditioningMaxAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_HvacSetPreconditioningMaxAction* precon_data = static_cast<const CarServer_HvacSetPreconditioningMaxAction*>(action_data);
-          vehicle_action.vehicle_action_msg.hvacSetPreconditioningMaxAction = *precon_data;
-        }
-        else
-        {
-          LOG_ERROR("HVAC preconditioning action requires CarServer_HvacSetPreconditioningMaxAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag:
-        if (action_data != nullptr)
-        {
-          bool isOn = *static_cast<const bool*>(action_data);
-          vehicle_action.vehicle_action_msg.hvacSteeringWheelHeaterAction = CarServer_HvacSteeringWheelHeaterAction_init_default;
-          vehicle_action.vehicle_action_msg.hvacSteeringWheelHeaterAction.power_on = isOn;
-        }
-        else
-        {
-          LOG_ERROR("Steering wheel heater action requires boolean data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_hvacTemperatureAdjustmentAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_HvacTemperatureAdjustmentAction* temp_data = static_cast<const CarServer_HvacTemperatureAdjustmentAction*>(action_data);
-          vehicle_action.vehicle_action_msg.hvacTemperatureAdjustmentAction = *temp_data;
-        }
-        else
-        {
-          LOG_ERROR("HVAC temperature adjustment action requires CarServer_HvacTemperatureAdjustmentAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_hvacBioweaponModeAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_HvacBioweaponModeAction* bio_data = static_cast<const CarServer_HvacBioweaponModeAction*>(action_data);
-          vehicle_action.vehicle_action_msg.hvacBioweaponModeAction = *bio_data;
-        }
-        else
-        {
-          LOG_ERROR("HVAC bioweapon mode action requires CarServer_HvacBioweaponModeAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_hvacSeatHeaterActions_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_HvacSeatHeaterActions* seat_heat_data = static_cast<const CarServer_HvacSeatHeaterActions*>(action_data);
-          vehicle_action.vehicle_action_msg.hvacSeatHeaterActions = *seat_heat_data;
-        }
-        else
-        {
-          LOG_ERROR("HVAC seat heater actions require CarServer_HvacSeatHeaterActions data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_hvacSeatCoolerActions_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_HvacSeatCoolerActions* seat_cool_data = static_cast<const CarServer_HvacSeatCoolerActions*>(action_data);
-          vehicle_action.vehicle_action_msg.hvacSeatCoolerActions = *seat_cool_data;
-        }
-        else
-        {
-          LOG_ERROR("HVAC seat cooler actions require CarServer_HvacSeatCoolerActions data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_hvacClimateKeeperAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_HvacClimateKeeperAction* climate_data = static_cast<const CarServer_HvacClimateKeeperAction*>(action_data);
-          vehicle_action.vehicle_action_msg.hvacClimateKeeperAction = *climate_data;
-        }
-        else
-        {
-          LOG_ERROR("HVAC climate keeper action requires CarServer_HvacClimateKeeperAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_autoSeatClimateAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_AutoSeatClimateAction* auto_seat_data = static_cast<const CarServer_AutoSeatClimateAction*>(action_data);
-          vehicle_action.vehicle_action_msg.autoSeatClimateAction = *auto_seat_data;
-        }
-        else
-        {
-          LOG_ERROR("Auto seat climate action requires CarServer_AutoSeatClimateAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_setCabinOverheatProtectionAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_SetCabinOverheatProtectionAction* cop_data = static_cast<const CarServer_SetCabinOverheatProtectionAction*>(action_data);
-          vehicle_action.vehicle_action_msg.setCabinOverheatProtectionAction = *cop_data;
-        }
-        else
-        {
-          LOG_ERROR("Cabin overheat protection action requires CarServer_SetCabinOverheatProtectionAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_setCopTempAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_SetCopTempAction* cop_temp_data = static_cast<const CarServer_SetCopTempAction*>(action_data);
-          vehicle_action.vehicle_action_msg.setCopTempAction = *cop_temp_data;
-        }
-        else
-        {
-          LOG_ERROR("COP temp action requires CarServer_SetCopTempAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      // Media actions
-      case CarServer_VehicleAction_mediaPlayAction_tag:
-        vehicle_action.vehicle_action_msg.mediaPlayAction = CarServer_MediaPlayAction_init_default;
-        break;
-
-      case CarServer_VehicleAction_mediaUpdateVolume_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_MediaUpdateVolume* volume_data = static_cast<const CarServer_MediaUpdateVolume*>(action_data);
-          vehicle_action.vehicle_action_msg.mediaUpdateVolume = *volume_data;
-        }
-        else
-        {
-          LOG_ERROR("Media update volume action requires CarServer_MediaUpdateVolume data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_mediaNextFavorite_tag:
-        vehicle_action.vehicle_action_msg.mediaNextFavorite = CarServer_MediaNextFavorite_init_default;
-        break;
-
-      case CarServer_VehicleAction_mediaPreviousFavorite_tag:
-        vehicle_action.vehicle_action_msg.mediaPreviousFavorite = CarServer_MediaPreviousFavorite_init_default;
-        break;
-
-      case CarServer_VehicleAction_mediaNextTrack_tag:
-        vehicle_action.vehicle_action_msg.mediaNextTrack = CarServer_MediaNextTrack_init_default;
-        break;
-
-      case CarServer_VehicleAction_mediaPreviousTrack_tag:
-        vehicle_action.vehicle_action_msg.mediaPreviousTrack = CarServer_MediaPreviousTrack_init_default;
-        break;
-
-      // Vehicle control actions
-      case CarServer_VehicleAction_vehicleControlFlashLightsAction_tag:
-        vehicle_action.vehicle_action_msg.vehicleControlFlashLightsAction = CarServer_VehicleControlFlashLightsAction_init_default;
-        break;
-
-      case CarServer_VehicleAction_vehicleControlHonkHornAction_tag:
-        vehicle_action.vehicle_action_msg.vehicleControlHonkHornAction = CarServer_VehicleControlHonkHornAction_init_default;
-        break;
-
-      case CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag:
-        if (action_data != nullptr)
-        {
-          bool isOn = *static_cast<const bool*>(action_data);
-          vehicle_action.vehicle_action_msg.vehicleControlSetSentryModeAction = CarServer_VehicleControlSetSentryModeAction_init_default;
-          vehicle_action.vehicle_action_msg.vehicleControlSetSentryModeAction.on = isOn;
-        }
-        else
-        {
-          LOG_ERROR("Sentry mode action requires boolean data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_vehicleControlCancelSoftwareUpdateAction_tag:
-        vehicle_action.vehicle_action_msg.vehicleControlCancelSoftwareUpdateAction = CarServer_VehicleControlCancelSoftwareUpdateAction_init_default;
-        break;
-
-      case CarServer_VehicleAction_vehicleControlScheduleSoftwareUpdateAction_tag:
-        if (action_data != nullptr)
-        {
-          int32_t offset_sec = *static_cast<const int32_t*>(action_data);
-          vehicle_action.vehicle_action_msg.vehicleControlScheduleSoftwareUpdateAction = CarServer_VehicleControlScheduleSoftwareUpdateAction_init_default;
-          vehicle_action.vehicle_action_msg.vehicleControlScheduleSoftwareUpdateAction.offset_sec = offset_sec;
-        }
-        else
-        {
-          LOG_ERROR("Schedule software update action requires int32_t offset data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_vehicleControlResetValetPinAction_tag:
-        vehicle_action.vehicle_action_msg.vehicleControlResetValetPinAction = CarServer_VehicleControlResetValetPinAction_init_default;
-        break;
-
-      case CarServer_VehicleAction_vehicleControlSetValetModeAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_VehicleControlSetValetModeAction* valet_data = static_cast<const CarServer_VehicleControlSetValetModeAction*>(action_data);
-          vehicle_action.vehicle_action_msg.vehicleControlSetValetModeAction = *valet_data;
-        }
-        else
-        {
-          LOG_ERROR("Set valet mode action requires CarServer_VehicleControlSetValetModeAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_vehicleControlSunroofOpenCloseAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_VehicleControlSunroofOpenCloseAction* sunroof_data = static_cast<const CarServer_VehicleControlSunroofOpenCloseAction*>(action_data);
-          vehicle_action.vehicle_action_msg.vehicleControlSunroofOpenCloseAction = *sunroof_data;
-        }
-        else
-        {
-          LOG_ERROR("Sunroof action requires CarServer_VehicleControlSunroofOpenCloseAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_vehicleControlTriggerHomelinkAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_VehicleControlTriggerHomelinkAction* homelink_data = static_cast<const CarServer_VehicleControlTriggerHomelinkAction*>(action_data);
-          vehicle_action.vehicle_action_msg.vehicleControlTriggerHomelinkAction = *homelink_data;
-        }
-        else
-        {
-          LOG_ERROR("Trigger homelink action requires CarServer_VehicleControlTriggerHomelinkAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_vehicleControlWindowAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_VehicleControlWindowAction* window_data = static_cast<const CarServer_VehicleControlWindowAction*>(action_data);
-          vehicle_action.vehicle_action_msg.vehicleControlWindowAction = *window_data;
-        }
-        else
-        {
-          LOG_ERROR("Window action requires CarServer_VehicleControlWindowAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_vehicleControlSetPinToDriveAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_VehicleControlSetPinToDriveAction* pin_drive_data = static_cast<const CarServer_VehicleControlSetPinToDriveAction*>(action_data);
-          vehicle_action.vehicle_action_msg.vehicleControlSetPinToDriveAction = *pin_drive_data;
-        }
-        else
-        {
-          LOG_ERROR("Set pin to drive action requires CarServer_VehicleControlSetPinToDriveAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_vehicleControlResetPinToDriveAction_tag:
-        vehicle_action.vehicle_action_msg.vehicleControlResetPinToDriveAction = CarServer_VehicleControlResetPinToDriveAction_init_default;
-        break;
-
-      case CarServer_VehicleAction_vehicleControlResetPinToDriveAdminAction_tag:
-        vehicle_action.vehicle_action_msg.vehicleControlResetPinToDriveAdminAction = CarServer_VehicleControlResetPinToDriveAdminAction_init_default;
-        break;
-
-      // Nearby charging sites
-      case CarServer_VehicleAction_getNearbyChargingSites_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_GetNearbyChargingSites* nearby_data = static_cast<const CarServer_GetNearbyChargingSites*>(action_data);
-          vehicle_action.vehicle_action_msg.getNearbyChargingSites = *nearby_data;
-        }
-        else
-        {
-          LOG_ERROR("Get nearby charging sites action requires CarServer_GetNearbyChargingSites data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      // Scheduled departure
-      case CarServer_VehicleAction_scheduledDepartureAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_ScheduledDepartureAction* departure_data = static_cast<const CarServer_ScheduledDepartureAction*>(action_data);
-          vehicle_action.vehicle_action_msg.scheduledDepartureAction = *departure_data;
-        }
-        else
-        {
-          LOG_ERROR("Scheduled departure action requires CarServer_ScheduledDepartureAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      // Ping
-      case CarServer_VehicleAction_ping_tag:
-        if (action_data != nullptr)
-        {
-          int32_t ping_id = *static_cast<const int32_t*>(action_data);
-          vehicle_action.vehicle_action_msg.ping = CarServer_Ping_init_default;
-          vehicle_action.vehicle_action_msg.ping.ping_id = ping_id;
-        }
-        else
-        {
-          LOG_ERROR("Ping action requires int32_t ping_id data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      // Vehicle name
-      case CarServer_VehicleAction_setVehicleNameAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_SetVehicleNameAction* name_data = static_cast<const CarServer_SetVehicleNameAction*>(action_data);
-          vehicle_action.vehicle_action_msg.setVehicleNameAction = *name_data;
-        }
-        else
-        {
-          LOG_ERROR("Set vehicle name action requires CarServer_SetVehicleNameAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      // Guest mode
-      case CarServer_VehicleAction_guestModeAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_VehicleState_GuestMode* guest_data = static_cast<const CarServer_VehicleState_GuestMode*>(action_data);
-          vehicle_action.vehicle_action_msg.guestModeAction = *guest_data;
-        }
-        else
-        {
-          LOG_ERROR("Guest mode action requires CarServer_VehicleState_GuestMode data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      // Erase user data
-      case CarServer_VehicleAction_eraseUserDataAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_EraseUserDataAction* erase_data = static_cast<const CarServer_EraseUserDataAction*>(action_data);
-          vehicle_action.vehicle_action_msg.eraseUserDataAction = *erase_data;
-        }
-        else
-        {
-          LOG_ERROR("Erase user data action requires CarServer_EraseUserDataAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      // Schedule actions
-      case CarServer_VehicleAction_addChargeScheduleAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_ChargeSchedule* charge_sched_data = static_cast<const CarServer_ChargeSchedule*>(action_data);
-          vehicle_action.vehicle_action_msg.addChargeScheduleAction = *charge_sched_data;
-        }
-        else
-        {
-          LOG_ERROR("Add charge schedule action requires CarServer_ChargeSchedule data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_removeChargeScheduleAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_RemoveChargeScheduleAction* remove_charge_data = static_cast<const CarServer_RemoveChargeScheduleAction*>(action_data);
-          vehicle_action.vehicle_action_msg.removeChargeScheduleAction = *remove_charge_data;
-        }
-        else
-        {
-          LOG_ERROR("Remove charge schedule action requires CarServer_RemoveChargeScheduleAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_addPreconditionScheduleAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_PreconditionSchedule* precon_sched_data = static_cast<const CarServer_PreconditionSchedule*>(action_data);
-          vehicle_action.vehicle_action_msg.addPreconditionScheduleAction = *precon_sched_data;
-        }
-        else
-        {
-          LOG_ERROR("Add precondition schedule action requires CarServer_PreconditionSchedule data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_removePreconditionScheduleAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_RemovePreconditionScheduleAction* remove_precon_data = static_cast<const CarServer_RemovePreconditionScheduleAction*>(action_data);
-          vehicle_action.vehicle_action_msg.removePreconditionScheduleAction = *remove_precon_data;
-        }
-        else
-        {
-          LOG_ERROR("Remove precondition schedule action requires CarServer_RemovePreconditionScheduleAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_batchRemovePreconditionSchedulesAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_BatchRemovePreconditionSchedulesAction* batch_remove_precon_data = static_cast<const CarServer_BatchRemovePreconditionSchedulesAction*>(action_data);
-          vehicle_action.vehicle_action_msg.batchRemovePreconditionSchedulesAction = *batch_remove_precon_data;
-        }
-        else
-        {
-          LOG_ERROR("Batch remove precondition schedules action requires CarServer_BatchRemovePreconditionSchedulesAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      case CarServer_VehicleAction_batchRemoveChargeSchedulesAction_tag:
-        if (action_data != nullptr)
-        {
-          const CarServer_BatchRemoveChargeSchedulesAction* batch_remove_charge_data = static_cast<const CarServer_BatchRemoveChargeSchedulesAction*>(action_data);
-          vehicle_action.vehicle_action_msg.batchRemoveChargeSchedulesAction = *batch_remove_charge_data;
-        }
-        else
-        {
-          LOG_ERROR("Batch remove charge schedules action requires CarServer_BatchRemoveChargeSchedulesAction data");
-          return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-        break;
-
-      default:
+    // Use the VehicleActionBuilder to handle all action types
+    // Find the appropriate builder function
+    const auto& builders = VehicleActionBuilder::getBuilders();
+    auto it = builders.find(which_vehicle_action);
+    if (it == builders.end()) {
         LOG_ERROR("Unsupported vehicle action type: %d", which_vehicle_action);
         return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
     }
 
+    // Build the specific action using the builder
+    int build_status = it->second(vehicle_action, action_data);
+    if (build_status != TeslaBLE_Status_E_OK) {
+        return build_status;
+    }
+
+    // Assign the built vehicle action to the main action
     action.action_msg.vehicleAction = vehicle_action;
 
+    // Encode the action into a universal message
     size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
     pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
     int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
@@ -1509,6 +919,7 @@ namespace TeslaBLE
       LOG_ERROR("Failed to build car action message");
       return status;
     }
+    
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
                         output_buffer, output_length);
     return 0;

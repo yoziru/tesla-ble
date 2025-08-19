@@ -16,6 +16,14 @@ namespace TeslaBLE
       const pb_msgdesc_t *fields,
       const void *src_struct)
   {
+    // Validate input parameters
+    if (!output_buffer || !output_length || !fields || !src_struct)
+    {
+      printf("[E][pb_encode] Invalid parameters: output_buffer=%p, output_length=%p, fields=%p, src_struct=%p\n",
+             output_buffer, output_length, fields, src_struct);
+      return TeslaBLE_Status_E_ERROR_PB_ENCODING;
+    }
+
     pb_ostream_t unsigned_message_size_stream = {nullptr, 0, 0, 0, nullptr};
     bool status_encode_length = pb_encode(&unsigned_message_size_stream, fields, src_struct);
     if (!status_encode_length)

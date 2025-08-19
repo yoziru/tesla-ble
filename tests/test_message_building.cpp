@@ -5,6 +5,9 @@
 #include <vcsec.pb.h>
 #include <signatures.pb.h>
 #include <car_server.pb.h>
+#include "test_constants.h"
+
+using namespace TeslaBLE;
 
 // Mock data
 static const char *MOCK_VIN = "5YJ30123456789ABC";
@@ -47,7 +50,10 @@ protected:
         client->setVIN(MOCK_VIN);
         
         // Load private key for message building
-        int status = client->loadPrivateKey(MOCK_PRIVATE_KEY, sizeof(MOCK_PRIVATE_KEY));
+        int status = client->loadPrivateKey(
+            reinterpret_cast<const unsigned char*>(TestConstants::CLIENT_PRIVATE_KEY_PEM), 
+            strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1
+        );
         ASSERT_EQ(status, 0) << "Failed to load private key for testing";
         
         // Set connection ID

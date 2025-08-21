@@ -6,6 +6,11 @@ test_key_generation
 test_message_building
 test_message_parsing
 test_session_management
-test_utils
+test_tb_utils
 test_error_handling
-test_pb_utils
+test_ad_buffer_construction
+test_protocol_vectors
+test_protocol_handshake
+test_protocol_authentication
+test_protocol_edge_cases
+test_protocol_failures

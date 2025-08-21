@@ -4,12 +4,15 @@
 #include <universal_message.pb.h>
 #include <cstring>
 #include <vector>
+#include "test_constants.h"
+
+using namespace TeslaBLE;
 
 class ErrorHandlingTest : public ::testing::Test {
 protected:
     void SetUp() override {
         client = std::make_unique<TeslaBLE::Client>();
-        client->setVIN("5YJ30123456789ABC");
+        client->setVIN(TestConstants::TEST_VIN);
     }
 
     void TearDown() override {

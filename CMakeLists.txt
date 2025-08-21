@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 
 include(FetchContent)
 project(TeslaBLE
-        VERSION 3.0.0
+        VERSION 3.1.0
         DESCRIPTION "CPP Tesla BLE Library"
         LANGUAGES CXX C
 )
@@ -44,6 +44,8 @@ add_library(TeslaBLE
         src/errors.cpp
         src/peer.cpp
         src/tb_utils.cpp
+        src/crypto_context.cpp
+        src/message_builders.cpp
         src/car_server.pb.c
         src/common.pb.c
         src/errors.pb.c

@@ -1,23 +1,22 @@
 #include <gtest/gtest.h>
 #include <client.h>
 #include <cstring>
+#include "test_constants.h"
 
-// Mock data
-static const char *MOCK_VIN = "5YJ30123456789ABC";
-static const unsigned char MOCK_PRIVATE_KEY[227] = "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEILRjIS9VEyG+0K71a2T/lKVF5MllmYu78y14UzHgPQb5oAoGCCqGSM49\nAwEHoUQDQgAEUxC4mUu1EemeRNJFvgU3RHptxzxR1kCc+fVIwxNg4Pxa2AzDDAbZ\njh4MR49c2FBOLVVzYlUnt1F35HFWGjaXsg==\n-----END EC PRIVATE KEY-----";
+using namespace TeslaBLE;
 
 class KeyGenerationTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        client = std::make_unique<TeslaBLE::Client>();
-        client->setVIN(MOCK_VIN);
+        client = std::make_unique<Client>();
+        client->setVIN(TestConstants::TEST_VIN);
     }
 
     void TearDown() override {
         client.reset();
     }
 
-    std::unique_ptr<TeslaBLE::Client> client;
+    std::unique_ptr<Client> client;
 };
 
 TEST_F(KeyGenerationTest, CreatePrivateKeyGeneratesValidKey) {
@@ -34,14 +33,44 @@ TEST_F(KeyGenerationTest, CreatePrivateKeyGeneratesValidKey) {
 }
 
 TEST_F(KeyGenerationTest, LoadValidPrivateKey) {
-    int status = client->loadPrivateKey(MOCK_PRIVATE_KEY, sizeof(MOCK_PRIVATE_KEY));
-    EXPECT_EQ(status, 0) << "Loading valid private key should succeed";
+    int status = client->loadPrivateKey(
+        reinterpret_cast<const unsigned char*>(TestConstants::CLIENT_PRIVATE_KEY_PEM), 
+        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1
+    );
+    EXPECT_EQ(status, 0) << "Failed to load valid private key";
 }
 
 TEST_F(KeyGenerationTest, LoadInvalidPrivateKeyFails) {
-    const char* invalid_key = "invalid_key_data";
-    int status = client->loadPrivateKey(reinterpret_cast<const unsigned char*>(invalid_key), strlen(invalid_key));
-    EXPECT_NE(status, 0) << "Loading invalid private key should fail";
+    // Test with completely malformed PEM data 
+    const char* malformed_pem = "-----BEGIN EC PRIVATE KEY-----\nTHIS_IS_NOT_VALID_BASE64\n-----END EC PRIVATE KEY-----";
+    int status = client->loadPrivateKey(
+        reinterpret_cast<const unsigned char*>(malformed_pem), 
+        strlen(malformed_pem) + 1
+    );
+    EXPECT_NE(status, 0) << "Loading malformed private key should fail";
+    
+    // Test with RSA key - should fail at Tesla protocol validation (not EC key)
+    const char* rsa_key = R"(-----BEGIN RSA PRIVATE KEY-----
+MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu
+KUpRKfFLfRYC9AIKjbJTWit+CqvjWYzvQwECAwEAAQJAIJLixBy2qpFoS4DSmoEm
+o3qGy0t6z09AIJtH+5OeRV1be+N4cDYJKffGzDa88vQENZiRm0GRq6a+HPGQMd2k
+TQIhAKMSvzIBnni7ot/OSie2TmJLY4SwTQAevXysE2RbFDYdAiEBvM5OyMI5r8tP
+gAmNBb65cZR0n9FVOVYgvdCk8H5+RAMCIQCJy7tydZmY4t6yy7u5k5kn4D1Y1U4u
+kTCT4R0m6t3XbwIhAOWl2yQ7aA4Q1j8rWtNgQF3Y5Vx+QQChF2xGJnE+5c2u
+-----END RSA PRIVATE KEY-----)";
+    status = client->loadPrivateKey(
+        reinterpret_cast<const unsigned char*>(rsa_key), 
+        strlen(rsa_key) + 1
+    );
+    EXPECT_NE(status, 0) << "Loading RSA key should fail - Tesla protocol requires EC keys";
+    
+    // Test with missing header
+    const char* no_header = "MHcCAQEEIDRO5bRmp88e6xK29QMx2y5exYNO9fS+";
+    status = client->loadPrivateKey(
+        reinterpret_cast<const unsigned char*>(no_header), 
+        strlen(no_header) + 1
+    );
+    EXPECT_NE(status, 0) << "Loading key without PEM header should fail";
 }
 
 TEST_F(KeyGenerationTest, LoadEmptyPrivateKeyFails) {
@@ -58,7 +87,10 @@ TEST_F(KeyGenerationTest, GetPrivateKeyWithoutLoadingFails) {
 
 TEST_F(KeyGenerationTest, GetPrivateKeyWithInsufficientBufferFails) {
     // Load a valid key first
-    int load_status = client->loadPrivateKey(MOCK_PRIVATE_KEY, sizeof(MOCK_PRIVATE_KEY));
+    int load_status = client->loadPrivateKey(
+        reinterpret_cast<const unsigned char*>(TestConstants::CLIENT_PRIVATE_KEY_PEM), 
+        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1
+    );
     ASSERT_EQ(load_status, 0) << "Failed to load private key";
 
     // Try to get key with too small buffer

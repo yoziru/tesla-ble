@@ -4,10 +4,9 @@
 #include <signatures.pb.h>
 #include <car_server.pb.h>
 #include <cstring>
+#include "test_constants.h"
 
-// Mock data
-static const char *MOCK_VIN = "5YJ30123456789ABC";
-static const unsigned char MOCK_PRIVATE_KEY[227] = "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEILRjIS9VEyG+0K71a2T/lKVF5MllmYu78y14UzHgPQb5oAoGCCqGSM49\nAwEHoUQDQgAEUxC4mUu1EemeRNJFvgU3RHptxzxR1kCc+fVIwxNg4Pxa2AzDDAbZ\njh4MR49c2FBOLVVzYlUnt1F35HFWGjaXsg==\n-----END EC PRIVATE KEY-----";
+using namespace TeslaBLE;
 
 // Mock received message from VCSEC (from main.cpp)
 static pb_byte_t MOCK_VCSEC_MESSAGE[177] = {
@@ -43,10 +42,13 @@ class MessageParsingTest : public ::testing::Test {
 protected:
     void SetUp() override {
         client = std::make_unique<TeslaBLE::Client>();
-        client->setVIN(MOCK_VIN);
+        client->setVIN(TestConstants::TEST_VIN);
         
         // Load private key for testing
-        int status = client->loadPrivateKey(MOCK_PRIVATE_KEY, sizeof(MOCK_PRIVATE_KEY));
+        int status = client->loadPrivateKey(
+            reinterpret_cast<const unsigned char*>(TestConstants::CLIENT_PRIVATE_KEY_PEM), 
+            strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1
+        );
         ASSERT_EQ(status, 0) << "Failed to load private key for testing";
     }
 

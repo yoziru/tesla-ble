@@ -8,6 +8,7 @@
 #include <mbedtls/entropy.h>
 #include <mbedtls/sha1.h>
 #include <mbedtls/platform_util.h>
+#include <mbedtls/md.h>
 
 namespace TeslaBLE
 {
@@ -469,6 +470,28 @@ namespace TeslaBLE
         if (memory && length > 0) {
             mbedtls_platform_zeroize(memory, length);
         }
+    }
+
+    // Derive SESSION_INFO_KEY = HMAC-SHA256(K, "session info")
+    int CryptoUtils::deriveSessionInfoKey(const uint8_t* shared_key, size_t shared_key_len, uint8_t* out_key, size_t out_key_len)
+    {
+        if (!shared_key || shared_key_len == 0 || !out_key || out_key_len < 32) {
+            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+        const char* session_info_str = "session info";
+        const mbedtls_md_info_t* md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+        if (!md_info) {
+            return TeslaBLE_Status_E_ERROR_INTERNAL;
+        }
+        int ret = mbedtls_md_hmac(
+            md_info,
+            shared_key, shared_key_len,
+            reinterpret_cast<const unsigned char*>(session_info_str), strlen(session_info_str),
+            out_key);
+        if (ret != 0) {
+            return TeslaBLE_Status_E_ERROR_CRYPTO;
+        }
+        return TeslaBLE_Status_E_OK;
     }
 
 } // namespace TeslaBLE

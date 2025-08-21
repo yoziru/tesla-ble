@@ -158,6 +158,16 @@ namespace TeslaBLE
          * @param length Length to clear
          */
         static void clearSensitiveMemory(void* memory, size_t length);
+
+        /**
+         * @brief Derive SESSION_INFO_KEY = HMAC-SHA256(K, "session info")
+         * @param shared_key The shared session key (K)
+         * @param shared_key_len Length of the shared key (should be 16)
+         * @param out_key Output buffer for the derived key (must be at least 32 bytes)
+         * @param out_key_len Length of the output buffer
+         * @return TeslaBLE_Status_E_OK on success, error code otherwise
+         */
+        static int deriveSessionInfoKey(const uint8_t* shared_key, size_t shared_key_len, uint8_t* out_key, size_t out_key_len);
     };
 
 } // namespace TeslaBLE

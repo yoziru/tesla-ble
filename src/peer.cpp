@@ -93,10 +93,10 @@ namespace TeslaBLE
     int Peer::setEpoch(const pb_byte_t *epoch)
     {
         if (epoch == nullptr) {
-            return -1;
+            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
         }
         std::copy(epoch, epoch + epoch_.size(), epoch_.begin());
-        return 0;
+        return TeslaBLE_Status_E_OK;
     }
 
     uint32_t Peer::getCounter() const
@@ -184,7 +184,7 @@ namespace TeslaBLE
         }
 
         int status = setEpoch(session_info->epoch);
-        if (status != 0)
+        if (status != TeslaBLE_Status_E_OK)
         {
             LOG_ERROR("Failed to set epoch");
             return status;

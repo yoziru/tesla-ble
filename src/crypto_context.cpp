@@ -354,8 +354,8 @@ namespace TeslaBLE
             uint8_t shared_secret[32];  // P-256 shared secret is 32 bytes
             ret = mbedtls_mpi_write_binary(&shared_point.MBEDTLS_PRIVATE(X), shared_secret, sizeof(shared_secret));
             mbedtls_ecp_point_free(&shared_point);
-            
             if (ret != 0) {
+                mbedtls_platform_zeroize(shared_secret, sizeof(shared_secret));
                 LOG_ERROR("Failed to write shared secret: -0x%04x", -ret);
                 break;
             }
@@ -366,13 +366,19 @@ namespace TeslaBLE
             uint8_t sha1_hash[20];
             ret = mbedtls_sha1(shared_secret, sizeof(shared_secret), sha1_hash);
             if (ret != 0) {
+                mbedtls_platform_zeroize(shared_secret, sizeof(shared_secret));
+                mbedtls_platform_zeroize(sha1_hash, sizeof(sha1_hash));
                 LOG_ERROR("Failed to hash shared secret: -0x%04x", -ret);
                 break;
             }
 
             // Copy first 16 bytes as session key
             std::memcpy(session_key, sha1_hash, 16);
-            
+
+            // Zeroize sensitive buffers
+            mbedtls_platform_zeroize(shared_secret, sizeof(shared_secret));
+            mbedtls_platform_zeroize(sha1_hash, sizeof(sha1_hash));
+
             LOG_DEBUG("Tesla ECDH completed successfully");
             LOG_DEBUG("Session key: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
                       session_key[0], session_key[1], session_key[2], session_key[3],
@@ -475,20 +481,26 @@ namespace TeslaBLE
     // Derive SESSION_INFO_KEY = HMAC-SHA256(K, "session info")
     int CryptoUtils::deriveSessionInfoKey(const uint8_t* shared_key, size_t shared_key_len, uint8_t* out_key, size_t out_key_len)
     {
+        // out_key must be at least 32 bytes (SHA256 output)
         if (!shared_key || shared_key_len == 0 || !out_key || out_key_len < 32) {
+            if (out_key && out_key_len > 0) {
+                mbedtls_platform_zeroize(out_key, out_key_len);
+            }
             return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
         }
         const char* session_info_str = "session info";
         const mbedtls_md_info_t* md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
         if (!md_info) {
+            mbedtls_platform_zeroize(out_key, out_key_len);
             return TeslaBLE_Status_E_ERROR_INTERNAL;
         }
         int ret = mbedtls_md_hmac(
             md_info,
             shared_key, shared_key_len,
-            reinterpret_cast<const unsigned char*>(session_info_str), strlen(session_info_str),
+            reinterpret_cast<const unsigned char*>(session_info_str), sizeof("session info") - 1,
             out_key);
         if (ret != 0) {
+            mbedtls_platform_zeroize(out_key, out_key_len);
             return TeslaBLE_Status_E_ERROR_CRYPTO;
         }
         return TeslaBLE_Status_E_OK;

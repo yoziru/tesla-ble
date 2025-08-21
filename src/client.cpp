@@ -289,7 +289,7 @@ namespace TeslaBLE
     // printf("Prepending length\n");
     this->prependLength(vcsec_encode_buffer, vcsec_encode_buffer_size,
                         output_buffer, output_length);
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 
   /*
@@ -312,7 +312,7 @@ namespace TeslaBLE
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 
   int Client::parseVCSECInformationRequest(
@@ -328,7 +328,7 @@ namespace TeslaBLE
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 
   /*
@@ -364,7 +364,7 @@ namespace TeslaBLE
     // If the response includes a signature_data.AES_GCM_Response_data field, then the protobuf_message_as_bytes payload is encrypted. Otherwise, the payload is plaintext.
     // TODO
 
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
   int Client::parseUniversalMessageBLE(pb_byte_t *input_buffer,
                                        size_t input_buffer_length,
@@ -394,7 +394,7 @@ namespace TeslaBLE
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 
   int Client::parsePayloadUnsignedMessage(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
@@ -409,7 +409,7 @@ namespace TeslaBLE
       return TeslaBLE_Status_E_ERROR_PB_DECODING;
     }
 
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 
   int Client::parsePayloadCarServerResponse(
@@ -483,7 +483,7 @@ namespace TeslaBLE
       }
     }
 
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 
   int Client::buildUniversalMessageWithPayload(pb_byte_t *payload,
@@ -652,7 +652,7 @@ namespace TeslaBLE
       LOG_ERROR("[buildUniversalMessageWithPayload] Failed to encode universal message");
       return TeslaBLE_Status_E_ERROR_PB_ENCODING;
     }
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 
   /*
@@ -714,7 +714,7 @@ namespace TeslaBLE
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
                         output_buffer, output_length);
 
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 
   /*
@@ -767,7 +767,7 @@ namespace TeslaBLE
     }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
                         output_buffer, output_length);
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 
   int Client::buildCarServerActionPayload(CarServer_Action *action,
@@ -792,7 +792,7 @@ namespace TeslaBLE
       LOG_ERROR("Failed to build car action message");       
       return 1;
     }
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 
   int Client::buildCarServerGetVehicleDataMessage(pb_byte_t *output_buffer,
@@ -876,7 +876,7 @@ namespace TeslaBLE
     }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
                         output_buffer, output_length);
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 
   int Client::buildCarServerVehicleActionMessage(pb_byte_t *output_buffer,
@@ -928,7 +928,7 @@ namespace TeslaBLE
     
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
                         output_buffer, output_length);
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 
   int Client::buildVCSECActionMessage(const VCSEC_RKEAction_E action, pb_byte_t *output_buffer,
@@ -948,7 +948,7 @@ namespace TeslaBLE
     }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
                         output_buffer, output_length);
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 
   int Client::buildVCSECInformationRequestMessage(VCSEC_InformationRequestType request_type,
@@ -980,7 +980,7 @@ namespace TeslaBLE
     }
     this->prependLength(universal_encode_buffer, universal_encode_buffer_size,
                         output_buffer, output_length);
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 } // namespace TeslaBLE
 // #endif // MBEDTLS_CONFIG_FILE

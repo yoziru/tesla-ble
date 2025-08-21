@@ -51,7 +51,7 @@ namespace TeslaBLE
              PB_GET_ERROR(&unsigned_message_stream));
       return TeslaBLE_Status_E_ERROR_PB_ENCODING;
     }
-    return 0;
+    return TeslaBLE_Status_E_OK;
   }
 } // namespace TeslaBLE
 // #endif // MBEDTLS_CONFIG_FILE

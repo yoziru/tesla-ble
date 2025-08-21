@@ -220,7 +220,7 @@ namespace TeslaBLE
         LOG_DEBUG("Updated session: counter=%d, clock_time=%d, time_zero=%d",
                   session_info->counter, session_info->clock_time, time_zero);
 
-        return 0;
+        return TeslaBLE_Status_E_OK;
     }
 
     int Peer::constructADBuffer(
@@ -366,7 +366,7 @@ namespace TeslaBLE
         memcpy(request_hash + 1, auth_tag, tag_copy_length);
         *request_hash_length = 1 + tag_copy_length;
 
-        return 0;
+        return TeslaBLE_Status_E_OK;
     }
 
     int Peer::decryptResponse(
@@ -455,7 +455,7 @@ namespace TeslaBLE
         }
 
         mbedtls_gcm_free(&aes_context);
-        return 0;
+        return TeslaBLE_Status_E_OK;
     }
 
     int Peer::encrypt(
@@ -558,7 +558,7 @@ namespace TeslaBLE
         LOG_DEBUG("[Encrypt] Nonce: %s, Ciphertext: %s, Tag: %s",
                   nonce_hex, output_buffer_hex, signature_buffer_hex);
 
-        return 0;
+        return TeslaBLE_Status_E_OK;
     }
 
     bool Peer::validateResponseCounter(uint32_t counter, uint32_t request_id)

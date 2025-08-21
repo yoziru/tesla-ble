@@ -183,6 +183,18 @@ namespace TeslaBLE
             return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
         }
 
+        // Check if epoch is changing
+        bool epoch_changed = false;
+        if (memcmp(epoch_.data(), session_info->epoch, epoch_.size()) != 0) {
+            epoch_changed = true;
+        }
+
+        // Anti-replay: if epoch is unchanged, only allow counter to increase
+        if (!epoch_changed && session_info->counter < counter_) {
+            LOG_ERROR("Counter anti-replay: attempted to set counter backwards (current: %u, new: %u)", counter_, session_info->counter);
+            return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+        }
+
         int status = setEpoch(session_info->epoch);
         if (status != TeslaBLE_Status_E_OK)
         {

@@ -667,7 +667,13 @@ namespace TeslaBLE
                                              pb_byte_t *output_buffer,
                                              size_t *output_length)
   {
-    UniversalMessage_RoutableMessage universal_message = UniversalMessage_RoutableMessage_init_default;
+  // Strict validation: require private key to be loaded
+  if (public_key_size_ == 0 || !crypto_context_.isPrivateKeyInitialized()) {
+    LOG_ERROR("Cannot build session info request: private key not loaded");
+    return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
+  }
+
+  UniversalMessage_RoutableMessage universal_message = UniversalMessage_RoutableMessage_init_default;
 
     UniversalMessage_Destination to_destination = UniversalMessage_Destination_init_default;
     to_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;

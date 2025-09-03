@@ -31,7 +31,7 @@ namespace TeslaBLE
 #undef TESLA_BLE_ERROR_DEF
 
 #ifdef __cplusplus
-    // add helper functions to convert error codes to strings
+    // Add helper functions to convert error codes to strings
     const char *TeslaBLE_Status_to_string(int status);
 
     // Helper function to get all error codes and their string representations for testing

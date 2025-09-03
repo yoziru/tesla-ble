@@ -192,7 +192,7 @@ namespace TeslaBLE
         // Anti-replay: if epoch is unchanged, only allow counter to increase
         if (!epoch_changed && session_info->counter < counter_) {
             LOG_ERROR("Counter anti-replay: attempted to set counter backwards (current: %u, new: %u)", counter_, session_info->counter);
-            return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+            return TeslaBLE_Status_E_ERROR_COUNTER_REPLAY;
         }
 
         int status = setEpoch(session_info->epoch);

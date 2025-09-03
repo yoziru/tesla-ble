@@ -17,6 +17,7 @@ namespace TeslaBLE
         TeslaBLE_Status_E_ERROR_DECRYPT = 7,         /* Error decrypting response payload. */
         TeslaBLE_Status_E_ERROR_INVALID_PARAMS = 8,  /* Invalid input parameters. */
         TeslaBLE_Status_E_ERROR_CRYPTO = 9,          /* Cryptographic operation failed. */
+        TeslaBLE_Status_E_ERROR_COUNTER_REPLAY = 10, /* Counter anti-replay protection triggered. */
     } TeslaBLE_Status_E;
 
     // add helper functions to convert error codes to strings

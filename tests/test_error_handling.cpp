@@ -31,7 +31,10 @@ TEST_F(ErrorHandlingTest, ErrorCodeToStringMapping) {
     EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED), "ERROR_PRIVATE_KEY_NOT_INITIALIZED");
     EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_INVALID_SESSION), "ERROR_INVALID_SESSION");
     EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_ENCRYPT), "ERROR_ENCRYPT");
+    EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_DECRYPT), "ERROR_DECRYPT");
     EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_INVALID_PARAMS), "ERROR_INVALID_PARAMS");
+    EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_CRYPTO), "ERROR_CRYPTO");
+    EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_COUNTER_REPLAY), "ERROR_COUNTER_REPLAY");
 }
 
 TEST_F(ErrorHandlingTest, UnknownErrorCode) {
@@ -54,7 +57,10 @@ TEST_F(ErrorHandlingTest, AllErrorCodesAreMapped) {
         TeslaBLE::TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED,
         TeslaBLE::TeslaBLE_Status_E_ERROR_INVALID_SESSION,
         TeslaBLE::TeslaBLE_Status_E_ERROR_ENCRYPT,
-        TeslaBLE::TeslaBLE_Status_E_ERROR_INVALID_PARAMS
+        TeslaBLE::TeslaBLE_Status_E_ERROR_DECRYPT,
+        TeslaBLE::TeslaBLE_Status_E_ERROR_INVALID_PARAMS,
+        TeslaBLE::TeslaBLE_Status_E_ERROR_CRYPTO,
+        TeslaBLE::TeslaBLE_Status_E_ERROR_COUNTER_REPLAY
     };
     
     for (auto code : all_codes) {

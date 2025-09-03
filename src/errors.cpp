@@ -1,4 +1,6 @@
 #include "errors.h"
+#include <map>
+#include <string>
 
 namespace TeslaBLE
 {
@@ -8,24 +10,21 @@ namespace TeslaBLE
         TeslaBLE_Status_E status_enum = static_cast<TeslaBLE_Status_E>(status);
         switch (status_enum)
         {
-        case TeslaBLE_Status_E_OK:
-            return "OK";
-        case TeslaBLE_Status_E_ERROR_INTERNAL:
-            return "ERROR_INTERNAL";
-        case TeslaBLE_Status_E_ERROR_PB_ENCODING:
-            return "ERROR_PB_ENCODING";
-        case TeslaBLE_Status_E_ERROR_PB_DECODING:
-            return "ERROR_PB_DECODING";
-        case TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED:
-            return "ERROR_PRIVATE_KEY_NOT_INITIALIZED";
-        case TeslaBLE_Status_E_ERROR_INVALID_SESSION:
-            return "ERROR_INVALID_SESSION";
-        case TeslaBLE_Status_E_ERROR_ENCRYPT:
-            return "ERROR_ENCRYPT";
-        case TeslaBLE_Status_E_ERROR_INVALID_PARAMS:
-            return "ERROR_INVALID_PARAMS";
+#define TESLA_BLE_ERROR_DEF(name, value, string) case name: return string;
+            TESLA_BLE_ERROR_CODES
+#undef TESLA_BLE_ERROR_DEF
         default:
             return "ERROR_UNKNOWN";
         }
+    }
+
+    // Helper function to get all error codes and their string representations for testing
+    std::map<TeslaBLE_Status_E, std::string> getAllErrorCodesAndStrings()
+    {
+        std::map<TeslaBLE_Status_E, std::string> error_map;
+#define TESLA_BLE_ERROR_DEF(name, value, string) error_map[name] = string;
+        TESLA_BLE_ERROR_CODES
+#undef TESLA_BLE_ERROR_DEF
+        return error_map;
     }
 }

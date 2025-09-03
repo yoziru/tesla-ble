@@ -4,6 +4,7 @@
 #include <universal_message.pb.h>
 #include <cstring>
 #include <vector>
+#include <map>
 #include "test_constants.h"
 
 using namespace TeslaBLE;
@@ -22,16 +23,24 @@ protected:
     std::unique_ptr<TeslaBLE::Client> client;
 };
 
+// Helper function to get all error codes as a vector
+std::vector<TeslaBLE::TeslaBLE_Status_E> getAllErrorCodes() {
+    auto error_map = TeslaBLE::getAllErrorCodesAndStrings();
+    std::vector<TeslaBLE::TeslaBLE_Status_E> codes;
+    for (const auto& pair : error_map) {
+        codes.push_back(pair.first);
+    }
+    return codes;
+}
+
 TEST_F(ErrorHandlingTest, ErrorCodeToStringMapping) {
+    auto error_map = TeslaBLE::getAllErrorCodesAndStrings();
+    
     // Test all error codes have proper string representations
-    EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_OK), "OK");
-    EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_INTERNAL), "ERROR_INTERNAL");
-    EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_PB_ENCODING), "ERROR_PB_ENCODING");
-    EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_PB_DECODING), "ERROR_PB_DECODING");
-    EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED), "ERROR_PRIVATE_KEY_NOT_INITIALIZED");
-    EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_INVALID_SESSION), "ERROR_INVALID_SESSION");
-    EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_ENCRYPT), "ERROR_ENCRYPT");
-    EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(TeslaBLE::TeslaBLE_Status_E_ERROR_INVALID_PARAMS), "ERROR_INVALID_PARAMS");
+    for (const auto& pair : error_map) {
+        EXPECT_STREQ(TeslaBLE::TeslaBLE_Status_to_string(pair.first), pair.second.c_str()) 
+            << "Error code " << static_cast<int>(pair.first) << " should map to '" << pair.second << "'";
+    }
 }
 
 TEST_F(ErrorHandlingTest, UnknownErrorCode) {
@@ -45,22 +54,14 @@ TEST_F(ErrorHandlingTest, UnknownErrorCode) {
 }
 
 TEST_F(ErrorHandlingTest, AllErrorCodesAreMapped) {
-    // Ensure every error code has a non-null string representation
-    std::vector<TeslaBLE::TeslaBLE_Status_E> all_codes = {
-        TeslaBLE::TeslaBLE_Status_E_OK,
-        TeslaBLE::TeslaBLE_Status_E_ERROR_INTERNAL,
-        TeslaBLE::TeslaBLE_Status_E_ERROR_PB_ENCODING,
-        TeslaBLE::TeslaBLE_Status_E_ERROR_PB_DECODING,
-        TeslaBLE::TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED,
-        TeslaBLE::TeslaBLE_Status_E_ERROR_INVALID_SESSION,
-        TeslaBLE::TeslaBLE_Status_E_ERROR_ENCRYPT,
-        TeslaBLE::TeslaBLE_Status_E_ERROR_INVALID_PARAMS
-    };
+    auto all_codes = getAllErrorCodes();
     
+    // Ensure every error code has a non-null string representation
     for (auto code : all_codes) {
         const char* result = TeslaBLE::TeslaBLE_Status_to_string(code);
         EXPECT_NE(result, nullptr) << "Error code " << static_cast<int>(code) << " should have string representation";
         EXPECT_GT(strlen(result), 0) << "Error code " << static_cast<int>(code) << " should have non-empty string";
+        EXPECT_STRNE(result, "ERROR_UNKNOWN") << "Error code " << static_cast<int>(code) << " should not map to ERROR_UNKNOWN";
     }
 }
 

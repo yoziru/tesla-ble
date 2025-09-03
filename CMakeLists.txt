@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 
 include(FetchContent)
 project(TeslaBLE
-        VERSION 3.1.0
+        VERSION 3.2.0
         DESCRIPTION "CPP Tesla BLE Library"
         LANGUAGES CXX C
 )

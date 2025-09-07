@@ -514,8 +514,6 @@ namespace TeslaBLE
     LOG_DEBUG("Building message for domain: %d", domain);
     auto session = this->getPeer(domain);
 
-    session->incrementCounter();
-
     UniversalMessage_Destination from_destination = UniversalMessage_Destination_init_default;
     from_destination.which_sub_destination = UniversalMessage_Destination_routing_address_tag;
     memcpy(from_destination.sub_destination.routing_address.bytes, connection_id_.data(), connection_id_.size());
@@ -538,6 +536,8 @@ namespace TeslaBLE
         LOG_ERROR("Session not initialized");
         return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
       }
+
+      session->incrementCounter();
 
       pb_byte_t signature[16]; // AES-GCM tag
       pb_byte_t encrypted_payload[100];

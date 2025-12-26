@@ -1,0 +1,11 @@
+version: "3.3.0"
+description: "C++ library for Tesla BLE API communication"
+url: "https://github.com/yoziru/tesla-ble"
+dependencies:
+  idf:
+    version: ">=5.0.0"
+targets:
+  - esp32
+  - esp32s3
+  - esp32c3
+  - esp32c6

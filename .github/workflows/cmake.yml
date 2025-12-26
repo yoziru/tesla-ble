@@ -22,6 +22,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler build-essential
+          python3 -m pip install protobuf grpcio-tools
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2

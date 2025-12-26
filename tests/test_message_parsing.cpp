@@ -273,3 +273,113 @@ TEST_F(MessageParsingTest, ParsePayloadCarServerResponseEdgeCases) {
     );
     EXPECT_NE(result2, 0) << "Parsing with truncated data should fail";
 }
+
+TEST_F(MessageParsingTest, ExtractSOCFromChargeState) {
+    // Create a mock ChargeState with SOC data
+    CarServer_ChargeState charge_state = CarServer_ChargeState_init_default;
+    
+    // Set battery level to 85%
+    charge_state.which_optional_battery_level = CarServer_ChargeState_battery_level_tag;
+    charge_state.optional_battery_level.battery_level = 85;
+    
+    // Set usable battery level to 82%
+    charge_state.which_optional_usable_battery_level = CarServer_ChargeState_usable_battery_level_tag;
+    charge_state.optional_usable_battery_level.usable_battery_level = 82;
+    
+    // Extract SOC values
+    int32_t battery_level, usable_battery_level;
+    int result = client->extractSOCFromChargeState(&charge_state, &battery_level, &usable_battery_level);
+    
+    // Verify results
+    EXPECT_EQ(result, TeslaBLE_Status_E_OK);
+    EXPECT_EQ(battery_level, 85);
+    EXPECT_EQ(usable_battery_level, 82);
+}
+
+TEST_F(MessageParsingTest, PopulateSOCData) {
+    // Create a mock ChargeState with comprehensive SOC data
+    CarServer_ChargeState charge_state = CarServer_ChargeState_init_default;
+    
+    // Set battery level to 85%
+    charge_state.which_optional_battery_level = CarServer_ChargeState_battery_level_tag;
+    charge_state.optional_battery_level.battery_level = 85;
+    
+    // Set usable battery level to 82%  
+    charge_state.which_optional_usable_battery_level = CarServer_ChargeState_usable_battery_level_tag;
+    charge_state.optional_usable_battery_level.usable_battery_level = 82;
+    
+    // Set charge limit to 90%
+    charge_state.which_optional_charge_limit_soc = CarServer_ChargeState_charge_limit_soc_tag;
+    charge_state.optional_charge_limit_soc.charge_limit_soc = 90;
+    
+    // Populate SOCData structure
+    TeslaBLE::SOCData soc_data;
+    int result = client->populateSOCData(&charge_state, &soc_data);
+    
+    // Verify results
+    EXPECT_EQ(result, TeslaBLE_Status_E_OK);
+    EXPECT_TRUE(soc_data.valid);
+    EXPECT_EQ(soc_data.battery_level, 85);
+    EXPECT_EQ(soc_data.usable_battery_level, 82);
+    EXPECT_EQ(soc_data.charge_limit_soc, 90);
+}
+
+TEST_F(MessageParsingTest, ParseChargeStateFromVehicleData) {
+    // Create a mock VehicleData with ChargeState
+    CarServer_VehicleData vehicle_data = CarServer_VehicleData_init_default;
+    vehicle_data.has_charge_state = true;
+    
+    // Set up ChargeState data
+    vehicle_data.charge_state.which_optional_battery_level = CarServer_ChargeState_battery_level_tag;
+    vehicle_data.charge_state.optional_battery_level.battery_level = 75;
+    
+    // Extract ChargeState from VehicleData
+    CarServer_ChargeState* charge_state;
+    int result = client->parseChargeStateFromVehicleData(&vehicle_data, &charge_state);
+    
+    // Verify results
+    EXPECT_EQ(result, TeslaBLE_Status_E_OK);
+    ASSERT_NE(charge_state, nullptr);
+    EXPECT_EQ(charge_state->which_optional_battery_level, CarServer_ChargeState_battery_level_tag);
+    EXPECT_EQ(charge_state->optional_battery_level.battery_level, 75);
+}
+
+TEST_F(MessageParsingTest, ParseChargeStateFromVehicleDataNoChargeState) {
+    // Create a mock VehicleData WITHOUT ChargeState
+    CarServer_VehicleData vehicle_data = CarServer_VehicleData_init_default;
+    vehicle_data.has_charge_state = false;
+    
+    // Try to extract ChargeState
+    CarServer_ChargeState* charge_state;
+    int result = client->parseChargeStateFromVehicleData(&vehicle_data, &charge_state);
+    
+    // Should fail gracefully
+    EXPECT_EQ(result, TeslaBLE_Status_E_ERROR_INTERNAL);
+}
+
+TEST_F(MessageParsingTest, ExtractSOCFromVehicleDataEndToEnd) {
+    // Create a complete mock VehicleData response
+    CarServer_VehicleData vehicle_data = CarServer_VehicleData_init_default;
+    vehicle_data.has_charge_state = true;
+    
+    // Set comprehensive SOC data
+    vehicle_data.charge_state.which_optional_battery_level = CarServer_ChargeState_battery_level_tag;
+    vehicle_data.charge_state.optional_battery_level.battery_level = 88;
+    
+    vehicle_data.charge_state.which_optional_usable_battery_level = CarServer_ChargeState_usable_battery_level_tag;
+    vehicle_data.charge_state.optional_usable_battery_level.usable_battery_level = 85;
+    
+    vehicle_data.charge_state.which_optional_charge_limit_soc = CarServer_ChargeState_charge_limit_soc_tag;
+    vehicle_data.charge_state.optional_charge_limit_soc.charge_limit_soc = 95;
+    
+    // End-to-end SOC extraction
+    TeslaBLE::SOCData soc_data;
+    int result = client->extractSOCFromVehicleData(&vehicle_data, &soc_data);
+    
+    // Verify complete extraction
+    EXPECT_EQ(result, TeslaBLE_Status_E_OK);
+    EXPECT_TRUE(soc_data.valid);
+    EXPECT_EQ(soc_data.battery_level, 88);
+    EXPECT_EQ(soc_data.usable_battery_level, 85);
+    EXPECT_EQ(soc_data.charge_limit_soc, 95);
+}

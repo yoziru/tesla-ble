@@ -982,5 +982,96 @@ namespace TeslaBLE
                         output_buffer, output_length);
     return TeslaBLE_Status_E_OK;
   }
+
+  int Client::extractSOCFromChargeState(
+      CarServer_ChargeState* charge_state,
+      int32_t* battery_level,
+      int32_t* usable_battery_level)
+  {
+    if (!charge_state || !battery_level || !usable_battery_level) {
+      return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    }
+    
+    // Extract battery level
+    if (charge_state->which_optional_battery_level == CarServer_ChargeState_battery_level_tag) {
+      *battery_level = charge_state->optional_battery_level.battery_level;
+    } else {
+      *battery_level = -1; // Indicates field not present
+    }
+    
+    // Extract usable battery level  
+    if (charge_state->which_optional_usable_battery_level == CarServer_ChargeState_usable_battery_level_tag) {
+      *usable_battery_level = charge_state->optional_usable_battery_level.usable_battery_level;
+    } else {
+      *usable_battery_level = -1; // Indicates field not present
+    }
+    
+    return TeslaBLE_Status_E_OK;
+  }
+
+  int Client::populateSOCData(
+      CarServer_ChargeState* charge_state,
+      SOCData* soc_data)
+  {
+    if (!charge_state || !soc_data) {
+      return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    }
+    
+    // Initialize structure
+    *soc_data = SOCData{};
+    
+    // Extract battery level
+    if (charge_state->which_optional_battery_level == CarServer_ChargeState_battery_level_tag) {
+      soc_data->battery_level = charge_state->optional_battery_level.battery_level;
+    }
+    
+    // Extract usable battery level  
+    if (charge_state->which_optional_usable_battery_level == CarServer_ChargeState_usable_battery_level_tag) {
+      soc_data->usable_battery_level = charge_state->optional_usable_battery_level.usable_battery_level;
+    }
+    
+    // Extract charge limit
+    if (charge_state->which_optional_charge_limit_soc == CarServer_ChargeState_charge_limit_soc_tag) {
+      soc_data->charge_limit_soc = charge_state->optional_charge_limit_soc.charge_limit_soc;
+    }
+    
+    // Mark as valid if we got at least one SOC value
+    soc_data->valid = (soc_data->battery_level != -1 || soc_data->usable_battery_level != -1);
+    
+    return TeslaBLE_Status_E_OK;
+  }
+
+  int Client::parseChargeStateFromVehicleData(
+      CarServer_VehicleData* vehicle_data,
+      CarServer_ChargeState** charge_state)
+  {
+    if (!vehicle_data || !charge_state) {
+      return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    }
+    
+    if (!vehicle_data->has_charge_state) {
+      return TeslaBLE_Status_E_ERROR_INTERNAL;
+    }
+    
+    *charge_state = &vehicle_data->charge_state;
+    return TeslaBLE_Status_E_OK;
+  }
+
+  int Client::extractSOCFromVehicleData(
+      CarServer_VehicleData* vehicle_data,
+      SOCData* soc_data)
+  {
+    if (!vehicle_data || !soc_data) {
+      return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    }
+    
+    CarServer_ChargeState* charge_state;
+    int result = parseChargeStateFromVehicleData(vehicle_data, &charge_state);
+    if (result != TeslaBLE_Status_E_OK) {
+      return result;
+    }
+    
+    return populateSOCData(charge_state, soc_data);
+  }
 } // namespace TeslaBLE
 // #endif // MBEDTLS_CONFIG_FILE

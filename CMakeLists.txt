@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 3.22)
 
 include(FetchContent)
@@ -34,9 +33,10 @@ FetchContent_MakeAvailable(nanopb mbedtls)
 set(CMAKE_MODULE_PATH ${nanopb_SOURCE_DIR}/extra)
 find_package(Nanopb REQUIRED)
 
-#include_directories(${NANOPB_INCLUDE_DIRS})
-# disabled because of platformio library
-#nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS src/vcsec.proto)
+# Generate nanopb sources from proto files
+# Files are generated in ${CMAKE_CURRENT_BINARY_DIR} which is build/
+file(GLOB_RECURSE PROTO_FILES "${CMAKE_CURRENT_SOURCE_DIR}/proto/*.proto")
+nanopb_generate_cpp(TARGET tesla_ble_proto RELPATH proto ${PROTO_FILES})
 
 add_library(TeslaBLE
         STATIC
@@ -46,32 +46,20 @@ add_library(TeslaBLE
         src/tb_utils.cpp
         src/crypto_context.cpp
         src/message_builders.cpp
-        src/car_server.pb.c
-        src/common.pb.c
-        src/errors.pb.c
-        src/keys.pb.c
-        src/signatures.pb.c
-        src/universal_message.pb.c
-        src/vcsec.pb.c
-        src/vehicle.pb.c
-        ${nanopb_SOURCE_DIR}/pb_decode.c
-        ${nanopb_SOURCE_DIR}/pb_encode.c
-        ${nanopb_SOURCE_DIR}/pb_common.c
 )
+
+# Link the generated protobuf library (PUBLIC so consumers get the headers too)
+target_link_libraries(TeslaBLE PUBLIC tesla_ble_proto mbedcrypto mbedtls mbedx509)
 
 target_include_directories(
         TeslaBLE
         PRIVATE
         src/
-        ${NANOPB_INCLUDE_DIRS}
-        ${CMAKE_CURRENT_BINARY_DIR}
         PUBLIC
         include/
-        ${NANOPB_INCLUDE_DIRS}
-        ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-target_link_libraries(TeslaBLE PUBLIC mbedcrypto mbedtls mbedx509)
+# Removed separate mbedtls linking since it's now in target_link_libraries above
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/client.h)
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/errors.h)
 set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/peer.h)

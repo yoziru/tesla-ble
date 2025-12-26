@@ -1,23 +1,8 @@
-.DEFAULT_GOAL := generate
-
-generate_raw:
-	mkdir -p out
-	nanopb_generator *.proto --output-dir=out/
-
-fix:
-	sed '/google\/protobuf\/timestamp/d' out/car_server.pb.h > out/car_server.pb.h.tmp
-	mv out/car_server.pb.h.tmp out/car_server.pb.h
-	sed '/google\/protobuf\/timestamp/d' out/vehicle.pb.h > out/vehicle.pb.h.tmp
-	mv out/vehicle.pb.h.tmp out/vehicle.pb.h
-
-generate: generate_raw fix
-
-copy: generate
-	cp out/*.pb.h ../include
-	cp out/*.pb.c ../src
-	rm -rf out
+.DEFAULT_GOAL := help
 
 update:
+	@echo "Getting the latest commit hash from Tesla vehicle-command repository..."
+	@echo "Git commit hash: $$(git ls-remote https://github.com/teslamotors/vehicle-command.git main | cut -f1)"
 	@echo "Downloading latest protocol files from Tesla vehicle-command repository..."
 	curl -s -o car_server.proto "https://raw.githubusercontent.com/teslamotors/vehicle-command/main/pkg/protocol/protobuf/car_server.proto"
 	curl -s -o common.proto "https://raw.githubusercontent.com/teslamotors/vehicle-command/main/pkg/protocol/protobuf/common.proto"
@@ -29,6 +14,7 @@ update:
 	curl -s -o vcsec.proto "https://raw.githubusercontent.com/teslamotors/vehicle-command/main/pkg/protocol/protobuf/vcsec.proto"
 	curl -s -o vehicle.proto "https://raw.githubusercontent.com/teslamotors/vehicle-command/main/pkg/protocol/protobuf/vehicle.proto"
 	@echo "Protocol files updated successfully!"
-	@echo "Running make copy to regenerate headers and source files..."
-	$(MAKE) copy
-	@echo "Update complete!"
+
+help:
+	@echo "Makefile commands:"
+	@echo "  update    - Download the latest protocol files from the Tesla vehicle-command repo"

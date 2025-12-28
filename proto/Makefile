@@ -17,16 +17,11 @@ update:
 
 generate:
 	@echo "Regenerating protobuf files..."
-	mkdir -p ../generated/src ../generated/include/protobuf/google/protobuf
+	mkdir -p ../generated/src ../generated/include/google/protobuf
 	python3 ../build/nanopb/generator/nanopb_generator.py --output-dir=../generated/src *.proto google/protobuf/*.proto
-	@echo "Moving generated headers to include directory..."
-	mkdir -p ../generated/include/google/protobuf
-	mv ../generated/src/*.pb.h ../generated/include/protobuf/
+	@echo "Moving generated headers to generated/include..."
+	mv ../generated/src/*.pb.h ../generated/include/
 	mv ../generated/src/google/protobuf/*.pb.h ../generated/include/google/protobuf/
-	@echo "Copying headers to include directory for PlatformIO compatibility..."
-	mkdir -p ../include/google/protobuf
-	cp ../generated/include/protobuf/*.pb.h ../include/
-	cp ../generated/include/google/protobuf/*.pb.h ../include/google/protobuf/
 	@echo "Protobuf files regenerated successfully!"
 
 help:

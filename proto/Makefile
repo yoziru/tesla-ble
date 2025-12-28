@@ -15,6 +15,21 @@ update:
 	curl -s -o vehicle.proto "https://raw.githubusercontent.com/teslamotors/vehicle-command/main/pkg/protocol/protobuf/vehicle.proto"
 	@echo "Protocol files updated successfully!"
 
+generate:
+	@echo "Regenerating protobuf files..."
+	mkdir -p ../generated/src ../generated/include/protobuf/google/protobuf
+	python3 ../build/nanopb/generator/nanopb_generator.py --output-dir=../generated/src *.proto google/protobuf/*.proto
+	@echo "Moving generated headers to include directory..."
+	mkdir -p ../generated/include/google/protobuf
+	mv ../generated/src/*.pb.h ../generated/include/protobuf/
+	mv ../generated/src/google/protobuf/*.pb.h ../generated/include/google/protobuf/
+	@echo "Copying headers to include directory for PlatformIO compatibility..."
+	mkdir -p ../include/google/protobuf
+	cp ../generated/include/protobuf/*.pb.h ../include/
+	cp ../generated/include/google/protobuf/*.pb.h ../include/google/protobuf/
+	@echo "Protobuf files regenerated successfully!"
+
 help:
 	@echo "Makefile commands:"
 	@echo "  update    - Download the latest protocol files from the Tesla vehicle-command repo"
+	@echo "  generate - Regenerate protobuf C files from .proto files"

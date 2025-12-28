@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <client.h>
 #include <errors.h>
-#include <universal_message.pb.h>
+#include <protobuf/universal_message.pb.h>
 #include <cstring>
 #include <vector>
 #include <map>

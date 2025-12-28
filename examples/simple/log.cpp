@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <signatures.pb.h>
-#include <universal_message.pb.h>
-#include <vcsec.pb.h>
+#include <protobuf/signatures.pb.h>
+#include <protobuf/universal_message.pb.h>
+#include <protobuf/vcsec.pb.h>
 
 // Helper function to convert UniversalMessage_OperationStatus_E enum to string
 static const char *operation_status_to_string(UniversalMessage_OperationStatus_E status)

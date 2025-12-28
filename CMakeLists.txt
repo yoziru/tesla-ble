@@ -65,7 +65,6 @@ if(DEFINED ENV{IDF_PATH} AND COMMAND idf_component_register)
                 "src/keys.pb.c"
                 "src/managed_charging.pb.c"
                 "src/signatures.pb.c"
-                "src/timestamp.pb.c"
                 "src/universal_message.pb.c"
                 "src/vcsec.pb.c"
                 "src/vehicle.pb.c"
@@ -119,101 +118,59 @@ else()
     set(CMAKE_MODULE_PATH ${nanopb_SOURCE_DIR}/extra)
     find_package(Nanopb REQUIRED)
     
-    # Check if we should generate protobufs
-    # Generate if this is the main project and protoc is available
-    find_program(PROTOC_EXECUTABLE protoc)
-    if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND PROTOC_EXECUTABLE)
-        # Generate nanopb sources from proto files
-        file(GLOB_RECURSE PROTO_FILES "${CMAKE_CURRENT_SOURCE_DIR}/proto/*.proto")
-        nanopb_generate_cpp(TARGET tesla_ble_proto RELPATH proto ${PROTO_FILES})
-        
-        add_library(TeslaBLE
-                STATIC
-                src/client.cpp
-                src/errors.cpp
-                src/peer.cpp
-                src/tb_utils.cpp
-                src/crypto_context.cpp
-                src/message_builders.cpp
-        )
-        
-        # Link the generated protobuf library
-        target_link_libraries(TeslaBLE PUBLIC tesla_ble_proto mbedcrypto mbedtls mbedx509)
-        
-        target_include_directories(
-                TeslaBLE
-                PRIVATE
-                src/
-                PUBLIC
-                include/
-        )
-        
-        # Copy generated protobuf files back to source directories for committing
-        add_custom_command(TARGET TeslaBLE POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${CMAKE_CURRENT_BINARY_DIR}/*.pb.c
-                ${CMAKE_CURRENT_SOURCE_DIR}/src/
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${CMAKE_CURRENT_BINARY_DIR}/*.pb.h
-                ${CMAKE_CURRENT_SOURCE_DIR}/include/
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${CMAKE_CURRENT_BINARY_DIR}/google/protobuf/*.pb.*
-                ${CMAKE_CURRENT_SOURCE_DIR}/proto/google/protobuf/
-            COMMENT "Copying generated protobuf files back to source directories"
-        )
-    else()
-        # Use prebuilt protobuf sources
-        add_library(TeslaBLE
-                STATIC
-                src/client.cpp
-                src/errors.cpp
-                src/peer.cpp
-                src/tb_utils.cpp
-                src/crypto_context.cpp
-                src/message_builders.cpp
-                src/car_server.pb.c
-                src/common.pb.c
-                src/errors.pb.c
-                src/keys.pb.c
-                src/managed_charging.pb.c
-                src/signatures.pb.c
-                src/timestamp.pb.c
-                src/universal_message.pb.c
-                src/vcsec.pb.c
-                src/vehicle.pb.c
-                ${nanopb_SOURCE_DIR}/pb_decode.c
-                ${nanopb_SOURCE_DIR}/pb_encode.c
-                ${nanopb_SOURCE_DIR}/pb_common.c
-        )
-        
-        target_include_directories(
-                TeslaBLE
-                PRIVATE
-                src/
-                ${NANOPB_INCLUDE_DIRS}
-                PUBLIC
-                include/
-                ${NANOPB_INCLUDE_DIRS}
-        )
-        
-        target_link_libraries(TeslaBLE PUBLIC mbedcrypto mbedtls mbedx509)
-    endif()
+    add_library(TeslaBLE
+            STATIC
+            src/client.cpp
+            src/errors.cpp
+            src/peer.cpp
+            src/tb_utils.cpp
+            src/crypto_context.cpp
+            src/message_builders.cpp
+            generated/src/car_server.pb.c
+            generated/src/common.pb.c
+            generated/src/errors.pb.c
+            generated/src/keys.pb.c
+            generated/src/managed_charging.pb.c
+            generated/src/signatures.pb.c
+            generated/src/universal_message.pb.c
+            generated/src/vcsec.pb.c
+            generated/src/vehicle.pb.c
+            generated/src/google/protobuf/timestamp.pb.c
+            ${nanopb_SOURCE_DIR}/pb_decode.c
+            ${nanopb_SOURCE_DIR}/pb_encode.c
+            ${nanopb_SOURCE_DIR}/pb_common.c
+    )
+    
+    target_include_directories(
+            TeslaBLE
+            PRIVATE
+            src/
+            generated/include/
+            generated/src/
+            ${NANOPB_INCLUDE_DIRS}
+            PUBLIC
+            include/
+            generated/include/
+            ${NANOPB_INCLUDE_DIRS}
+    )
+    
+    target_link_libraries(TeslaBLE PUBLIC mbedcrypto mbedtls mbedx509)
     
     # Removed separate mbedtls linking since it's now in target_link_libraries above
     set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/client.h)
     set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/errors.h)
     set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/peer.h)
     set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/tb_utils.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/car_server.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/common.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/errors.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/keys.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/managed_charging.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/signatures.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/timestamp.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/universal_message.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/vcsec.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/vehicle.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/car_server.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/common.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/errors.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/keys.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/managed_charging.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/signatures.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/universal_message.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/vcsec.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/vehicle.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/google/protobuf/timestamp.pb.h)
     
     # Only build tests if this is the main project
     if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)

@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 #include <client.h>
 #include <cstring>
-#include <protobuf/universal_message.pb.h>
-#include <protobuf/vcsec.pb.h>
-#include <protobuf/signatures.pb.h>
-#include <protobuf/car_server.pb.h>
+#include <universal_message.pb.h>
+#include <vcsec.pb.h>
+#include <signatures.pb.h>
+#include <car_server.pb.h>
 #include "test_constants.h"
 
 using namespace TeslaBLE;

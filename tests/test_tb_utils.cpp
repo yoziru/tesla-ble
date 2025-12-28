@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <tb_utils.h>
-#include <protobuf/universal_message.pb.h>
-#include <protobuf/vcsec.pb.h>
+#include <universal_message.pb.h>
+#include <vcsec.pb.h>
 #include "test_constants.h"
 
 using namespace TeslaBLE;

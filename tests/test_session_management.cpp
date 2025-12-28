@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include <client.h>
 #include <peer.h>
-#include <protobuf/universal_message.pb.h>
-#include <protobuf/signatures.pb.h>
+#include <universal_message.pb.h>
+#include <signatures.pb.h>
 #include <cstring>
 #include "test_constants.h"
 

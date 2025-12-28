@@ -7,8 +7,8 @@
 
 #include "peer.h"
 #include "crypto_context.h"
-#include "protobuf/signatures.pb.h"
-#include "protobuf/universal_message.pb.h"
+#include "signatures.pb.h"
+#include "universal_message.pb.h"
 
 using namespace TeslaBLE;
 

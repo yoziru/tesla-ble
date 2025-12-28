@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include <client.h>
-#include <universal_message.pb.h>
-#include <signatures.pb.h>
-#include <car_server.pb.h>
+#include <protobuf/universal_message.pb.h>
+#include <protobuf/signatures.pb.h>
+#include <protobuf/car_server.pb.h>
 #include <cstring>
 #include "test_constants.h"
 

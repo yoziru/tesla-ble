@@ -37,8 +37,7 @@ if(DEFINED ENV{IDF_PATH} AND COMMAND idf_component_register)
             cmake_policy(SET CMP0169 OLD)
         endif()
         
-        # Fetch nanopb for proto generation and runtime
-        # We only need the sources and generator, not the build targets
+        # Fetch nanopb for runtime only (no generation)
         FetchContent_Declare(
             nanopb
             GIT_REPOSITORY https://github.com/nanopb/nanopb.git
@@ -51,110 +50,7 @@ if(DEFINED ENV{IDF_PATH} AND COMMAND idf_component_register)
             FetchContent_Populate(nanopb)
         endif()
         
-        # Get Python from ESP-IDF
-        idf_build_get_property(PYTHON PYTHON)
-        if(NOT PYTHON)
-            set(PYTHON "python3")
-        endif()
-        
-        # Ensure protobuf is available for nanopb generator
-        execute_process(
-            COMMAND "${PYTHON}" -c "import google.protobuf"
-            RESULT_VARIABLE PROTOBUF_CHECK
-            OUTPUT_QUIET ERROR_QUIET
-        )
-        if(NOT PROTOBUF_CHECK EQUAL 0)
-            message(STATUS "Installing Python protobuf package...")
-            
-            # First ensure pip is available
-            execute_process(
-                COMMAND "${PYTHON}" -m pip --version
-                RESULT_VARIABLE PIP_CHECK
-                OUTPUT_QUIET ERROR_QUIET
-            )
-            if(NOT PIP_CHECK EQUAL 0)
-                message(STATUS "Bootstrapping pip...")
-                execute_process(
-                    COMMAND "${PYTHON}" -m ensurepip --default-pip
-                    RESULT_VARIABLE ENSUREPIP_RESULT
-                    ERROR_VARIABLE ENSUREPIP_ERROR
-                )
-                if(NOT ENSUREPIP_RESULT EQUAL 0)
-                    message(FATAL_ERROR "Failed to bootstrap pip: ${ENSUREPIP_ERROR}")
-                endif()
-            endif()
-            
-            # Install protobuf
-            execute_process(
-                COMMAND "${PYTHON}" -m pip install --quiet protobuf
-                RESULT_VARIABLE PIP_RESULT
-                ERROR_VARIABLE PIP_ERROR
-            )
-            if(NOT PIP_RESULT EQUAL 0)
-                message(FATAL_ERROR "Failed to install protobuf: ${PIP_ERROR}")
-            endif()
-        endif()
-        
-        # Get all proto files (including subdirectories)
-        file(GLOB_RECURSE PROTO_FILES "${CMAKE_CURRENT_SOURCE_DIR}/proto/*.proto")
-        
-        set(PROTO_GENERATED_SRCS "")
-        set(PROTO_GENERATED_HDRS "")
-        
-        # Use the nanopb generator from the fetched content
-        set(NANOPB_GENERATOR "${nanopb_SOURCE_DIR}/generator/nanopb_generator.py")
-        
-        # Create google/protobuf directory for timestamp.pb.h
-        file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/google/protobuf")
-        
-        foreach(PROTO_FILE ${PROTO_FILES})
-            # Get relative path from proto directory
-            file(RELATIVE_PATH PROTO_REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/proto" "${PROTO_FILE}")
-            get_filename_component(PROTO_REL_DIR ${PROTO_REL_PATH} DIRECTORY)
-            get_filename_component(PROTO_NAME ${PROTO_FILE} NAME_WE)
-            
-            # Output goes directly to build dir, nanopb will create subdirs as needed
-            if(PROTO_REL_DIR)
-                set(PROTO_GEN_C "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_REL_DIR}/${PROTO_NAME}.pb.c")
-                set(PROTO_GEN_H "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_REL_DIR}/${PROTO_NAME}.pb.h")
-            else()
-                set(PROTO_GEN_C "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_NAME}.pb.c")
-                set(PROTO_GEN_H "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_NAME}.pb.h")
-            endif()
-            
-            # Check for .options file
-            set(OPTIONS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/proto/${PROTO_NAME}.options")
-            if(EXISTS ${OPTIONS_FILE})
-                set(OPTIONS_ARG "-f" "${OPTIONS_FILE}")
-            else()
-                set(OPTIONS_ARG "")
-            endif()
-            
-            list(APPEND PROTO_GENERATED_SRCS ${PROTO_GEN_C})
-            list(APPEND PROTO_GENERATED_HDRS ${PROTO_GEN_H})
-            
-            # Generate at configure time using execute_process
-            # Use the ESP-IDF Python which has protobuf installed
-            # Use -D to specify output directory as CMAKE_CURRENT_BINARY_DIR
-            # and rely on nanopb to preserve the relative path structure
-            execute_process(
-                COMMAND "${PYTHON}" "${NANOPB_GENERATOR}"
-                        -I "${CMAKE_CURRENT_SOURCE_DIR}/proto"
-                        -D "${CMAKE_CURRENT_BINARY_DIR}"
-                        ${OPTIONS_ARG}
-                        "${PROTO_REL_PATH}"
-                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/proto"
-                RESULT_VARIABLE PROTO_RESULT
-                OUTPUT_VARIABLE PROTO_OUTPUT
-                ERROR_VARIABLE PROTO_ERROR
-            )
-            
-            if(NOT PROTO_RESULT EQUAL 0)
-                message(WARNING "Failed to generate ${PROTO_NAME}: ${PROTO_ERROR}")
-            endif()
-        endforeach()
-        
-        # Register as ESP-IDF component with all sources
+        # Register as ESP-IDF component with prebuilt protobuf sources
         idf_component_register(
             SRCS
                 "src/client.cpp"
@@ -163,13 +59,20 @@ if(DEFINED ENV{IDF_PATH} AND COMMAND idf_component_register)
                 "src/tb_utils.cpp"
                 "src/crypto_context.cpp"
                 "src/message_builders.cpp"
+                "src/car_server.pb.c"
+                "src/common.pb.c"
+                "src/errors.pb.c"
+                "src/keys.pb.c"
+                "src/managed_charging.pb.c"
+                "src/signatures.pb.c"
+                "src/universal_message.pb.c"
+                "src/vcsec.pb.c"
+                "src/vehicle.pb.c"
                 "${nanopb_SOURCE_DIR}/pb_common.c"
                 "${nanopb_SOURCE_DIR}/pb_encode.c"
                 "${nanopb_SOURCE_DIR}/pb_decode.c"
-                ${PROTO_GENERATED_SRCS}
             INCLUDE_DIRS
                 "include"
-                "${CMAKE_CURRENT_BINARY_DIR}"
                 "${nanopb_SOURCE_DIR}"
             REQUIRES
                 mbedtls
@@ -185,7 +88,7 @@ else()
     
     include(FetchContent)
     project(TeslaBLE
-            VERSION 3.3.0
+            VERSION 3.3.1
             DESCRIPTION "CPP Tesla BLE Library"
             LANGUAGES CXX C
     )
@@ -215,11 +118,6 @@ else()
     set(CMAKE_MODULE_PATH ${nanopb_SOURCE_DIR}/extra)
     find_package(Nanopb REQUIRED)
     
-    # Generate nanopb sources from proto files
-    # Files are generated in ${CMAKE_CURRENT_BINARY_DIR} which is build/
-    file(GLOB_RECURSE PROTO_FILES "${CMAKE_CURRENT_SOURCE_DIR}/proto/*.proto")
-    nanopb_generate_cpp(TARGET tesla_ble_proto RELPATH proto ${PROTO_FILES})
-    
     add_library(TeslaBLE
             STATIC
             src/client.cpp
@@ -228,32 +126,51 @@ else()
             src/tb_utils.cpp
             src/crypto_context.cpp
             src/message_builders.cpp
+            generated/src/car_server.pb.c
+            generated/src/common.pb.c
+            generated/src/errors.pb.c
+            generated/src/keys.pb.c
+            generated/src/managed_charging.pb.c
+            generated/src/signatures.pb.c
+            generated/src/universal_message.pb.c
+            generated/src/vcsec.pb.c
+            generated/src/vehicle.pb.c
+            generated/src/google/protobuf/timestamp.pb.c
+            ${nanopb_SOURCE_DIR}/pb_decode.c
+            ${nanopb_SOURCE_DIR}/pb_encode.c
+            ${nanopb_SOURCE_DIR}/pb_common.c
     )
-    
-    # Link the generated protobuf library (PUBLIC so consumers get the headers too)
-    target_link_libraries(TeslaBLE PUBLIC tesla_ble_proto mbedcrypto mbedtls mbedx509)
     
     target_include_directories(
             TeslaBLE
             PRIVATE
             src/
+            generated/include/
+            generated/src/
+            ${NANOPB_INCLUDE_DIRS}
             PUBLIC
             include/
+            generated/include/
+            ${NANOPB_INCLUDE_DIRS}
     )
+    
+    target_link_libraries(TeslaBLE PUBLIC mbedcrypto mbedtls mbedx509)
     
     # Removed separate mbedtls linking since it's now in target_link_libraries above
     set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/client.h)
     set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/errors.h)
     set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/peer.h)
     set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/tb_utils.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/car_server.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/common.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/errors.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/keys.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/signatures.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/universal_message.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/vcsec.pb.h)
-    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/vehicle.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/car_server.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/common.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/errors.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/keys.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/managed_charging.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/signatures.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/universal_message.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/vcsec.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/vehicle.pb.h)
+    set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER generated/include/protobuf/google/protobuf/timestamp.pb.h)
     
     # Only build tests if this is the main project
     if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)

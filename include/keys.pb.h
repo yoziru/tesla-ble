@@ -17,7 +17,8 @@ typedef enum _Keys_Role {
     Keys_Role_ROLE_DRIVER = 3,
     Keys_Role_ROLE_FM = 4,
     Keys_Role_ROLE_VEHICLE_MONITOR = 5,
-    Keys_Role_ROLE_CHARGING_MANAGER = 6
+    Keys_Role_ROLE_CHARGING_MANAGER = 6,
+    Keys_Role_ROLE_GUEST = 8
 } Keys_Role;
 
 #ifdef __cplusplus
@@ -26,8 +27,8 @@ extern "C" {
 
 /* Helper constants for enums */
 #define _Keys_Role_MIN Keys_Role_ROLE_NONE
-#define _Keys_Role_MAX Keys_Role_ROLE_CHARGING_MANAGER
-#define _Keys_Role_ARRAYSIZE ((Keys_Role)(Keys_Role_ROLE_CHARGING_MANAGER+1))
+#define _Keys_Role_MAX Keys_Role_ROLE_GUEST
+#define _Keys_Role_ARRAYSIZE ((Keys_Role)(Keys_Role_ROLE_GUEST+1))
 
 
 #ifdef __cplusplus

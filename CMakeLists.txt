@@ -119,40 +119,85 @@ else()
     set(CMAKE_MODULE_PATH ${nanopb_SOURCE_DIR}/extra)
     find_package(Nanopb REQUIRED)
     
-    add_library(TeslaBLE
-            STATIC
-            src/client.cpp
-            src/errors.cpp
-            src/peer.cpp
-            src/tb_utils.cpp
-            src/crypto_context.cpp
-            src/message_builders.cpp
-            src/car_server.pb.c
-            src/common.pb.c
-            src/errors.pb.c
-            src/keys.pb.c
-            src/managed_charging.pb.c
-            src/signatures.pb.c
-            src/timestamp.pb.c
-            src/universal_message.pb.c
-            src/vcsec.pb.c
-            src/vehicle.pb.c
-            ${nanopb_SOURCE_DIR}/pb_decode.c
-            ${nanopb_SOURCE_DIR}/pb_encode.c
-            ${nanopb_SOURCE_DIR}/pb_common.c
-    )
-    
-    target_include_directories(
-            TeslaBLE
-            PRIVATE
-            src/
-            ${NANOPB_INCLUDE_DIRS}
-            PUBLIC
-            include/
-            ${NANOPB_INCLUDE_DIRS}
-    )
-    
-    target_link_libraries(TeslaBLE PUBLIC mbedcrypto mbedtls mbedx509)
+    # Check if we should generate protobufs
+    # Generate if this is the main project and protoc is available
+    find_program(PROTOC_EXECUTABLE protoc)
+    if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND PROTOC_EXECUTABLE)
+        # Generate nanopb sources from proto files
+        file(GLOB_RECURSE PROTO_FILES "${CMAKE_CURRENT_SOURCE_DIR}/proto/*.proto")
+        nanopb_generate_cpp(TARGET tesla_ble_proto RELPATH proto ${PROTO_FILES})
+        
+        add_library(TeslaBLE
+                STATIC
+                src/client.cpp
+                src/errors.cpp
+                src/peer.cpp
+                src/tb_utils.cpp
+                src/crypto_context.cpp
+                src/message_builders.cpp
+        )
+        
+        # Link the generated protobuf library
+        target_link_libraries(TeslaBLE PUBLIC tesla_ble_proto mbedcrypto mbedtls mbedx509)
+        
+        target_include_directories(
+                TeslaBLE
+                PRIVATE
+                src/
+                PUBLIC
+                include/
+        )
+        
+        # Copy generated protobuf files back to source directories for committing
+        add_custom_command(TARGET TeslaBLE POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_CURRENT_BINARY_DIR}/*.pb.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_CURRENT_BINARY_DIR}/*.pb.h
+                ${CMAKE_CURRENT_SOURCE_DIR}/include/
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_CURRENT_BINARY_DIR}/google/protobuf/*.pb.*
+                ${CMAKE_CURRENT_SOURCE_DIR}/proto/google/protobuf/
+            COMMENT "Copying generated protobuf files back to source directories"
+        )
+    else()
+        # Use prebuilt protobuf sources
+        add_library(TeslaBLE
+                STATIC
+                src/client.cpp
+                src/errors.cpp
+                src/peer.cpp
+                src/tb_utils.cpp
+                src/crypto_context.cpp
+                src/message_builders.cpp
+                src/car_server.pb.c
+                src/common.pb.c
+                src/errors.pb.c
+                src/keys.pb.c
+                src/managed_charging.pb.c
+                src/signatures.pb.c
+                src/timestamp.pb.c
+                src/universal_message.pb.c
+                src/vcsec.pb.c
+                src/vehicle.pb.c
+                ${nanopb_SOURCE_DIR}/pb_decode.c
+                ${nanopb_SOURCE_DIR}/pb_encode.c
+                ${nanopb_SOURCE_DIR}/pb_common.c
+        )
+        
+        target_include_directories(
+                TeslaBLE
+                PRIVATE
+                src/
+                ${NANOPB_INCLUDE_DIRS}
+                PUBLIC
+                include/
+                ${NANOPB_INCLUDE_DIRS}
+        )
+        
+        target_link_libraries(TeslaBLE PUBLIC mbedcrypto mbedtls mbedx509)
+    endif()
     
     # Removed separate mbedtls linking since it's now in target_link_libraries above
     set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER include/client.h)

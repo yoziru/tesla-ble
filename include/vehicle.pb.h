@@ -4,6 +4,7 @@
 #ifndef PB_CARSERVER_VEHICLE_PB_H_INCLUDED
 #define PB_CARSERVER_VEHICLE_PB_H_INCLUDED
 #include <pb.h>
+#include "google/protobuf/timestamp.pb.h"
 #include "vcsec.pb.h"
 #include "common.pb.h"
 #include "managed_charging.pb.h"

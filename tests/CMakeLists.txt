@@ -27,19 +27,19 @@ set(TEST_SOURCE ../examples/simple/log.cpp)
 
 # List of all test files
 set(TEST_FILES
+    test_ad_buffer_construction.cpp
     test_client.cpp
+    test_error_handling.cpp
     test_key_generation.cpp
     test_message_building.cpp
     test_message_parsing.cpp
-    test_session_management.cpp
-    test_tb_utils.cpp
-    test_error_handling.cpp
-    test_ad_buffer_construction.cpp
-    test_protocol_vectors.cpp
-    test_protocol_handshake.cpp
     test_protocol_authentication.cpp
     test_protocol_edge_cases.cpp
     test_protocol_failures.cpp
+    test_protocol_handshake.cpp
+    test_protocol_vectors.cpp
+    test_session_management.cpp
+    test_tb_utils.cpp
 )
 
 # Main test executable with all tests

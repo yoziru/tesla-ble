@@ -2,6 +2,38 @@
 set(GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/generated/include")
 set(GENERATED_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/generated/src")
 
+# Common source files across all builds
+set(TESLABLE_SRCS
+    "src/client.cpp"
+    "src/crypto_context.cpp"
+    "src/errors.cpp"
+    "src/message_builders.cpp"
+    "src/peer.cpp"
+    "src/tb_utils.cpp"
+)
+
+# Protobuf generated source files
+set(TESLABLE_PROTO_SRCS
+    "${GENERATED_SRC_DIR}/car_server.pb.c"
+    "${GENERATED_SRC_DIR}/common.pb.c"
+    "${GENERATED_SRC_DIR}/errors.pb.c"
+    "${GENERATED_SRC_DIR}/google/protobuf/timestamp.pb.c"
+    "${GENERATED_SRC_DIR}/keys.pb.c"
+    "${GENERATED_SRC_DIR}/managed_charging.pb.c"
+    "${GENERATED_SRC_DIR}/signatures.pb.c"
+    "${GENERATED_SRC_DIR}/universal_message.pb.c"
+    "${GENERATED_SRC_DIR}/vcsec.pb.c"
+    "${GENERATED_SRC_DIR}/vehicle.pb.c"
+)
+
+# Public headers
+set(TESLABLE_PUBLIC_HEADERS
+    include/client.h
+    include/errors.h
+    include/peer.h
+    include/tb_utils.h
+)
+
 # Detect if we're being used as an ESP-IDF component
 # ESP-IDF sets IDF_PATH and includes component.cmake before processing CMakeLists.txt
 if(DEFINED ENV{IDF_PATH} AND COMMAND idf_component_register)
@@ -12,15 +44,6 @@ if(DEFINED ENV{IDF_PATH} AND COMMAND idf_component_register)
     # 1. In script mode to extract requirements (CMAKE_SCRIPT_MODE_FILE is set)
     # 2. In normal mode during actual build
     
-    set(TESLABLE_SRCS
-        "src/client.cpp"
-        "src/errors.cpp"
-        "src/peer.cpp"
-        "src/tb_utils.cpp"
-        "src/crypto_context.cpp"
-        "src/message_builders.cpp"
-    )
-    
     if(CMAKE_SCRIPT_MODE_FILE)
         # Script mode: register with minimal info for dependency resolution
         idf_component_register(
@@ -30,48 +53,44 @@ if(DEFINED ENV{IDF_PATH} AND COMMAND idf_component_register)
         )
     else()
         # Normal build mode: fetch dependencies and build with prebuilt protobuf sources
-         include(FetchContent)
-         
-         # Use FetchContent_Populate to avoid adding nanopb's build targets
-         # which conflict with ESP-IDF's build system
-         if(POLICY CMP0169)
-             cmake_policy(SET CMP0169 OLD)
-         endif()
-         
-         FetchContent_Declare(
-             nanopb
-             GIT_REPOSITORY https://github.com/nanopb/nanopb.git
-             GIT_TAG 0.4.9.1
-             GIT_SHALLOW TRUE
-         )
-         FetchContent_GetProperties(nanopb)
-         if(NOT nanopb_POPULATED)
-             FetchContent_Populate(nanopb)
-         endif()
-         
-         idf_component_register(
-             SRCS
-                 ${TESLABLE_SRCS}
-                 "${GENERATED_SRC_DIR}/car_server.pb.c"
-                 "${GENERATED_SRC_DIR}/common.pb.c"
-                 "${GENERATED_SRC_DIR}/errors.pb.c"
-                 "${GENERATED_SRC_DIR}/keys.pb.c"
-                 "${GENERATED_SRC_DIR}/managed_charging.pb.c"
-                 "${GENERATED_SRC_DIR}/signatures.pb.c"
-                 "${GENERATED_SRC_DIR}/universal_message.pb.c"
-                 "${GENERATED_SRC_DIR}/vcsec.pb.c"
-                 "${GENERATED_SRC_DIR}/vehicle.pb.c"
-                 "${GENERATED_SRC_DIR}/google/protobuf/timestamp.pb.c"
-                 "${nanopb_SOURCE_DIR}/pb_common.c"
-                 "${nanopb_SOURCE_DIR}/pb_encode.c"
-                 "${nanopb_SOURCE_DIR}/pb_decode.c"
-             INCLUDE_DIRS
-                 "include"
-                 "${GENERATED_INCLUDE_DIR}"
-                 "${nanopb_SOURCE_DIR}"
-             REQUIRES
-                 mbedtls
-         )
+        include(FetchContent)
+        
+        # Use FetchContent_Populate to avoid adding nanopb's build targets
+        # which conflict with ESP-IDF's build system
+        if(POLICY CMP0169)
+            cmake_policy(SET CMP0169 OLD)
+        endif()
+        
+        FetchContent_Declare(
+            nanopb
+            GIT_REPOSITORY https://github.com/nanopb/nanopb.git
+            GIT_TAG 0.4.9.1
+            GIT_SHALLOW TRUE
+        )
+        FetchContent_GetProperties(nanopb)
+        if(NOT nanopb_POPULATED)
+            FetchContent_Populate(nanopb)
+        endif()
+        
+        # Nanopb library sources (must be defined after nanopb is populated)
+        set(TESLABLE_NANOPB_SRCS
+            "${nanopb_SOURCE_DIR}/pb_common.c"
+            "${nanopb_SOURCE_DIR}/pb_decode.c"
+            "${nanopb_SOURCE_DIR}/pb_encode.c"
+        )
+        
+        idf_component_register(
+            SRCS
+                ${TESLABLE_SRCS}
+                ${TESLABLE_PROTO_SRCS}
+                ${TESLABLE_NANOPB_SRCS}
+            INCLUDE_DIRS
+                "include"
+                "${GENERATED_INCLUDE_DIR}"
+                "${nanopb_SOURCE_DIR}"
+            REQUIRES
+                mbedtls
+        )
     endif()
 
 else()
@@ -113,26 +132,17 @@ else()
     set(CMAKE_MODULE_PATH ${nanopb_SOURCE_DIR}/extra)
     find_package(Nanopb REQUIRED)
 
+    # Nanopb library sources (must be defined after nanopb is available)
+    set(TESLABLE_NANOPB_SRCS
+        "${nanopb_SOURCE_DIR}/pb_common.c"
+        "${nanopb_SOURCE_DIR}/pb_decode.c"
+        "${nanopb_SOURCE_DIR}/pb_encode.c"
+    )
+
     add_library(TeslaBLE STATIC
-        src/client.cpp
-        src/errors.cpp
-        src/peer.cpp
-        src/tb_utils.cpp
-        src/crypto_context.cpp
-        src/message_builders.cpp
-        ${GENERATED_SRC_DIR}/car_server.pb.c
-        ${GENERATED_SRC_DIR}/common.pb.c
-        ${GENERATED_SRC_DIR}/errors.pb.c
-        ${GENERATED_SRC_DIR}/keys.pb.c
-        ${GENERATED_SRC_DIR}/managed_charging.pb.c
-        ${GENERATED_SRC_DIR}/signatures.pb.c
-        ${GENERATED_SRC_DIR}/universal_message.pb.c
-        ${GENERATED_SRC_DIR}/vcsec.pb.c
-        ${GENERATED_SRC_DIR}/vehicle.pb.c
-        ${GENERATED_SRC_DIR}/google/protobuf/timestamp.pb.c
-        ${nanopb_SOURCE_DIR}/pb_common.c
-        ${nanopb_SOURCE_DIR}/pb_encode.c
-        ${nanopb_SOURCE_DIR}/pb_decode.c
+        ${TESLABLE_SRCS}
+        ${TESLABLE_PROTO_SRCS}
+        ${TESLABLE_NANOPB_SRCS}
     )
 
     target_include_directories(TeslaBLE
@@ -150,13 +160,6 @@ else()
     
     target_link_libraries(TeslaBLE PUBLIC mbedcrypto mbedtls mbedx509)
 
-    # Install public headers
-    set(TESLABLE_PUBLIC_HEADERS
-        include/client.h
-        include/errors.h
-        include/peer.h
-        include/tb_utils.h
-    )
     set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER "${TESLABLE_PUBLIC_HEADERS}")
     
     # Only build tests if this is the main project

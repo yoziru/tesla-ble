@@ -16,6 +16,16 @@
 namespace TeslaBLE
 {
     /**
+     * @brief Structure to hold State of Charge (SOC) data
+     */
+    struct SOCData {
+        bool valid = false;                   // Indicates if data is valid
+        int32_t battery_level = -1;          // Current SOC percentage
+        int32_t usable_battery_level = -1;   // Usable SOC percentage  
+        int32_t charge_limit_soc = -1;       // Target SOC percentage
+    };
+
+    /**
      * @brief Main client class for Tesla BLE communication
      * 
      * This class provides a high-level interface for communicating with Tesla vehicles
@@ -155,6 +165,24 @@ namespace TeslaBLE
             pb_size_t which_sub_sigData,
             UniversalMessage_MessageFault_E signed_message_fault,
             CarServer_Response* output);
+
+        // SOC (State of Charge) functionality
+        int extractSOCFromChargeState(
+            CarServer_ChargeState* charge_state,
+            int32_t* battery_level,
+            int32_t* usable_battery_level);
+
+        int populateSOCData(
+            CarServer_ChargeState* charge_state,
+            SOCData* soc_data);
+
+        int parseChargeStateFromVehicleData(
+            CarServer_VehicleData* vehicle_data,
+            CarServer_ChargeState** charge_state);
+
+        int extractSOCFromVehicleData(
+            CarServer_VehicleData* vehicle_data,
+            SOCData* soc_data);
 
     private:
         // Legacy implementation - to be phased out

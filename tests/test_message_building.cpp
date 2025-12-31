@@ -175,6 +175,45 @@ TEST_F(MessageBuildingTest, BuildVCSECInformationRequestMessage) {
     EXPECT_LE(info_request_length, sizeof(info_request_buffer)) << "Message should fit in buffer";
 }
 
+TEST_F(MessageBuildingTest, BuildVCSECClosureMessage) {
+    unsigned char closure_message_buffer[UniversalMessage_RoutableMessage_size];
+    size_t closure_message_length = 0;
+    
+    VCSEC_ClosureMoveRequest closure_request = VCSEC_ClosureMoveRequest_init_default;
+    closure_request.frontDriverDoor = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN;
+    closure_request.rearTrunk = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE;
+    
+    int result = client->buildVCSECClosureMessage(
+        &closure_request,
+        closure_message_buffer,
+        &closure_message_length
+    );
+    
+    EXPECT_EQ(result, 0) << "Building closure message should succeed";
+    EXPECT_GT(closure_message_length, 0) << "Closure message should have non-zero length";
+    EXPECT_LE(closure_message_length, sizeof(closure_message_buffer)) << "Message should fit in buffer";
+}
+
+TEST_F(MessageBuildingTest, BuildVCSECClosureMessageMultipleDoors) {
+    unsigned char closure_message_buffer[UniversalMessage_RoutableMessage_size];
+    size_t closure_message_length = 0;
+    
+    VCSEC_ClosureMoveRequest closure_request = VCSEC_ClosureMoveRequest_init_default;
+    closure_request.frontDriverDoor = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN;
+    closure_request.rearDriverDoor = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE;
+    closure_request.rearTrunk = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN;
+    
+    int result = client->buildVCSECClosureMessage(
+        &closure_request,
+        closure_message_buffer,
+        &closure_message_length
+    );
+    
+    EXPECT_EQ(result, 0) << "Building closure message with multiple doors should succeed";
+    EXPECT_GT(closure_message_length, 0) << "Closure message should have non-zero length";
+    EXPECT_LE(closure_message_length, sizeof(closure_message_buffer)) << "Message should fit in buffer";
+}
+
 
 
 TEST_F(MessageBuildingTest, BuildMessagesWithInvalidParameters) {

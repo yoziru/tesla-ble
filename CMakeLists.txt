@@ -10,6 +10,7 @@ set(TESLABLE_SRCS
     "src/message_builders.cpp"
     "src/peer.cpp"
     "src/tb_utils.cpp"
+    "src/vin_utils.cpp"
 )
 
 # Protobuf generated source files
@@ -32,6 +33,7 @@ set(TESLABLE_PUBLIC_HEADERS
     include/errors.h
     include/peer.h
     include/tb_utils.h
+    include/vin_utils.h
 )
 
 # Detect if we're being used as an ESP-IDF component

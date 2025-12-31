@@ -2,9 +2,11 @@
 
 #ifdef ESP_PLATFORM
 
+#ifndef LOG_LOCAL_LEVEL
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#endif
 #include "esp_log.h"
 static const char *const TAG = "tesla_ble";
-#define CONFIG_LOG_DEFAULT_LEVEL_DEBUG
 #define LOG(...) ESP_LOGI(TAG, __VA_ARGS__)
 #define LOG_INFO(...) ESP_LOGI(TAG, __VA_ARGS__)
 #define LOG_DEBUG(...) ESP_LOGD(TAG, __VA_ARGS__)
@@ -32,8 +34,7 @@ void log(const char *type, const char *color, const char *s, Args... args)
 {
     printf("%s%s - ", color, type);
     if constexpr (sizeof...(args) > 0) {
-        // printf(": ");
-        printf(s, args...);  // Only use format specifiers for additional arguments
+        printf(s, args...);
     } else {
         printf("%s", s);
     }

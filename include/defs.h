@@ -34,8 +34,7 @@ void log(const char *type, const char *color, const char *s, Args... args)
 {
     printf("%s%s - ", color, type);
     if constexpr (sizeof...(args) > 0) {
-        // printf(": ");
-        printf(s, args...);  // Only use format specifiers for additional arguments
+        printf(s, args...);
     } else {
         printf("%s", s);
     }

@@ -99,6 +99,11 @@ namespace TeslaBLE
             pb_byte_t* output_buffer,
             size_t* output_length);
 
+        int buildVCSECClosureMessage(
+            const VCSEC_ClosureMoveRequest* closure_request,
+            pb_byte_t* output_buffer,
+            size_t* output_length);
+
         int buildCarServerGetVehicleDataMessage(
             pb_byte_t* output_buffer,
             size_t* output_length,

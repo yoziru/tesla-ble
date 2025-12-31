@@ -2,9 +2,11 @@
 
 #ifdef ESP_PLATFORM
 
+#ifndef LOG_LOCAL_LEVEL
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#endif
 #include "esp_log.h"
 static const char *const TAG = "tesla_ble";
-#define CONFIG_LOG_DEFAULT_LEVEL_DEBUG
 #define LOG(...) ESP_LOGI(TAG, __VA_ARGS__)
 #define LOG_INFO(...) ESP_LOGI(TAG, __VA_ARGS__)
 #define LOG_DEBUG(...) ESP_LOGD(TAG, __VA_ARGS__)

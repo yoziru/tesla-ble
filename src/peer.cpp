@@ -7,6 +7,7 @@
 #include <chrono>
 #include <pb.h>
 #include <inttypes.h>
+#include "defs.h"
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/ecdh.h>
 #include <mbedtls/entropy.h>

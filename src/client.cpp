@@ -11,6 +11,7 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
+#include "defs.h"
 
 #include <pb_decode.h>
 #include <pb_encode.h>

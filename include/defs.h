@@ -12,6 +12,7 @@ static const char *const TAG = "tesla_ble";
 #define LOG_DEBUG(...) ESP_LOGD(TAG, __VA_ARGS__)
 #define LOG_ERROR(...) ESP_LOGE(TAG, __VA_ARGS__)
 #define LOG_WARNING(...) ESP_LOGW(TAG, __VA_ARGS__)
+#define LOG_VERBOSE(...) ESP_LOGV(TAG, __VA_ARGS__)
 
 #else
 
@@ -29,6 +30,7 @@ static const char *const TAG = "tesla_ble";
 #define LOG_DEBUG(...) log("[DEBUG]", DEBUG_COLOR, __VA_ARGS__)
 #define LOG_WARNING(...) log("[WARNING]", WARNING_COLOR, __VA_ARGS__)
 #define LOG_ERROR(...) log("[ERROR]", ERROR_COLOR, __VA_ARGS__)
+#define LOG_VERBOSE(...) log("[VERBOSE]", DEBUG_COLOR, __VA_ARGS__)
 template <typename... Args>
 void log(const char *type, const char *color, const char *s, Args... args)
 {

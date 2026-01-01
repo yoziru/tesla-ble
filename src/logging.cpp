@@ -25,35 +25,32 @@ std::string format_hex(const uint8_t* data, size_t length)
     return hex;
 }
 
-// Helper function to convert UniversalMessage_OperationStatus_E enum to string
-const char *operation_status_to_string(UniversalMessage_OperationStatus_E status)
+// Helper function to convert OperationStatus enum to string
+// Both UniversalMessage and VCSEC use the same underlying values for these.
+template<typename T>
+const char* generic_operation_status_to_string(T status)
 {
-    switch (status)
+    switch (static_cast<int>(status))
     {
-    case UniversalMessage_OperationStatus_E_OPERATIONSTATUS_OK:
+    case 0: // OK
         return "OK";
-    case UniversalMessage_OperationStatus_E_OPERATIONSTATUS_WAIT:
+    case 1: // WAIT
         return "WAIT";
-    case UniversalMessage_OperationStatus_E_OPERATIONSTATUS_ERROR:
+    case 2: // ERROR
         return "ERROR";
     default:
         return "UNKNOWN_STATUS";
     }
 }
 
+const char *operation_status_to_string(UniversalMessage_OperationStatus_E status)
+{
+    return generic_operation_status_to_string(status);
+}
+
 const char *vcsec_operation_status_to_string(VCSEC_OperationStatus_E status)
 {
-    switch (status)
-    {
-    case VCSEC_OperationStatus_E_OPERATIONSTATUS_OK:
-        return "OK";
-    case VCSEC_OperationStatus_E_OPERATIONSTATUS_WAIT:
-        return "WAIT";
-    case VCSEC_OperationStatus_E_OPERATIONSTATUS_ERROR:
-        return "ERROR";
-    default:
-        return "UNKNOWN_STATUS";
-    }
+    return generic_operation_status_to_string(status);
 }
 
 const char *information_request_type_to_string(VCSEC_InformationRequestType request_type)
@@ -594,12 +591,12 @@ void log_vcsec_command_status(const char *tag, const VCSEC_CommandStatus *msg)
 
 void carserver_result_reason_to_string(const char *tag, const CarServer_ResultReason *reason)
 {
-    LOG_INFO("  ResultReason:");
-    LOG_INFO("    which_reason: %d", reason->which_reason);
+    LOG_ERROR("  ResultReason:");
+    LOG_ERROR("    which_reason: %d", reason->which_reason);
     switch (reason->which_reason)
     {
     case CarServer_ResultReason_plain_text_tag:
-        LOG_INFO("    plain_text: %s", reason->reason.plain_text);
+        LOG_ERROR("    plain_text: %s", reason->reason.plain_text);
         break;
     default:
         LOG_DEBUG("    unknown reason");
@@ -691,19 +688,19 @@ void log_carserver_response(const char *tag, const CarServer_Response *msg)
 
     if (msg->has_actionStatus)
     {
-        LOG_DEBUG("  ActionStatus:");
-        LOG_DEBUG("    result: %s", carserver_operation_status_to_string(msg->actionStatus.result));
-        if (msg->actionStatus.has_result_reason)
+        if (msg->actionStatus.result != CarServer_OperationStatus_E_OPERATIONSTATUS_OK)
         {
-            switch (msg->actionStatus.result_reason.which_reason)
+            LOG_ERROR("  ActionStatus:");
+            LOG_ERROR("    result: %s", carserver_operation_status_to_string(msg->actionStatus.result));
+            if (msg->actionStatus.has_result_reason)
             {
-            case CarServer_ResultReason_plain_text_tag:
-                LOG_DEBUG("    reason: %s", msg->actionStatus.result_reason.reason.plain_text);
-                break;
-            default:
-                LOG_DEBUG("    unknown reason");
-                break;
+                carserver_result_reason_to_string(tag, &msg->actionStatus.result_reason);
             }
+        }
+        else
+        {
+            LOG_DEBUG("  ActionStatus:");
+            LOG_DEBUG("    result: %s", carserver_operation_status_to_string(msg->actionStatus.result));
         }
     }
 
@@ -716,63 +713,55 @@ void log_carserver_response(const char *tag, const CarServer_Response *msg)
         LOG_DEBUG("    VehicleData size: %zu", sizeof(msg->response_msg.vehicleData));
 
         if (msg->response_msg.vehicleData.has_charge_state) {
-            LOG_DEBUG("Has Charge State: true");
-            // logChargeState(tag, msg->response_msg.vehicleData.charge_state);
+            logChargeState(tag, msg->response_msg.vehicleData.charge_state);
         }
         
         if (msg->response_msg.vehicleData.has_climate_state) {
-            LOG_DEBUG("Has Climate State: true");
-            // Add climate state logging if needed
+            LOG_DEBUG("  Climate State:");
+            if (msg->response_msg.vehicleData.climate_state.which_optional_inside_temp_celsius) {
+                LOG_DEBUG("    Inside Temp: %.1f", msg->response_msg.vehicleData.climate_state.optional_inside_temp_celsius.inside_temp_celsius);
+            }
+            if (msg->response_msg.vehicleData.climate_state.which_optional_outside_temp_celsius) {
+                LOG_DEBUG("    Outside Temp: %.1f", msg->response_msg.vehicleData.climate_state.optional_outside_temp_celsius.outside_temp_celsius);
+            }
+            if (msg->response_msg.vehicleData.climate_state.which_optional_is_climate_on) {
+                LOG_DEBUG("    HVAC On: %s", msg->response_msg.vehicleData.climate_state.optional_is_climate_on.is_climate_on ? "true" : "false");
+            }
         }
         
         if (msg->response_msg.vehicleData.has_drive_state) {
-            LOG_DEBUG("Has Drive State: true");
-            // Add drive state logging if needed
+            LOG_DEBUG("  Drive State:");
+            // Shift state might be an enum or int in a union, checking common pattern
+            if (msg->response_msg.vehicleData.drive_state.which_optional_speed_float) {
+                LOG_DEBUG("    Speed: %.1f", msg->response_msg.vehicleData.drive_state.optional_speed_float.speed_float);
+            }
+            if (msg->response_msg.vehicleData.drive_state.which_optional_power) {
+                LOG_DEBUG("    Power: %d", msg->response_msg.vehicleData.drive_state.optional_power.power);
+            }
         }
         
         if (msg->response_msg.vehicleData.has_location_state) {
-            LOG_DEBUG("Has Location State: true");
-            // Add location state logging if needed
+            LOG_DEBUG("  Location State: present");
         }
 
         if (msg->response_msg.vehicleData.has_closures_state) {
-            LOG_DEBUG("Has Closures State: true");
-            // Add closures state logging if needed
-        }
-
-        if (msg->response_msg.vehicleData.has_charge_schedule_state) {
-            LOG_DEBUG("Has Charge Schedule State: true");
-            // Add charge schedule state logging if needed
-        }
-
-        if (msg->response_msg.vehicleData.has_preconditioning_schedule_state) {
-            LOG_DEBUG("Has Preconditioning Schedule State: true");
-            // Add preconditioning schedule state logging if needed
+            LOG_DEBUG("  Closures State: present");
         }
 
         if (msg->response_msg.vehicleData.has_tire_pressure_state) {
-            LOG_DEBUG("Has Tire Pressure State: true");
-            // Add tire pressure state logging if needed
-        }
-
-        if (msg->response_msg.vehicleData.has_media_state) {
-            LOG_DEBUG("Has Media State: true");
-            // Add media state logging if needed
-        }
-
-        if (msg->response_msg.vehicleData.has_media_detail_state) {
-            LOG_DEBUG("Has Media Detail State: true");
-            // Add media detail state logging if needed
-        }
-
-        if (msg->response_msg.vehicleData.has_software_update_state) {
-            LOG_DEBUG("Has Software Update State: true");
-            // Add software update state logging if needed
-        }
-
-        if (msg->response_msg.vehicleData.has_parental_controls_state) {
-            LOG_DEBUG("Has Parental Controls State: true");
-            // Add parental controls state logging if needed
+            LOG_DEBUG("  Tire Pressure State:");
+            if (msg->response_msg.vehicleData.tire_pressure_state.which_optional_tpms_pressure_fl) {
+                LOG_DEBUG("    Front Left: %.2f", msg->response_msg.vehicleData.tire_pressure_state.optional_tpms_pressure_fl.tpms_pressure_fl);
+            }
+            if (msg->response_msg.vehicleData.tire_pressure_state.which_optional_tpms_pressure_fr) {
+                LOG_DEBUG("    Front Right: %.2f", msg->response_msg.vehicleData.tire_pressure_state.optional_tpms_pressure_fr.tpms_pressure_fr);
+            }
+            if (msg->response_msg.vehicleData.tire_pressure_state.which_optional_tpms_pressure_rl) {
+                LOG_DEBUG("    Rear Left: %.2f", msg->response_msg.vehicleData.tire_pressure_state.optional_tpms_pressure_rl.tpms_pressure_rl);
+            }
+            if (msg->response_msg.vehicleData.tire_pressure_state.which_optional_tpms_pressure_rr) {
+                LOG_DEBUG("    Rear Right: %.2f", msg->response_msg.vehicleData.tire_pressure_state.optional_tpms_pressure_rr.tpms_pressure_rr);
+            }
         }
 
         break;

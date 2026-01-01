@@ -41,6 +41,7 @@ set(TEST_FILES
     test_session_management.cpp
     test_tb_utils.cpp
     test_vin_utils.cpp
+    test_vehicle.cpp
 )
 
 # Main test executable with all tests

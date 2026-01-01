@@ -11,6 +11,7 @@ set(TESLABLE_SRCS
     "src/message_builders.cpp"
     "src/peer.cpp"
     "src/tb_utils.cpp"
+    "src/vehicle.cpp"
     "src/vin_utils.cpp"
 )
 
@@ -31,10 +32,12 @@ set(TESLABLE_PROTO_SRCS
 # Public headers
 set(TESLABLE_PUBLIC_HEADERS
     include/client.h
+    include/adapters.h
     include/errors.h
     include/logging.h
     include/peer.h
     include/tb_utils.h
+    include/vehicle.h
     include/vin_utils.h
 )
 

@@ -7,12 +7,12 @@
 #endif
 #include "esp_log.h"
 static const char *const TAG = "tesla_ble";
-#define LOG(...) ESP_LOGI(TAG, __VA_ARGS__)
-#define LOG_INFO(...) ESP_LOGI(TAG, __VA_ARGS__)
-#define LOG_DEBUG(...) ESP_LOGD(TAG, __VA_ARGS__)
-#define LOG_ERROR(...) ESP_LOGE(TAG, __VA_ARGS__)
-#define LOG_WARNING(...) ESP_LOGW(TAG, __VA_ARGS__)
-#define LOG_VERBOSE(...) ESP_LOGV(TAG, __VA_ARGS__)
+#define LOG(format, ...) ESP_LOGI(TAG, format, ##__VA_ARGS__)
+#define LOG_INFO(format, ...) ESP_LOGI(TAG, format, ##__VA_ARGS__)
+#define LOG_DEBUG(format, ...) ESP_LOGD(TAG, format, ##__VA_ARGS__)
+#define LOG_ERROR(format, ...) ESP_LOGE(TAG, format, ##__VA_ARGS__)
+#define LOG_WARNING(format, ...) ESP_LOGW(TAG, format, ##__VA_ARGS__)
+#define LOG_VERBOSE(format, ...) ESP_LOGV(TAG, format, ##__VA_ARGS__)
 
 #else
 

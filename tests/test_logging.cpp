@@ -19,7 +19,7 @@ protected:
     static std::vector<LogCall> captured_logs_;
     static LogCallback original_callback_;
     
-    static void test_log_callback(LogLevel level, const char* tag, const char* format, va_list args) {
+    static void test_log_callback(LogLevel level, const char* tag, int line, const char* format, va_list args) {
         char buffer[512];
         vsnprintf(buffer, sizeof(buffer), format, args);
         
@@ -90,7 +90,7 @@ TEST_F(LoggingTest, CustomTagInSource) {
 
 TEST_F(LoggingTest, NullFormatHandling) {
     // Test that null format is handled gracefully
-    log_internal(LogLevel::INFO, "TestTag", nullptr);
+    log_internal(LogLevel::INFO, "TestTag", 42, nullptr);
     
     // Should not crash and should not add a log entry
     EXPECT_EQ(get_captured_logs().size(), 0);
@@ -98,7 +98,7 @@ TEST_F(LoggingTest, NullFormatHandling) {
 
 TEST_F(LoggingTest, NullTagHandling) {
     // Test that null tag defaults to "TeslaBLE"
-    log_internal(LogLevel::INFO, nullptr, "message");
+    log_internal(LogLevel::INFO, nullptr, 42, "message");
     
     ASSERT_EQ(get_captured_logs().size(), 1);
     EXPECT_EQ(get_captured_logs()[0].tag, "TeslaBLE");

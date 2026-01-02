@@ -6,7 +6,7 @@ namespace TeslaBLE {
 
 LogCallback g_log_callback = nullptr;
 
-void log_internal(LogLevel level, const char* tag, const char* format, ...) {
+void log_internal(LogLevel level, const char* tag, int line, const char* format, ...) {
     if (tag == nullptr) tag = "TeslaBLE";
     if (format == nullptr) return;
     
@@ -14,7 +14,7 @@ void log_internal(LogLevel level, const char* tag, const char* format, ...) {
     va_start(args, format);
 
     if (g_log_callback != nullptr) {
-        g_log_callback(level, tag, format, args);
+        g_log_callback(level, tag, line, format, args);
     } else {
 #ifdef ESP_PLATFORM
         esp_log_level_t esp_level;

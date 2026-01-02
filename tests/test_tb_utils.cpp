@@ -97,3 +97,52 @@ TEST_F(TBUtilsTest, PbEncodeFieldsBufferTooSmall) {
     EXPECT_GT(required_length, 0) << "Required size should be greater than 0";
     EXPECT_LE(required_length, sizeof(buffer)) << "Required size should not exceed buffer size";
 }
+
+// Tests for format_hex utility function
+TEST_F(TBUtilsTest, FormatHexBasic) {
+    const uint8_t data[] = {0x01, 0x02, 0x03, 0xAB, 0xCD, 0xEF};
+    std::string hex = format_hex(data, sizeof(data));
+    
+    EXPECT_EQ(hex, "010203abcdef");
+}
+
+TEST_F(TBUtilsTest, FormatHexEmptyData) {
+    std::string hex1 = format_hex(nullptr, 10);
+    EXPECT_EQ(hex1, "");
+    
+    const uint8_t data[] = {0x01};
+    std::string hex2 = format_hex(data, 0);
+    EXPECT_EQ(hex2, "");
+}
+
+TEST_F(TBUtilsTest, FormatHexSingleByte) {
+    const uint8_t data[] = {0xFF};
+    std::string hex = format_hex(data, 1);
+    
+    EXPECT_EQ(hex, "ff");
+}
+
+TEST_F(TBUtilsTest, FormatHexAllZeros) {
+    const uint8_t data[] = {0x00, 0x00, 0x00, 0x00};
+    std::string hex = format_hex(data, sizeof(data));
+    
+    EXPECT_EQ(hex, "00000000");
+}
+
+TEST_F(TBUtilsTest, FormatHexLargeData) {
+    std::vector<uint8_t> data(256);
+    for (size_t i = 0; i < data.size(); i++) {
+        data[i] = static_cast<uint8_t>(i);
+    }
+    
+    std::string hex = format_hex(data.data(), data.size());
+    
+    // Should be 512 characters (2 per byte)
+    EXPECT_EQ(hex.length(), 512);
+    
+    // Check first few bytes
+    EXPECT_EQ(hex.substr(0, 6), "000102");
+    
+    // Check last byte (255 = 0xFF)
+    EXPECT_EQ(hex.substr(510, 2), "ff");
+}

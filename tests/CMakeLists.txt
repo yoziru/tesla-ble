@@ -31,6 +31,7 @@ set(TEST_FILES
     test_client.cpp
     test_error_handling.cpp
     test_key_generation.cpp
+    test_logging.cpp
     test_message_building.cpp
     test_message_parsing.cpp
     test_protocol_authentication.cpp
@@ -41,6 +42,7 @@ set(TEST_FILES
     test_session_management.cpp
     test_tb_utils.cpp
     test_vin_utils.cpp
+    test_vehicle.cpp
 )
 
 # Main test executable with all tests

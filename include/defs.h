@@ -1,44 +1,36 @@
 #pragma once
 
+#ifndef TESLA_LOG_TAG
+#define TESLA_LOG_TAG "TeslaBLE"
+#endif
+
+#include <cstdarg>
+#include "adapters.h"
+
 #ifdef ESP_PLATFORM
-
-#ifndef LOG_LOCAL_LEVEL
-#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#include <esp_log.h>
 #endif
-#include "esp_log.h"
-static const char *const TAG = "tesla_ble";
-#define LOG(...) ESP_LOGI(TAG, __VA_ARGS__)
-#define LOG_INFO(...) ESP_LOGI(TAG, __VA_ARGS__)
-#define LOG_DEBUG(...) ESP_LOGD(TAG, __VA_ARGS__)
-#define LOG_ERROR(...) ESP_LOGE(TAG, __VA_ARGS__)
-#define LOG_WARNING(...) ESP_LOGW(TAG, __VA_ARGS__)
 
-#else
+namespace TeslaBLE {
 
-#include <cstdio>
-#include <cstring>
-#include <iostream>
+enum class LogLevel {
+    ERROR,
+    WARN,
+    INFO,
+    DEBUG,
+    VERBOSE
+};
 
-#define RESET_COLOR "\x1B[0m"
-#define INFO_COLOR "\x1B[1;34m"
-#define DEBUG_COLOR "\x1B[1;30m"
-#define WARNING_COLOR "\x1B[1;33m"
-#define ERROR_COLOR "\x1B[31m"
-#define LOG(...) log("[LOG]", RESET_COLOR, __VA_ARGS__)
-#define LOG_INFO(...) log("[INFO]", INFO_COLOR, __VA_ARGS__)
-#define LOG_DEBUG(...) log("[DEBUG]", DEBUG_COLOR, __VA_ARGS__)
-#define LOG_WARNING(...) log("[WARNING]", WARNING_COLOR, __VA_ARGS__)
-#define LOG_ERROR(...) log("[ERROR]", ERROR_COLOR, __VA_ARGS__)
-template <typename... Args>
-void log(const char *type, const char *color, const char *s, Args... args)
-{
-    printf("%s%s - ", color, type);
-    if constexpr (sizeof...(args) > 0) {
-        printf(s, args...);
-    } else {
-        printf("%s", s);
-    }
-    printf("%s\n", RESET_COLOR);
-}
+typedef void (*LogCallback)(LogLevel level, const char* tag, int line, const char* format, va_list args);
 
-#endif
+extern LogCallback g_log_callback;
+
+void log_internal(LogLevel level, const char* tag, int line, const char* format, ...);
+
+} // namespace TeslaBLE
+
+#define LOG_ERROR(format, ...)   TeslaBLE::log_internal(TeslaBLE::LogLevel::ERROR, TESLA_LOG_TAG, __LINE__, format, ##__VA_ARGS__)
+#define LOG_WARNING(format, ...) TeslaBLE::log_internal(TeslaBLE::LogLevel::WARN, TESLA_LOG_TAG, __LINE__, format, ##__VA_ARGS__)
+#define LOG_INFO(format, ...)    TeslaBLE::log_internal(TeslaBLE::LogLevel::INFO, TESLA_LOG_TAG, __LINE__, format, ##__VA_ARGS__)
+#define LOG_DEBUG(format, ...)   TeslaBLE::log_internal(TeslaBLE::LogLevel::DEBUG, TESLA_LOG_TAG, __LINE__, format, ##__VA_ARGS__)
+#define LOG_VERBOSE(format, ...) TeslaBLE::log_internal(TeslaBLE::LogLevel::VERBOSE, TESLA_LOG_TAG, __LINE__, format, ##__VA_ARGS__)

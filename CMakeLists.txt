@@ -9,8 +9,11 @@ set(TESLABLE_SRCS
     "src/errors.cpp"
     "src/message_builders.cpp"
     "src/peer.cpp"
+    "src/tb_logging.cpp"
     "src/tb_utils.cpp"
+    "src/vehicle.cpp"
     "src/vin_utils.cpp"
+    "src/logging_bridge.cpp"
 )
 
 # Protobuf generated source files
@@ -30,9 +33,12 @@ set(TESLABLE_PROTO_SRCS
 # Public headers
 set(TESLABLE_PUBLIC_HEADERS
     include/client.h
+    include/adapters.h
     include/errors.h
     include/peer.h
+    include/tb_logging.h
     include/tb_utils.h
+    include/vehicle.h
     include/vin_utils.h
 )
 
@@ -104,7 +110,7 @@ else()
     
     include(FetchContent)
     project(TeslaBLE
-            VERSION 3.4.0
+            VERSION 4.0.0
             DESCRIPTION "CPP Tesla BLE Library"
             LANGUAGES CXX C
     )

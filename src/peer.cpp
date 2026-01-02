@@ -4,10 +4,20 @@
 #define MBEDTLS_CONFIG_FILE "mbedtls/esp_config.h"
 #endif
 
-#include <chrono>
-#include <pb.h>
-#include <inttypes.h>
+#ifndef TESLA_LOG_TAG
+#define TESLA_LOG_TAG "TeslaBLE::Peer"
+#endif
+
+#include "peer.h"
+
+#include "crypto_context.h"
 #include "defs.h"
+#include "errors.h"
+
+#include "signatures.pb.h"
+
+#include <pb.h>
+
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/ecdh.h>
 #include <mbedtls/entropy.h>
@@ -15,12 +25,9 @@
 #include <mbedtls/gcm.h>
 #include <mbedtls/pk.h>
 #include <mbedtls/sha1.h>
-#include <mbedtls/sha256.h>
 
-#include "signatures.pb.h"
-#include "peer.h"
-#include "errors.h"
-#include "crypto_context.h"
+#include <chrono>
+#include <inttypes.h>
 
 namespace TeslaBLE
 {

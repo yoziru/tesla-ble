@@ -111,8 +111,15 @@ void Vehicle::process_command_queue() {
             {
                 auto tx_duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - current_command->last_tx_at);
                 if (tx_duration > MAX_LATENCY) {
-                     LOG_WARNING("Response timeout for command: %s (attempt %d/%d)", current_command->name.c_str(), current_command->retry_count + 1, MAX_RETRIES + 1);
-                     retry_command(current_command);
+                     // Special case: Wake commands may not respond if vehicle is already awake
+                     // Consider successful after first timeout to avoid unnecessary retries
+                     if (current_command->name == "Wake" && current_command->retry_count == 1) {
+                         LOG_INFO("Wake command sent - no response received (vehicle may already be awake)");
+                         mark_command_completed(current_command);
+                     } else {
+                         LOG_WARNING("Response timeout for command: %s (attempt %d/%d)", current_command->name.c_str(), current_command->retry_count, MAX_RETRIES + 1);
+                         retry_command(current_command);
+                     }
                 }
             }
             break;
@@ -160,8 +167,9 @@ void Vehicle::process_auth_waiting_command(std::shared_ptr<Command> command) {
                  command->state = CommandState::WAITING_FOR_INFOTAINMENT_AUTH;
                  break;
             case CommandState::WAITING_FOR_WAKE_RESPONSE:
-                 // TODO: Check if sleep state changed via some callback or flag?
-                 // For now, just retry wake cmd
+                 // Retry wake command if no response
+                 // Note: Platform integrations should check vehicle awake state before calling wake()
+                 // to avoid unnecessary retries when vehicle is already awake
                  retry_command(command);
                  break;
             case CommandState::WAITING_FOR_VCSEC_AUTH:

@@ -4,33 +4,30 @@
 #define MBEDTLS_CONFIG_FILE "mbedtls/esp_config.h"
 #endif
 
-#include <chrono>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-#include <iomanip>
-#include <sstream>
 #ifndef TESLA_LOG_TAG
 #define TESLA_LOG_TAG "TeslaBLE::Client"
 #endif
 
-#include "defs.h"
-
-#include <pb_decode.h>
-#include <pb_encode.h>
-
 #include "client.h"
+
 #include "crypto_context.h"
+#include "defs.h"
+#include "errors.h"
 #include "message_builders.h"
-#include "message_builders.h"
+#include "tb_utils.h"
+
 #include "car_server.pb.h"
 #include "keys.pb.h"
 #include "universal_message.pb.h"
 #include "vcsec.pb.h"
 #include "vehicle.pb.h"
-#include "tb_utils.h"
-#include "errors.h"
+
+#include <pb_decode.h>
+#include <pb_encode.h>
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 namespace TeslaBLE
 {

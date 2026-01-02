@@ -3,17 +3,17 @@
 #endif
 
 #include "vehicle.h"
+
+#include "defs.h"
 #include "tb_logging.h"
 #include "tb_utils.h"
-#include "defs.h"
 
 #include <pb_decode.h>
 #include <pb_encode.h>
 
-#include <iostream>
-#include <vector>
 #include <cstring>
 #include <inttypes.h>
+#include <vector>
 
 namespace TeslaBLE {
 

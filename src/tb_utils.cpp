@@ -1,14 +1,16 @@
+#include "tb_utils.h"
+
+#include "defs.h"
+#include "errors.h"
+
+#include <pb.h>
+#include <pb_encode.h>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <iomanip>
-#include <pb_encode.h>
-#include <pb.h>
 #include <sstream>
-
-#include "tb_utils.h"
-#include "defs.h"
-#include "errors.h"
 
 namespace TeslaBLE
 {

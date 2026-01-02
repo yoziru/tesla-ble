@@ -3,12 +3,15 @@
 #endif
 
 #include "crypto_context.h"
+
 #include "defs.h"
-#include <cstring>
+
 #include <mbedtls/entropy.h>
-#include <mbedtls/sha1.h>
-#include <mbedtls/platform_util.h>
 #include <mbedtls/md.h>
+#include <mbedtls/platform_util.h>
+#include <mbedtls/sha1.h>
+
+#include <cstring>
 
 namespace TeslaBLE
 {

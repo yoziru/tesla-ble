@@ -1,6 +1,7 @@
 #include "defs.h"
-#include <cstdio>
+
 #include <cstdarg>
+#include <cstdio>
 
 namespace TeslaBLE {
 

@@ -4,9 +4,11 @@
  */
 
 #include "vin_utils.h"
-#include "mbedtls/sha1.h"
-#include <cstring>
+
+#include <mbedtls/sha1.h>
+
 #include <cctype>
+#include <cstring>
 
 namespace TeslaBLE {
 

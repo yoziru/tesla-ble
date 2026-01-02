@@ -6,11 +6,25 @@
 #include <pb.h>
 #include <sstream>
 
+#include "tb_utils.h"
 #include "defs.h"
 #include "errors.h"
 
 namespace TeslaBLE
 {
+  std::string format_hex(const uint8_t* data, size_t length)
+  {
+      if (data == nullptr || length == 0) return "";
+      std::string hex;
+      hex.reserve(length * 2);
+      char buf[3];
+      for (size_t i = 0; i < length; ++i) {
+          snprintf(buf, sizeof(buf), "%02x", data[i]);
+          hex.append(buf);
+      }
+      return hex;
+  }
+
   int pb_encode_fields(
       pb_byte_t *output_buffer,
       size_t *output_length,

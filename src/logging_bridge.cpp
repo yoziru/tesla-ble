@@ -1,0 +1,48 @@
+#include "defs.h"
+#include <cstdio>
+#include <cstdarg>
+
+namespace TeslaBLE {
+
+LogCallback g_log_callback = nullptr;
+
+void log_internal(LogLevel level, const char* tag, const char* format, ...) {
+    if (tag == nullptr) tag = "TeslaBLE";
+    if (format == nullptr) return;
+    
+    va_list args;
+    va_start(args, format);
+
+    if (g_log_callback != nullptr) {
+        g_log_callback(level, tag, format, args);
+    } else {
+#ifdef ESP_PLATFORM
+        esp_log_level_t esp_level;
+        switch (level) {
+            case LogLevel::ERROR:   esp_level = ESP_LOG_ERROR; break;
+            case LogLevel::WARN:    esp_level = ESP_LOG_WARN; break;
+            case LogLevel::INFO:    esp_level = ESP_LOG_INFO; break;
+            case LogLevel::DEBUG:   esp_level = ESP_LOG_DEBUG; break;
+            case LogLevel::VERBOSE: esp_level = ESP_LOG_VERBOSE; break;
+            default: esp_level = ESP_LOG_NONE; break;
+        }
+        esp_log_writev(esp_level, tag, format, args);
+#else
+        const char* level_str = "INFO";
+        switch (level) {
+            case LogLevel::ERROR:   level_str = "ERROR"; break;
+            case LogLevel::WARN:    level_str = "WARN "; break;
+            case LogLevel::INFO:    level_str = "INFO "; break;
+            case LogLevel::DEBUG:   level_str = "DEBUG"; break;
+            case LogLevel::VERBOSE: level_str = "VERBOSE"; break;
+        }
+        printf("[%s][%s] ", level_str, tag);
+        vprintf(format, args);
+        printf("\n");
+#endif
+    }
+
+    va_end(args);
+}
+
+} // namespace TeslaBLE

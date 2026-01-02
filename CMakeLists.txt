@@ -7,12 +7,13 @@ set(TESLABLE_SRCS
     "src/client.cpp"
     "src/crypto_context.cpp"
     "src/errors.cpp"
-    "src/logging.cpp"
     "src/message_builders.cpp"
     "src/peer.cpp"
+    "src/tb_logging.cpp"
     "src/tb_utils.cpp"
     "src/vehicle.cpp"
     "src/vin_utils.cpp"
+    "src/logging_bridge.cpp"
 )
 
 # Protobuf generated source files
@@ -34,8 +35,8 @@ set(TESLABLE_PUBLIC_HEADERS
     include/client.h
     include/adapters.h
     include/errors.h
-    include/logging.h
     include/peer.h
+    include/tb_logging.h
     include/tb_utils.h
     include/vehicle.h
     include/vin_utils.h

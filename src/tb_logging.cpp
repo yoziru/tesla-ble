@@ -1,4 +1,4 @@
-#include "logging.h"
+#include "tb_logging.h"
 #include "defs.h"
 #include "tb_utils.h"
 
@@ -6,24 +6,6 @@
 #include <string>
 
 namespace TeslaBLE {
-
-// Helper function to format hex string
-std::string format_hex(const uint8_t* data, size_t length)
-{
-    if (data == nullptr || length == 0)
-    {
-        return "";
-    }
-    std::string hex;
-    hex.reserve(length * 2);
-    char buf[3];
-    for (size_t i = 0; i < length; ++i)
-    {
-        snprintf(buf, sizeof(buf), "%02x", data[i]);
-        hex.append(buf);
-    }
-    return hex;
-}
 
 // Helper function to convert OperationStatus enum to string
 // Both UniversalMessage and VCSEC use the same underlying values for these.

@@ -1,5 +1,9 @@
+#ifndef TESLA_LOG_TAG
+#define TESLA_LOG_TAG "TeslaBLE::Vehicle"
+#endif
+
 #include "vehicle.h"
-#include "logging.h"
+#include "tb_logging.h"
 #include "tb_utils.h"
 #include "defs.h"
 
@@ -12,8 +16,6 @@
 #include <inttypes.h>
 
 namespace TeslaBLE {
-
-static const char *TAG = "TeslaBLE::Vehicle";
 
 Vehicle::Vehicle(std::shared_ptr<BleAdapter> ble, std::shared_ptr<StorageAdapter> storage)
     : ble_adapter_(ble), storage_adapter_(storage), client_(std::make_shared<Client>())
@@ -381,7 +383,7 @@ void Vehicle::process_complete_message() {
     UniversalMessage_RoutableMessage msg = UniversalMessage_RoutableMessage_init_default;
     if (client_->parseUniversalMessage(msg_data.data(), msg_data.size(), &msg) == 0) {
         LOG_DEBUG("Successfully parsed universal message");
-        log_routable_message(TAG, &msg);
+        log_routable_message(TESLA_LOG_TAG, &msg);
         handle_message(msg);
     } else {
         LOG_ERROR("Failed to parse Universal Message");
@@ -459,7 +461,7 @@ void Vehicle::handle_session_info_message(const UniversalMessage_RoutableMessage
     }
     LOG_DEBUG("Parsed session info successfully");
     
-    log_session_info(TAG, &session_info);
+    log_session_info(TESLA_LOG_TAG, &session_info);
     
     if (session_info.status != Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK) {
         LOG_ERROR("Session info invalid status: %d", session_info.status);
@@ -499,7 +501,7 @@ void Vehicle::handle_vcsec_message(const UniversalMessage_RoutableMessage& msg) 
     
     switch (vcsec_msg.which_sub_message) {
         case VCSEC_FromVCSECMessage_commandStatus_tag:
-            log_vcsec_command_status(TAG, &vcsec_msg.sub_message.commandStatus);
+            log_vcsec_command_status(TESLA_LOG_TAG, &vcsec_msg.sub_message.commandStatus);
             // Check if this matches pending command
             if (!command_queue_.empty()) {
                 auto cmd = command_queue_.front();
@@ -514,7 +516,7 @@ void Vehicle::handle_vcsec_message(const UniversalMessage_RoutableMessage& msg) 
         
         case VCSEC_FromVCSECMessage_vehicleStatus_tag:
             LOG_DEBUG("Received vehicle status");
-            log_vehicle_status(TAG, &vcsec_msg.sub_message.vehicleStatus);
+            log_vehicle_status(TESLA_LOG_TAG, &vcsec_msg.sub_message.vehicleStatus);
             if (vehicle_status_callback_) vehicle_status_callback_(vcsec_msg.sub_message.vehicleStatus);
             
             // If we are waiting for wake response or VCSEC poll, check status
@@ -578,7 +580,7 @@ void Vehicle::handle_carserver_message(const UniversalMessage_RoutableMessage& m
     }
     
     LOG_DEBUG("Parsed CarServer.Response successfully");
-    log_carserver_response(TAG, &response);
+    log_carserver_response(TESLA_LOG_TAG, &response);
     
     // Trigger callbacks based on response content
     if (response.which_response_msg == CarServer_Response_vehicleData_tag) {

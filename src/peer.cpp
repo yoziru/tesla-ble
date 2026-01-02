@@ -15,7 +15,9 @@
 #include <mbedtls/gcm.h>
 #include <mbedtls/pk.h>
 #include <mbedtls/sha1.h>
-#include <mbedtls/sha256.h>
+#ifndef TESLA_LOG_TAG
+#define TESLA_LOG_TAG "TeslaBLE::Peer"
+#endif
 
 #include "signatures.pb.h"
 #include "peer.h"

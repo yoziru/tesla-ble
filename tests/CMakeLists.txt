@@ -31,6 +31,7 @@ set(TEST_FILES
     test_client.cpp
     test_error_handling.cpp
     test_key_generation.cpp
+    test_logging.cpp
     test_message_building.cpp
     test_message_parsing.cpp
     test_protocol_authentication.cpp

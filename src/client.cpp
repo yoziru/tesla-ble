@@ -11,6 +11,10 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
+#ifndef TESLA_LOG_TAG
+#define TESLA_LOG_TAG "TeslaBLE::Client"
+#endif
+
 #include "defs.h"
 
 #include <pb_decode.h>

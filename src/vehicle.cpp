@@ -417,14 +417,47 @@ void Vehicle::handle_message(const UniversalMessage_RoutableMessage& msg) {
     if (msg.has_signedMessageStatus) {
         if (msg.signedMessageStatus.operation_status == UniversalMessage_OperationStatus_E_OPERATIONSTATUS_ERROR) {
              UniversalMessage_Domain domain = msg.from_destination.sub_destination.domain;
-             LOG_ERROR("Signed message error from %s: %s", domain_to_string(domain), message_fault_to_string(msg.signedMessageStatus.signed_message_fault));
+             auto fault = msg.signedMessageStatus.signed_message_fault;
+             LOG_ERROR("Signed message error from %s: %s", domain_to_string(domain), message_fault_to_string(fault));
              
-             // Invalidate session?
-             // Maybe. Command failure handling.
+             // Check for session-related errors that require re-authentication
+             bool session_error = (
+                 fault == UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_TIME_EXPIRED ||
+                 fault == UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_TOKEN_OR_COUNTER ||
+                 fault == UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_SIGNATURE
+             );
+             
+             if (session_error) {
+                 // Invalidate the session for this domain
+                 auto peer = client_->getPeer(domain);
+                 if (peer) {
+                     LOG_INFO("Invalidating session for %s due to session error, will re-authenticate", domain_to_string(domain));
+                     peer->setIsValid(false);
+                     
+                     // Mark the domain as unauthenticated so next command will re-auth
+                     if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) {
+                         is_vcsec_authenticated_ = false;
+                     } else if (domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
+                         is_infotainment_authenticated_ = false;
+                     }
+                 }
+             }
+             
+             // Handle command failure and retry
              if (!command_queue_.empty()) {
                  auto cmd = command_queue_.front();
                  if (cmd->state == CommandState::WAITING_FOR_RESPONSE) {
-                     mark_command_failed(cmd, "Signed Message Error");
+                     if (session_error) {
+                         // For session errors, retry the command (it will re-authenticate)
+                         LOG_INFO("Retrying command after session error");
+                         cmd->state = CommandState::IDLE;
+                         cmd->retry_count++; // Count this as a retry
+                         if (cmd->retry_count > MAX_RETRIES) {
+                             mark_command_failed(cmd, "Session error after max retries");
+                         }
+                     } else {
+                         mark_command_failed(cmd, "Signed Message Error");
+                     }
                  }
              }
              return;
@@ -479,7 +512,8 @@ void Vehicle::handle_session_info_message(const UniversalMessage_RoutableMessage
     
     auto peer = client_->getPeer(domain);
     if (peer) {
-        if (peer->updateSession(&session_info) == 0) {
+        int update_result = peer->updateSession(&session_info);
+        if (update_result == 0) {
             LOG_INFO("Session updated for %s", domain_to_string(domain));
             
             // Persist session
@@ -488,8 +522,26 @@ void Vehicle::handle_session_info_message(const UniversalMessage_RoutableMessage
             storage_adapter_->save(key, sess_data);
             
             handle_authentication_response(domain, true);
+        } else if (update_result == TeslaBLE_Status_E_ERROR_COUNTER_REPLAY) {
+            // Counter went backwards - the vehicle's session is authoritative
+            // This can happen after ERROR_TIME_EXPIRED when the vehicle sends new session info
+            LOG_INFO("Counter anti-replay detected for %s, force updating with vehicle's authoritative session", domain_to_string(domain));
+            
+            if (peer->forceUpdateSession(&session_info) == 0) {
+                LOG_INFO("Session force-updated for %s", domain_to_string(domain));
+                
+                // Persist the new session
+                std::vector<uint8_t> sess_data(msg.payload.session_info.bytes, msg.payload.session_info.bytes + msg.payload.session_info.size);
+                std::string key = (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) ? "session_vcsec" : "session_infotainment";
+                storage_adapter_->save(key, sess_data);
+                
+                handle_authentication_response(domain, true);
+            } else {
+                LOG_ERROR("Failed to force update peer session for %s", domain_to_string(domain));
+                handle_authentication_response(domain, false);
+            }
         } else {
-            LOG_ERROR("Failed to update peer session");
+            LOG_ERROR("Failed to update peer session for %s: %d", domain_to_string(domain), update_result);
             handle_authentication_response(domain, false);
         }
     }

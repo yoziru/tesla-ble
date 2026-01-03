@@ -231,6 +231,52 @@ namespace TeslaBLE
         return TeslaBLE_Status_E_OK;
     }
 
+    int Peer::forceUpdateSession(Signatures_SessionInfo *session_info)
+    {
+        LOG_INFO("Force updating session (bypassing anti-replay protection)...");
+        if (session_info == nullptr)
+        {
+            LOG_ERROR("Session info is null");
+            return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+        }
+
+        // Invalidate current session first
+        is_valid_ = false;
+
+        // Force set the epoch (this resets the counter validation baseline)
+        int status = setEpoch(session_info->epoch);
+        if (status != TeslaBLE_Status_E_OK)
+        {
+            LOG_ERROR("Failed to set epoch during force update");
+            return status;
+        }
+
+        // Force set counter directly (no anti-replay check)
+        setCounter(session_info->counter);
+
+        // Update time zero
+        uint32_t generated_at = std::time(nullptr);
+        uint32_t time_zero = generated_at - session_info->clock_time;
+        setTimeZero(time_zero);
+
+        // Load Tesla's public key if provided
+        if (session_info->publicKey.size > 0) {
+            status = loadTeslaKey(session_info->publicKey.bytes, session_info->publicKey.size);
+            if (status != TeslaBLE_Status_E_OK) {
+                LOG_ERROR("Failed to load Tesla public key during force update");
+                return status;
+            }
+        }
+
+        // Mark session as valid after successful update
+        is_valid_ = true;
+
+        LOG_INFO("Force updated session: counter=%d, clock_time=%d, time_zero=%d",
+                  session_info->counter, session_info->clock_time, time_zero);
+
+        return TeslaBLE_Status_E_OK;
+    }
+
     int Peer::constructADBuffer(
         Signatures_SignatureType signature_type,
         const char *VIN,

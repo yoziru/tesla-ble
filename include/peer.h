@@ -73,6 +73,17 @@ namespace TeslaBLE
         void generateNonce(pb_byte_t* nonce) const;
         int loadTeslaKey(const uint8_t* public_key_buffer, size_t public_key_size);
         int updateSession(Signatures_SessionInfo* session_info);
+        
+        /**
+         * @brief Force update session, bypassing counter anti-replay protection
+         * 
+         * This should be used when recovering from session errors like ERROR_TIME_EXPIRED
+         * where the vehicle's session info is authoritative and our local state is stale.
+         * 
+         * @param session_info The session info to apply
+         * @return Status code (0 for success)
+         */
+        int forceUpdateSession(Signatures_SessionInfo* session_info);
 
         // Cryptographic operations
         int constructADBuffer(

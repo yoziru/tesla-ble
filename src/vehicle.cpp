@@ -51,8 +51,26 @@ void Vehicle::set_connected(bool connected) {
     is_connected_ = connected;
     if (!connected) {
         LOG_INFO("Disconnected from vehicle");
-        // Clear auth states?
-        // Usually session persists, but connection state is used for something?
+        
+        // Clear authentication state flags on disconnect
+        // Session data persists (stored in NVS), but authentication must be 
+        // re-established on reconnect as the vehicle may have started a new
+        // ephemeral session or the counters may be stale
+        is_vcsec_authenticated_ = false;
+        is_infotainment_authenticated_ = false;
+        
+        // Clear command queue to prevent stale commands from blocking
+        // New commands will be enqueued after reconnection
+        while (!command_queue_.empty()) {
+            auto cmd = command_queue_.front();
+            if (cmd->on_complete) {
+                cmd->on_complete(false);  // Notify failure
+            }
+            command_queue_.pop();
+        }
+        
+        // Clear RX buffer for clean slate
+        rx_buffer_.clear();
     } else {
         LOG_INFO("Connected to vehicle");
     }

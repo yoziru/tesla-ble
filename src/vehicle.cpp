@@ -111,15 +111,8 @@ void Vehicle::process_command_queue() {
             {
                 auto tx_duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - current_command->last_tx_at);
                 if (tx_duration > MAX_LATENCY) {
-                     // Special case: Wake commands may not respond if vehicle is already awake
-                     // Consider successful after first timeout to avoid unnecessary retries
-                     if (current_command->name == "Wake" && current_command->retry_count == 1) {
-                         LOG_INFO("Wake command sent - no response received (vehicle may already be awake)");
-                         mark_command_completed(current_command);
-                     } else {
-                         LOG_WARNING("Response timeout for command: %s (attempt %d/%d)", current_command->name.c_str(), current_command->retry_count, MAX_RETRIES + 1);
-                         retry_command(current_command);
-                     }
+                    LOG_WARNING("Response timeout for command: %s (attempt %d/%d)", current_command->name.c_str(), current_command->retry_count, MAX_RETRIES + 1);
+                    retry_command(current_command);
                 }
             }
             break;
@@ -167,10 +160,19 @@ void Vehicle::process_auth_waiting_command(std::shared_ptr<Command> command) {
                  command->state = CommandState::WAITING_FOR_INFOTAINMENT_AUTH;
                  break;
             case CommandState::WAITING_FOR_WAKE_RESPONSE:
-                 // Retry wake command if no response
-                 // Note: Platform integrations should check vehicle awake state before calling wake()
-                 // to avoid unnecessary retries when vehicle is already awake
-                 retry_command(command);
+                 // Check if vehicle woke up (we may have received status update even without wake response)
+                 if (is_vehicle_awake_) {
+                     LOG_INFO("Wake response timeout but vehicle is awake - proceeding");
+                     if (command->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
+                         command->state = CommandState::WAITING_FOR_INFOTAINMENT_AUTH;
+                         command->last_tx_at = std::chrono::steady_clock::time_point();  // Trigger immediate auth
+                     } else {
+                         mark_command_completed(command);
+                     }
+                 } else {
+                     LOG_WARNING("Wake response timeout - vehicle still asleep (attempt %d/%d)", command->retry_count + 1, MAX_RETRIES + 1);
+                     retry_command(command);
+                 }
                  break;
             case CommandState::WAITING_FOR_VCSEC_AUTH:
                  initiate_vcsec_auth(command);
@@ -216,7 +218,15 @@ void Vehicle::initiate_vcsec_auth(std::shared_ptr<Command> command) {
 }
 
 void Vehicle::initiate_infotainment_auth(std::shared_ptr<Command> command) {
-    // Check if VCSEC is authenticated first (prerequisite?)
+    // Check if vehicle is asleep - if so, transition to wake state first
+    if (!is_vehicle_awake_) {
+        LOG_DEBUG("Vehicle is asleep, transitioning to wake state before infotainment auth");
+        command->state = CommandState::WAITING_FOR_WAKE;
+        command->last_tx_at = std::chrono::steady_clock::time_point();  // Trigger immediate wake sequence
+        return;
+    }
+    
+    // Check if VCSEC is authenticated first (prerequisite)
     if (!is_domain_authenticated(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)) {
         LOG_DEBUG("VCSEC auth required before Infotainment auth");
         command->state = CommandState::WAITING_FOR_VCSEC_AUTH;
@@ -577,16 +587,26 @@ void Vehicle::handle_vcsec_message(const UniversalMessage_RoutableMessage& msg) 
         case VCSEC_FromVCSECMessage_vehicleStatus_tag:
             LOG_DEBUG("Received vehicle status");
             log_vehicle_status(TESLA_LOG_TAG, &vcsec_msg.sub_message.vehicleStatus);
+            
+            // Track vehicle sleep state for command state machine
+            is_vehicle_awake_ = (vcsec_msg.sub_message.vehicleStatus.vehicleSleepStatus == VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_AWAKE);
+            
             if (vehicle_status_callback_) vehicle_status_callback_(vcsec_msg.sub_message.vehicleStatus);
             
             // If we are waiting for wake response or VCSEC poll, check status
             if (!command_queue_.empty()) {
                 auto cmd = command_queue_.front();
                 if (cmd->state == CommandState::WAITING_FOR_WAKE_RESPONSE) {
-                    if (vcsec_msg.sub_message.vehicleStatus.vehicleSleepStatus == VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_AWAKE ||
-                        vcsec_msg.sub_message.vehicleStatus.has_closureStatuses) {
+                    if (is_vehicle_awake_ || vcsec_msg.sub_message.vehicleStatus.has_closureStatuses) {
                         LOG_INFO("Vehicle is awake");
-                        mark_command_completed(cmd);
+                        // If this was an infotainment command waiting for wake, transition to infotainment auth
+                        if (cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
+                            LOG_DEBUG("Transitioning infotainment command to auth state after wake");
+                            cmd->state = CommandState::WAITING_FOR_INFOTAINMENT_AUTH;
+                        } else {
+                            // For wake commands or VCSEC commands, mark as completed
+                            mark_command_completed(cmd);
+                        }
                     }
                 } else if (cmd->domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY && 
                            cmd->state == CommandState::WAITING_FOR_RESPONSE) {

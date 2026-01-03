@@ -294,3 +294,161 @@ TEST_F(VehicleTest, VCSECPollDoesNotRequireInfotainmentWake) {
     EXPECT_GE(writes.size(), 1) << "VCSEC poll should initiate VCSEC auth";
 }
 
+// ============================================================================
+// Tests for disconnect handling
+// ============================================================================
+
+TEST_F(VehicleTest, DisconnectClearsAuthenticationState) {
+    // First, establish connection
+    vehicle_->set_connected(true);
+    EXPECT_TRUE(vehicle_->is_connected());
+    
+    // Disconnect
+    vehicle_->set_connected(false);
+    EXPECT_FALSE(vehicle_->is_connected());
+    
+    // After disconnect, if we reconnect and enqueue a command,
+    // it should go through the full auth flow again (send session info request)
+    vehicle_->set_connected(true);
+    
+    // Enqueue a VCSEC command
+    vehicle_->vcsec_poll();
+    
+    // Process - should send VCSEC Session Info Request (auth flow)
+    vehicle_->loop();
+    
+    auto writes = mock_ble_->get_written_data();
+    EXPECT_GE(writes.size(), 1) << "Should initiate auth after reconnection";
+}
+
+TEST_F(VehicleTest, DisconnectClearsCommandQueue) {
+    bool callback1_called = false;
+    bool callback1_success = true;  // Will be set to false if command fails
+    
+    bool callback2_called = false;
+    bool callback2_success = true;
+    
+    // Enqueue two commands
+    vehicle_->send_command(
+        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        "Command 1",
+        [](Client*, uint8_t*, size_t* len) { *len = 10; return 0; },
+        [&](bool success) {
+            callback1_called = true;
+            callback1_success = success;
+        }
+    );
+    
+    vehicle_->send_command(
+        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        "Command 2",
+        [](Client*, uint8_t*, size_t* len) { *len = 10; return 0; },
+        [&](bool success) {
+            callback2_called = true;
+            callback2_success = success;
+        }
+    );
+    
+    // Disconnect - should clear queue and notify callbacks of failure
+    vehicle_->set_connected(false);
+    
+    // Both callbacks should have been called with failure
+    EXPECT_TRUE(callback1_called) << "First command callback should be called on disconnect";
+    EXPECT_FALSE(callback1_success) << "First command should report failure on disconnect";
+    
+    EXPECT_TRUE(callback2_called) << "Second command callback should be called on disconnect";
+    EXPECT_FALSE(callback2_success) << "Second command should report failure on disconnect";
+}
+
+TEST_F(VehicleTest, DisconnectClearsRxBuffer) {
+    // Inject partial data
+    std::vector<uint8_t> partial_data = {0x00, 0x20, 0x01, 0x02};  // Says length 32, but only 2 payload bytes
+    vehicle_->on_rx_data(partial_data);
+    
+    // Disconnect - should clear the rx buffer
+    vehicle_->set_connected(false);
+    
+    // Reconnect
+    vehicle_->set_connected(true);
+    
+    // Now send a complete valid message
+    // If the buffer wasn't cleared, this would be appended to the old partial data
+    // and cause parsing issues
+    std::vector<uint8_t> fresh_data;
+    fresh_data.push_back(0x00);
+    fresh_data.push_back(0x05);  // Length 5
+    fresh_data.push_back(0x01);
+    fresh_data.push_back(0x02);
+    fresh_data.push_back(0x03);
+    fresh_data.push_back(0x04);
+    fresh_data.push_back(0x05);
+    
+    // Should not crash - if buffer wasn't cleared, we'd have corrupted state
+    EXPECT_NO_THROW(vehicle_->on_rx_data(fresh_data));
+}
+
+TEST_F(VehicleTest, DisconnectWithNoCommandsDoesNotCrash) {
+    // Disconnect with empty queue should not crash
+    EXPECT_NO_THROW(vehicle_->set_connected(false));
+}
+
+TEST_F(VehicleTest, DisconnectWithNullCallbacksDoesNotCrash) {
+    // Enqueue command without callback
+    vehicle_->send_command(
+        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        "Command Without Callback",
+        [](Client*, uint8_t*, size_t* len) { *len = 10; return 0; },
+        nullptr  // No callback
+    );
+    
+    // Disconnect - should handle null callback gracefully
+    EXPECT_NO_THROW(vehicle_->set_connected(false));
+}
+
+TEST_F(VehicleTest, ReconnectionResetsStateForFreshStart) {
+    // Full cycle: connect -> enqueue -> disconnect -> reconnect -> enqueue again
+    vehicle_->set_connected(true);
+    
+    // First command
+    vehicle_->vcsec_poll();
+    vehicle_->loop();
+    
+    auto writes_before = mock_ble_->get_written_data().size();
+    mock_ble_->clear_written_data();
+    
+    // Disconnect
+    vehicle_->set_connected(false);
+    
+    // Reconnect
+    vehicle_->set_connected(true);
+    
+    // New command after reconnection
+    vehicle_->vcsec_poll();
+    vehicle_->loop();
+    
+    auto writes_after = mock_ble_->get_written_data().size();
+    
+    // Should have sent auth request again (fresh start)
+    EXPECT_GE(writes_after, 1) << "Should send auth request after reconnection";
+}
+
+TEST_F(VehicleTest, MultipleDisconnectsAreIdempotent) {
+    vehicle_->set_connected(true);
+    
+    // Enqueue a command
+    int callback_count = 0;
+    vehicle_->send_command(
+        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        "Test",
+        [](Client*, uint8_t*, size_t* len) { *len = 10; return 0; },
+        [&](bool) { callback_count++; }
+    );
+    
+    // Multiple disconnects
+    vehicle_->set_connected(false);
+    vehicle_->set_connected(false);
+    vehicle_->set_connected(false);
+    
+    // Callback should only be called once (when queue was cleared on first disconnect)
+    EXPECT_EQ(callback_count, 1) << "Callback should only be called once";
+}

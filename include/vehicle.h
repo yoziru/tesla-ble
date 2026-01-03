@@ -90,7 +90,30 @@ public:
     void set_charging_limit(int limit);
     void unlock_charge_port();
     
-
+    // VCSEC closure controls
+    void lock();
+    void unlock();
+    void open_trunk();
+    void close_trunk();
+    void open_frunk();
+    void open_charge_port();
+    void close_charge_port();
+    void unlatch_driver_door();
+    
+    // HVAC controls (infotainment)
+    void set_climate(bool enable);
+    void set_climate_temp(float temp_celsius);
+    void set_climate_keeper(int mode);  // 0=Off, 1=On, 2=Dog, 3=Camp
+    void set_bioweapon_mode(bool enable);
+    void set_preconditioning_max(bool enable);  // Defrost
+    void set_steering_wheel_heat(bool enable);
+    
+    // Vehicle controls (infotainment)
+    void flash_lights();
+    void honk_horn();
+    void set_sentry_mode(bool enable);
+    void vent_windows();
+    void close_windows();
     
     // Pairing & Auth
     void authenticate_key_request();

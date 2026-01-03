@@ -110,7 +110,7 @@ else()
     
     include(FetchContent)
     project(TeslaBLE
-            VERSION 4.1.0
+            VERSION 4.1.1
             DESCRIPTION "CPP Tesla BLE Library"
             LANGUAGES CXX C
     )

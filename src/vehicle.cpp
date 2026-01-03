@@ -65,14 +65,15 @@ void Vehicle::loop() {
 void Vehicle::send_command(UniversalMessage_Domain domain, 
                            std::string name, 
                            std::function<int(Client*, uint8_t*, size_t*)> builder,
-                           std::function<void(bool)> on_complete) {
+                           std::function<void(bool)> on_complete,
+                           bool requires_wake) {
     
     // TODO: Max queue size check?
     
-    auto cmd = std::make_shared<Command>(domain, std::move(name), std::move(builder), std::move(on_complete));
+    auto cmd = std::make_shared<Command>(domain, std::move(name), std::move(builder), std::move(on_complete), requires_wake);
     command_queue_.push(cmd);
     
-    LOG_DEBUG("Enqueued command: %s (domain: %s)", cmd->name.c_str(), domain_to_string(domain));
+    LOG_DEBUG("Enqueued command: %s (domain: %s, requires_wake: %s)", cmd->name.c_str(), domain_to_string(domain), requires_wake ? "true" : "false");
 }
 
 void Vehicle::process_command_queue() {
@@ -218,18 +219,27 @@ void Vehicle::initiate_vcsec_auth(std::shared_ptr<Command> command) {
 }
 
 void Vehicle::initiate_infotainment_auth(std::shared_ptr<Command> command) {
-    // Check if vehicle is asleep - if so, transition to wake state first
-    if (!is_vehicle_awake_) {
-        LOG_DEBUG("Vehicle is asleep, transitioning to wake state before infotainment auth");
-        command->state = CommandState::WAITING_FOR_WAKE;
-        command->last_tx_at = std::chrono::steady_clock::time_point();  // Trigger immediate wake sequence
+    // FIRST: If vehicle is asleep and command doesn't require wake, skip immediately
+    // This avoids unnecessary auth attempts for optional polls when vehicle is sleeping
+    if (!is_vehicle_awake_ && !command->requires_wake) {
+        LOG_DEBUG("Vehicle is asleep and command doesn't require wake, skipping: %s", command->name.c_str());
+        mark_command_completed(command);  // Mark as completed (no-op when asleep)
         return;
     }
     
-    // Check if VCSEC is authenticated first (prerequisite)
+    // Check if VCSEC is authenticated (prerequisite for both wake and infotainment)
     if (!is_domain_authenticated(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)) {
         LOG_DEBUG("VCSEC auth required before Infotainment auth");
-        command->state = CommandState::WAITING_FOR_VCSEC_AUTH;
+        // Directly initiate VCSEC auth instead of just setting state, to avoid extra loop iteration
+        initiate_vcsec_auth(command);
+        return;
+    }
+    
+    // Check if vehicle is asleep and command requires wake - if so, transition to wake state
+    if (!is_vehicle_awake_ && command->requires_wake) {
+        LOG_DEBUG("Vehicle is asleep and command requires wake, transitioning to wake state");
+        command->state = CommandState::WAITING_FOR_WAKE;
+        command->last_tx_at = std::chrono::steady_clock::time_point();  // Trigger immediate wake sequence
         return;
     }
     
@@ -793,13 +803,15 @@ void Vehicle::vcsec_poll() {
     );
 }
 
-void Vehicle::infotainment_poll() {
+void Vehicle::infotainment_poll(bool force_wake) {
     send_command(
         UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
         "Infotainment Poll",
         [](Client* client, uint8_t* buff, size_t* len) {
              return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getChargeState_tag);
-        }
+        },
+        nullptr,     // no callback
+        force_wake   // requires_wake - if true, will wake vehicle; if false, skip when asleep
     );
 }
 

@@ -38,14 +38,16 @@ struct Command {
     std::function<int(Client*, uint8_t*, size_t*)> builder;
     // Callback: success state
     std::function<void(bool)> on_complete;
+    // Whether this command requires the vehicle to be awake (write commands = true, read/poll = false)
+    bool requires_wake = true;
 
     CommandState state = CommandState::IDLE;
     std::chrono::steady_clock::time_point started_at;
     std::chrono::steady_clock::time_point last_tx_at;
     uint8_t retry_count = 0;
 
-    Command(UniversalMessage_Domain d, std::string n, std::function<int(Client*, uint8_t*, size_t*)> b, std::function<void(bool)> cb = nullptr)
-        : domain(d), name(std::move(n)), builder(std::move(b)), on_complete(std::move(cb)) {
+    Command(UniversalMessage_Domain d, std::string n, std::function<int(Client*, uint8_t*, size_t*)> b, std::function<void(bool)> cb = nullptr, bool wake = true)
+        : domain(d), name(std::move(n)), builder(std::move(b)), on_complete(std::move(cb)), requires_wake(wake) {
             started_at = std::chrono::steady_clock::now();
     }
 };
@@ -61,7 +63,7 @@ public:
     void on_rx_data(const std::vector<uint8_t>& data);
     
     // Command Enqueueing
-    void send_command(UniversalMessage_Domain domain, std::string name, std::function<int(Client*, uint8_t*, size_t*)> builder, std::function<void(bool)> on_complete = nullptr);
+    void send_command(UniversalMessage_Domain domain, std::string name, std::function<int(Client*, uint8_t*, size_t*)> builder, std::function<void(bool)> on_complete = nullptr, bool requires_wake = true);
     
     // State Callbacks
     void set_vehicle_status_callback(std::function<void(const VCSEC_VehicleStatus&)> cb) { vehicle_status_callback_ = cb; }
@@ -73,7 +75,7 @@ public:
     // Helpers for common commands (wrappers around send_command)
     void wake();
     void vcsec_poll();
-    void infotainment_poll();
+    void infotainment_poll(bool force_wake = false);
     void set_charging_state(bool enable);
     void set_charging_amps(int amps);
     void set_charging_limit(int limit);

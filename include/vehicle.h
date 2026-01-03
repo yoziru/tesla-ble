@@ -70,7 +70,8 @@ public:
     void set_charge_state_callback(std::function<void(const CarServer_ChargeState&)> cb) { charge_state_callback_ = cb; }
     void set_climate_state_callback(std::function<void(const CarServer_ClimateState&)> cb) { climate_state_callback_ = cb; }
     void set_drive_state_callback(std::function<void(const CarServer_DriveState&)> cb) { drive_state_callback_ = cb; }
-    void set_tire_pressure_callback(std::function<void(const CarServer_TirePressureState&)> cb) { tire_pressure_callback_ = cb; }
+    void set_tire_pressure_state_callback(std::function<void(const CarServer_TirePressureState&)> cb) { tire_pressure_callback_ = cb; }
+    void set_closures_state_callback(std::function<void(const CarServer_ClosuresState&)> cb) { closures_state_callback_ = cb; }
     
     // Helpers for common commands (wrappers around send_command)
     void wake();

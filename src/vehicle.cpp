@@ -686,6 +686,9 @@ void Vehicle::handle_carserver_message(const UniversalMessage_RoutableMessage& m
          if (response.response_msg.vehicleData.has_tire_pressure_state && tire_pressure_callback_) {
              tire_pressure_callback_(response.response_msg.vehicleData.tire_pressure_state);
          }
+         if (response.response_msg.vehicleData.has_closures_state && closures_state_callback_) {
+             closures_state_callback_(response.response_msg.vehicleData.closures_state);
+         }
     }
     
     // Check command completion

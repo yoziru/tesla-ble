@@ -804,14 +804,71 @@ void Vehicle::vcsec_poll() {
 }
 
 void Vehicle::infotainment_poll(bool force_wake) {
+    // Poll various vehicle states, need to do this separately to avoid ERROR_RESPONSE_MTU_EXCEEDED
+    charge_state_poll(force_wake);
+    climate_state_poll(force_wake);
+    drive_state_poll(force_wake);
+    closures_state_poll(force_wake);
+    tire_pressure_poll(force_wake);
+}
+
+void Vehicle::charge_state_poll(bool force_wake) {
     send_command(
         UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
-        "Infotainment Poll",
+        "Charge State Poll",
         [](Client* client, uint8_t* buff, size_t* len) {
              return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getChargeState_tag);
         },
-        nullptr,     // no callback
-        force_wake   // requires_wake - if true, will wake vehicle; if false, skip when asleep
+        nullptr,
+        force_wake
+    );
+}
+
+void Vehicle::climate_state_poll(bool force_wake) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Climate State Poll",
+        [](Client* client, uint8_t* buff, size_t* len) {
+             return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getClimateState_tag);
+        },
+        nullptr,
+        force_wake
+    );
+}
+
+void Vehicle::drive_state_poll(bool force_wake) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Drive State Poll",
+        [](Client* client, uint8_t* buff, size_t* len) {
+             return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getDriveState_tag);
+        },
+        nullptr,
+        force_wake
+    );
+}
+
+void Vehicle::closures_state_poll(bool force_wake) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Closures State Poll",
+        [](Client* client, uint8_t* buff, size_t* len) {
+             return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getClosuresState_tag);
+        },
+        nullptr,
+        force_wake
+    );
+}
+
+void Vehicle::tire_pressure_poll(bool force_wake) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Tire Pressure Poll",
+        [](Client* client, uint8_t* buff, size_t* len) {
+             return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getTirePressureState_tag);
+        },
+        nullptr,
+        force_wake
     );
 }
 

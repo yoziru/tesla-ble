@@ -76,6 +76,14 @@ public:
     void wake();
     void vcsec_poll();
     void infotainment_poll(bool force_wake = false);
+    
+    // Individual state polls (all use force_wake parameter like infotainment_poll)
+    void charge_state_poll(bool force_wake = false);
+    void climate_state_poll(bool force_wake = false);
+    void drive_state_poll(bool force_wake = false);
+    void closures_state_poll(bool force_wake = false);
+    void tire_pressure_poll(bool force_wake = false);
+    
     void set_charging_state(bool enable);
     void set_charging_amps(int amps);
     void set_charging_limit(int limit);
@@ -115,6 +123,7 @@ private:
     std::function<void(const CarServer_ClimateState&)> climate_state_callback_;
     std::function<void(const CarServer_DriveState&)> drive_state_callback_;
     std::function<void(const CarServer_TirePressureState&)> tire_pressure_callback_;
+    std::function<void(const CarServer_ClosuresState&)> closures_state_callback_;
 
     bool is_connected_ = false;
     bool is_vcsec_authenticated_ = false;

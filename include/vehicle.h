@@ -70,18 +70,50 @@ public:
     void set_charge_state_callback(std::function<void(const CarServer_ChargeState&)> cb) { charge_state_callback_ = cb; }
     void set_climate_state_callback(std::function<void(const CarServer_ClimateState&)> cb) { climate_state_callback_ = cb; }
     void set_drive_state_callback(std::function<void(const CarServer_DriveState&)> cb) { drive_state_callback_ = cb; }
-    void set_tire_pressure_callback(std::function<void(const CarServer_TirePressureState&)> cb) { tire_pressure_callback_ = cb; }
+    void set_tire_pressure_state_callback(std::function<void(const CarServer_TirePressureState&)> cb) { tire_pressure_callback_ = cb; }
+    void set_closures_state_callback(std::function<void(const CarServer_ClosuresState&)> cb) { closures_state_callback_ = cb; }
     
     // Helpers for common commands (wrappers around send_command)
     void wake();
     void vcsec_poll();
     void infotainment_poll(bool force_wake = false);
+    
+    // Individual state polls (all use force_wake parameter like infotainment_poll)
+    void charge_state_poll(bool force_wake = false);
+    void climate_state_poll(bool force_wake = false);
+    void drive_state_poll(bool force_wake = false);
+    void closures_state_poll(bool force_wake = false);
+    void tire_pressure_poll(bool force_wake = false);
+    
     void set_charging_state(bool enable);
     void set_charging_amps(int amps);
     void set_charging_limit(int limit);
     void unlock_charge_port();
     
-
+    // VCSEC closure controls
+    void lock();
+    void unlock();
+    void open_trunk();
+    void close_trunk();
+    void open_frunk();
+    void open_charge_port();
+    void close_charge_port();
+    void unlatch_driver_door();
+    
+    // HVAC controls (infotainment)
+    void set_climate(bool enable);
+    void set_climate_temp(float temp_celsius);
+    void set_climate_keeper(int mode);  // 0=Off, 1=On, 2=Dog, 3=Camp
+    void set_bioweapon_mode(bool enable);
+    void set_preconditioning_max(bool enable);  // Defrost
+    void set_steering_wheel_heat(bool enable);
+    
+    // Vehicle controls (infotainment)
+    void flash_lights();
+    void honk_horn();
+    void set_sentry_mode(bool enable);
+    void vent_windows();
+    void close_windows();
     
     // Pairing & Auth
     void authenticate_key_request();
@@ -115,6 +147,7 @@ private:
     std::function<void(const CarServer_ClimateState&)> climate_state_callback_;
     std::function<void(const CarServer_DriveState&)> drive_state_callback_;
     std::function<void(const CarServer_TirePressureState&)> tire_pressure_callback_;
+    std::function<void(const CarServer_ClosuresState&)> closures_state_callback_;
 
     bool is_connected_ = false;
     bool is_vcsec_authenticated_ = false;

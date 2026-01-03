@@ -37,6 +37,11 @@ namespace TeslaBLE
     static int buildMediaNextTrack(CarServer_VehicleAction& action, const void* data);
     static int buildMediaPreviousTrack(CarServer_VehicleAction& action, const void* data);
     static int buildPingAction(CarServer_VehicleAction& action, const void* data);
+    static int buildVehicleControlWindowAction(CarServer_VehicleAction& action, const void* data);
+    static int buildHvacSetPreconditioningMax(CarServer_VehicleAction& action, const void* data);
+    static int buildHvacTemperatureAdjustment(CarServer_VehicleAction& action, const void* data);
+    static int buildHvacClimateKeeper(CarServer_VehicleAction& action, const void* data);
+    static int buildHvacBioweaponMode(CarServer_VehicleAction& action, const void* data);
 
     // Initialize the static builder map
     const std::unordered_map<pb_size_t, VehicleActionBuilder::BuilderFunction> 
@@ -62,7 +67,12 @@ namespace TeslaBLE
         {CarServer_VehicleAction_mediaPreviousFavorite_tag, buildMediaPreviousFavorite},
         {CarServer_VehicleAction_mediaNextTrack_tag, buildMediaNextTrack},
         {CarServer_VehicleAction_mediaPreviousTrack_tag, buildMediaPreviousTrack},
-        {CarServer_VehicleAction_ping_tag, buildPingAction}
+        {CarServer_VehicleAction_ping_tag, buildPingAction},
+        {CarServer_VehicleAction_vehicleControlWindowAction_tag, buildVehicleControlWindowAction},
+        {CarServer_VehicleAction_hvacSetPreconditioningMaxAction_tag, buildHvacSetPreconditioningMax},
+        {CarServer_VehicleAction_hvacTemperatureAdjustmentAction_tag, buildHvacTemperatureAdjustment},
+        {CarServer_VehicleAction_hvacClimateKeeperAction_tag, buildHvacClimateKeeper},
+        {CarServer_VehicleAction_hvacBioweaponModeAction_tag, buildHvacBioweaponMode}
     };
 
     int VehicleActionBuilder::buildVehicleAction(
@@ -315,6 +325,97 @@ namespace TeslaBLE
         int32_t ping_value = *static_cast<const int32_t*>(data);
         action.vehicle_action_msg.ping = CarServer_Ping_init_default;
         action.vehicle_action_msg.ping.ping_id = ping_value;
+        return TeslaBLE_Status_E_OK;
+    }
+
+    int VehicleActionBuilder::buildVehicleControlWindowAction(CarServer_VehicleAction& action, const void* data)
+    {
+        if (!data) {
+            LOG_ERROR("Vehicle control window action requires int32_t data (0=vent, 1=close)");
+            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+
+        int32_t window_action = *static_cast<const int32_t*>(data);
+        action.vehicle_action_msg.vehicleControlWindowAction = CarServer_VehicleControlWindowAction_init_default;
+        
+        if (window_action == 0) {
+            // Vent windows
+            action.vehicle_action_msg.vehicleControlWindowAction.which_action = 
+                CarServer_VehicleControlWindowAction_vent_tag;
+            action.vehicle_action_msg.vehicleControlWindowAction.action.vent = 
+                CarServer_Void_init_default;
+        } else {
+            // Close windows
+            action.vehicle_action_msg.vehicleControlWindowAction.which_action = 
+                CarServer_VehicleControlWindowAction_close_tag;
+            action.vehicle_action_msg.vehicleControlWindowAction.action.close = 
+                CarServer_Void_init_default;
+        }
+        
+        return TeslaBLE_Status_E_OK;
+    }
+
+    int VehicleActionBuilder::buildHvacSetPreconditioningMax(CarServer_VehicleAction& action, const void* data)
+    {
+        if (!data) {
+            LOG_ERROR("HVAC set preconditioning max action requires boolean data");
+            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+
+        bool isOn = *static_cast<const bool*>(data);
+        action.vehicle_action_msg.hvacSetPreconditioningMaxAction = CarServer_HvacSetPreconditioningMaxAction_init_default;
+        action.vehicle_action_msg.hvacSetPreconditioningMaxAction.on = isOn;
+        action.vehicle_action_msg.hvacSetPreconditioningMaxAction.manual_override = true;
+        return TeslaBLE_Status_E_OK;
+    }
+
+    int VehicleActionBuilder::buildHvacTemperatureAdjustment(CarServer_VehicleAction& action, const void* data)
+    {
+        if (!data) {
+            LOG_ERROR("HVAC temperature adjustment action requires float data");
+            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+
+        float temp_celsius = *static_cast<const float*>(data);
+        
+        // Validate temperature is within reasonable range (15-28°C like the UI)
+        if (temp_celsius < 15.0f || temp_celsius > 28.0f) {
+            LOG_WARNING("Temperature %.1f°C outside normal range (15-28°C)", temp_celsius);
+        }
+        
+        action.vehicle_action_msg.hvacTemperatureAdjustmentAction = CarServer_HvacTemperatureAdjustmentAction_init_default;
+        // Set driver and passenger to same temperature for now
+        action.vehicle_action_msg.hvacTemperatureAdjustmentAction.driver_temp_celsius = temp_celsius;
+        action.vehicle_action_msg.hvacTemperatureAdjustmentAction.passenger_temp_celsius = temp_celsius;
+        return TeslaBLE_Status_E_OK;
+    }
+
+    int VehicleActionBuilder::buildHvacClimateKeeper(CarServer_VehicleAction& action, const void* data)
+    {
+        if (!data) {
+            LOG_ERROR("HVAC climate keeper action requires int data");
+            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+
+        int mode = *static_cast<const int*>(data);
+        action.vehicle_action_msg.hvacClimateKeeperAction = CarServer_HvacClimateKeeperAction_init_default;
+        action.vehicle_action_msg.hvacClimateKeeperAction.ClimateKeeperAction = 
+            static_cast<CarServer_HvacClimateKeeperAction_ClimateKeeperAction_E>(mode);
+        action.vehicle_action_msg.hvacClimateKeeperAction.manual_override = true;
+        return TeslaBLE_Status_E_OK;
+    }
+
+    int VehicleActionBuilder::buildHvacBioweaponMode(CarServer_VehicleAction& action, const void* data)
+    {
+        if (!data) {
+            LOG_ERROR("HVAC bioweapon mode action requires boolean data");
+            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+
+        bool isOn = *static_cast<const bool*>(data);
+        action.vehicle_action_msg.hvacBioweaponModeAction = CarServer_HvacBioweaponModeAction_init_default;
+        action.vehicle_action_msg.hvacBioweaponModeAction.on = isOn;
+        action.vehicle_action_msg.hvacBioweaponModeAction.manual_override = true;
         return TeslaBLE_Status_E_OK;
     }
 

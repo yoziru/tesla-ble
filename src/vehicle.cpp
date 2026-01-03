@@ -686,6 +686,9 @@ void Vehicle::handle_carserver_message(const UniversalMessage_RoutableMessage& m
          if (response.response_msg.vehicleData.has_tire_pressure_state && tire_pressure_callback_) {
              tire_pressure_callback_(response.response_msg.vehicleData.tire_pressure_state);
          }
+         if (response.response_msg.vehicleData.has_closures_state && closures_state_callback_) {
+             closures_state_callback_(response.response_msg.vehicleData.closures_state);
+         }
     }
     
     // Check command completion
@@ -804,14 +807,71 @@ void Vehicle::vcsec_poll() {
 }
 
 void Vehicle::infotainment_poll(bool force_wake) {
+    // Poll various vehicle states, need to do this separately to avoid ERROR_RESPONSE_MTU_EXCEEDED
+    charge_state_poll(force_wake);
+    climate_state_poll(force_wake);
+    drive_state_poll(force_wake);
+    closures_state_poll(force_wake);
+    tire_pressure_poll(force_wake);
+}
+
+void Vehicle::charge_state_poll(bool force_wake) {
     send_command(
         UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
-        "Infotainment Poll",
+        "Charge State Poll",
         [](Client* client, uint8_t* buff, size_t* len) {
              return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getChargeState_tag);
         },
-        nullptr,     // no callback
-        force_wake   // requires_wake - if true, will wake vehicle; if false, skip when asleep
+        nullptr,
+        force_wake
+    );
+}
+
+void Vehicle::climate_state_poll(bool force_wake) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Climate State Poll",
+        [](Client* client, uint8_t* buff, size_t* len) {
+             return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getClimateState_tag);
+        },
+        nullptr,
+        force_wake
+    );
+}
+
+void Vehicle::drive_state_poll(bool force_wake) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Drive State Poll",
+        [](Client* client, uint8_t* buff, size_t* len) {
+             return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getDriveState_tag);
+        },
+        nullptr,
+        force_wake
+    );
+}
+
+void Vehicle::closures_state_poll(bool force_wake) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Closures State Poll",
+        [](Client* client, uint8_t* buff, size_t* len) {
+             return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getClosuresState_tag);
+        },
+        nullptr,
+        force_wake
+    );
+}
+
+void Vehicle::tire_pressure_poll(bool force_wake) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Tire Pressure Poll",
+        [](Client* client, uint8_t* buff, size_t* len) {
+             return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getTirePressureState_tag);
+        },
+        nullptr,
+        force_wake
     );
 }
 
@@ -854,6 +914,231 @@ void Vehicle::unlock_charge_port() {
         "Unlock Charge Port",
         [](Client* client, uint8_t* buff, size_t* len) {
              return client->buildCarServerVehicleActionMessage(buff, len, CarServer_VehicleAction_chargePortDoorOpen_tag, nullptr);
+        }
+    );
+}
+
+// =============================================================================
+// VCSEC Closure Controls
+// =============================================================================
+
+void Vehicle::lock() {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        "Lock",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            return client->buildVCSECActionMessage(VCSEC_RKEAction_E_RKE_ACTION_LOCK, buff, len);
+        }
+    );
+}
+
+void Vehicle::unlock() {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        "Unlock",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            return client->buildVCSECActionMessage(VCSEC_RKEAction_E_RKE_ACTION_UNLOCK, buff, len);
+        }
+    );
+}
+
+void Vehicle::open_trunk() {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        "Open Trunk",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
+            request.rearTrunk = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN;
+            return client->buildVCSECClosureMessage(&request, buff, len);
+        }
+    );
+}
+
+void Vehicle::close_trunk() {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        "Close Trunk",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
+            request.rearTrunk = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE;
+            return client->buildVCSECClosureMessage(&request, buff, len);
+        }
+    );
+}
+
+void Vehicle::open_frunk() {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        "Open Frunk",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
+            request.frontTrunk = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN;
+            return client->buildVCSECClosureMessage(&request, buff, len);
+        }
+    );
+}
+
+void Vehicle::open_charge_port() {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        "Open Charge Port",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
+            request.chargePort = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN;
+            return client->buildVCSECClosureMessage(&request, buff, len);
+        }
+    );
+}
+
+void Vehicle::close_charge_port() {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        "Close Charge Port",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
+            request.chargePort = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE;
+            return client->buildVCSECClosureMessage(&request, buff, len);
+        }
+    );
+}
+
+void Vehicle::unlatch_driver_door() {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        "Unlatch Driver Door",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
+            request.frontDriverDoor = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN;
+            return client->buildVCSECClosureMessage(&request, buff, len);
+        }
+    );
+}
+
+// =============================================================================
+// HVAC Controls (Infotainment)
+// =============================================================================
+
+void Vehicle::set_climate(bool enable) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        enable ? "Climate On" : "Climate Off",
+        [enable](Client* client, uint8_t* buff, size_t* len) {
+            bool val = enable;
+            return client->buildCarServerVehicleActionMessage(buff, len, CarServer_VehicleAction_hvacAutoAction_tag, &val);
+        }
+    );
+}
+
+void Vehicle::set_climate_temp(float temp_celsius) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Set Climate Temperature",
+        [temp_celsius](Client* client, uint8_t* buff, size_t* len) {
+            float temp = temp_celsius;
+            return client->buildCarServerVehicleActionMessage(buff, len, CarServer_VehicleAction_hvacTemperatureAdjustmentAction_tag, &temp);
+        }
+    );
+}
+
+void Vehicle::set_climate_keeper(int mode) {
+    const char* mode_names[] = {"Off", "On", "Dog", "Camp"};
+    const char* name = (mode >= 0 && mode <= 3) ? mode_names[mode] : "Unknown";
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        std::string("Climate Keeper ") + name,
+        [mode](Client* client, uint8_t* buff, size_t* len) {
+            int m = mode;
+            return client->buildCarServerVehicleActionMessage(buff, len, CarServer_VehicleAction_hvacClimateKeeperAction_tag, &m);
+        }
+    );
+}
+
+void Vehicle::set_bioweapon_mode(bool enable) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        enable ? "Bioweapon Mode On" : "Bioweapon Mode Off",
+        [enable](Client* client, uint8_t* buff, size_t* len) {
+            bool val = enable;
+            return client->buildCarServerVehicleActionMessage(buff, len, CarServer_VehicleAction_hvacBioweaponModeAction_tag, &val);
+        }
+    );
+}
+
+void Vehicle::set_preconditioning_max(bool enable) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        enable ? "Defrost On" : "Defrost Off",
+        [enable](Client* client, uint8_t* buff, size_t* len) {
+            bool val = enable;
+            return client->buildCarServerVehicleActionMessage(buff, len, CarServer_VehicleAction_hvacSetPreconditioningMaxAction_tag, &val);
+        }
+    );
+}
+
+void Vehicle::set_steering_wheel_heat(bool enable) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        enable ? "Steering Wheel Heat On" : "Steering Wheel Heat Off",
+        [enable](Client* client, uint8_t* buff, size_t* len) {
+            bool val = enable;
+            return client->buildCarServerVehicleActionMessage(buff, len, CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag, &val);
+        }
+    );
+}
+
+// =============================================================================
+// Vehicle Controls (Infotainment)
+// =============================================================================
+
+void Vehicle::flash_lights() {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Flash Lights",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            return client->buildCarServerVehicleActionMessage(buff, len, CarServer_VehicleAction_vehicleControlFlashLightsAction_tag, nullptr);
+        }
+    );
+}
+
+void Vehicle::honk_horn() {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Honk Horn",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            return client->buildCarServerVehicleActionMessage(buff, len, CarServer_VehicleAction_vehicleControlHonkHornAction_tag, nullptr);
+        }
+    );
+}
+
+void Vehicle::set_sentry_mode(bool enable) {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        enable ? "Sentry Mode On" : "Sentry Mode Off",
+        [enable](Client* client, uint8_t* buff, size_t* len) {
+            bool val = enable;
+            return client->buildCarServerVehicleActionMessage(buff, len, CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, &val);
+        }
+    );
+}
+
+void Vehicle::vent_windows() {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Vent Windows",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            int32_t action = 0;  // 0 = vent
+            return client->buildCarServerVehicleActionMessage(buff, len, CarServer_VehicleAction_vehicleControlWindowAction_tag, &action);
+        }
+    );
+}
+
+void Vehicle::close_windows() {
+    send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Close Windows",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            int32_t action = 1;  // 1 = close
+            return client->buildCarServerVehicleActionMessage(buff, len, CarServer_VehicleAction_vehicleControlWindowAction_tag, &action);
         }
     );
 }

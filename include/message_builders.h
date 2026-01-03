@@ -64,6 +64,11 @@ namespace TeslaBLE
         static int buildMediaNextTrack(CarServer_VehicleAction& action, const void* data);
         static int buildMediaPreviousTrack(CarServer_VehicleAction& action, const void* data);
         static int buildPingAction(CarServer_VehicleAction& action, const void* data);
+        static int buildVehicleControlWindowAction(CarServer_VehicleAction& action, const void* data);
+        static int buildHvacSetPreconditioningMax(CarServer_VehicleAction& action, const void* data);
+        static int buildHvacTemperatureAdjustment(CarServer_VehicleAction& action, const void* data);
+        static int buildHvacClimateKeeper(CarServer_VehicleAction& action, const void* data);
+        static int buildHvacBioweaponMode(CarServer_VehicleAction& action, const void* data);
 
         // Map of action types to their builder functions
         static const std::unordered_map<pb_size_t, BuilderFunction> builders_;

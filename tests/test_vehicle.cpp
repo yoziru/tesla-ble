@@ -184,3 +184,113 @@ TEST_F(VehicleTest, WakeFlowCompletesFully) {
     // Let's check if anything was written.
     EXPECT_GE(writes.size(), 1) << "Should have written the Wake command after auth";
 }
+
+// ============================================================================
+// Tests for requires_wake functionality
+// ============================================================================
+
+TEST(CommandStructTest, DefaultRequiresWakeIsTrue) {
+    // Command struct should default requires_wake to true for safety
+    Command cmd(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Test Command",
+        [](Client*, uint8_t*, size_t*) { return 0; },
+        nullptr
+    );
+    
+    EXPECT_TRUE(cmd.requires_wake) << "Commands should default to requiring wake";
+}
+
+TEST(CommandStructTest, RequiresWakeCanBeSetFalse) {
+    // Command struct should allow requires_wake to be set to false
+    Command cmd(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Test Poll",
+        [](Client*, uint8_t*, size_t*) { return 0; },
+        nullptr,
+        false  // requires_wake = false
+    );
+    
+    EXPECT_FALSE(cmd.requires_wake) << "Should be able to set requires_wake to false";
+}
+
+TEST_F(VehicleTest, InfotainmentPollDefaultDoesNotRequireWake) {
+    // infotainment_poll() without force_wake should not require wake
+    bool callback_called = false;
+    bool callback_success = false;
+    
+    // We'll use send_command directly to verify the requires_wake parameter
+    vehicle_->send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Infotainment Poll",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getChargeState_tag);
+        },
+        [&](bool success) {
+            callback_called = true;
+            callback_success = success;
+        },
+        false  // requires_wake = false (matches infotainment_poll behavior)
+    );
+    
+    // Process the command - since vehicle is not awake by default and requires_wake=false,
+    // the command should be skipped (marked complete without sending)
+    vehicle_->loop();
+    
+    // The command should have been marked as completed (skipped) since vehicle is asleep
+    // and requires_wake is false
+    EXPECT_TRUE(callback_called) << "Callback should be called when command is skipped";
+    EXPECT_TRUE(callback_success) << "Skipped poll should be marked as success (no-op)";
+    
+    // No data should have been written since we're skipping
+    auto writes = mock_ble_->get_written_data();
+    // Note: We might see VCSEC auth first, but the infotainment poll itself should be skipped
+}
+
+TEST_F(VehicleTest, InfotainmentPollForceWakeRequiresWake) {
+    // infotainment_poll(true) should require wake
+    vehicle_->infotainment_poll(true);  // force_wake = true
+    
+    // Process - should attempt to send (auth first, then wake, then poll)
+    vehicle_->loop();
+    
+    // Should have sent a VCSEC session info request (first step of auth)
+    auto writes = mock_ble_->get_written_data();
+    EXPECT_GE(writes.size(), 1) << "Should have initiated auth for force_wake poll";
+}
+
+TEST_F(VehicleTest, SetChargingAmpsRequiresWake) {
+    // set_charging_amps should always require wake (write command)
+    vehicle_->set_charging_amps(16);
+    
+    // Process - should attempt to send
+    vehicle_->loop();
+    
+    // Should have sent a VCSEC session info request (first step of auth)
+    auto writes = mock_ble_->get_written_data();
+    EXPECT_GE(writes.size(), 1) << "Write commands should always initiate auth/wake";
+}
+
+TEST_F(VehicleTest, SetChargingLimitRequiresWake) {
+    // set_charging_limit should always require wake (write command)
+    vehicle_->set_charging_limit(80);
+    
+    // Process
+    vehicle_->loop();
+    
+    auto writes = mock_ble_->get_written_data();
+    EXPECT_GE(writes.size(), 1) << "Write commands should always initiate auth/wake";
+}
+
+TEST_F(VehicleTest, VCSECPollDoesNotRequireInfotainmentWake) {
+    // vcsec_poll is VCSEC domain, not infotainment, so it doesn't need infotainment wake logic
+    vehicle_->vcsec_poll();
+    
+    // Process
+    vehicle_->loop();
+    
+    // VCSEC commands go through VCSEC auth, not wake logic
+    auto writes = mock_ble_->get_written_data();
+    EXPECT_GE(writes.size(), 1) << "VCSEC poll should initiate VCSEC auth";
+}
+

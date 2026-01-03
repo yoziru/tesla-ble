@@ -1,6 +1,6 @@
 {
   "name": "TeslaBLE",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "This CPP library facilitates direct communication with Tesla vehicles via the BLE API. It offers fundamental features such as unlocking/locking, opening the trunk, and more. The library's capabilities are contingent on the range of actions implemented by Tesla, which is the only limitation at present.",
   "keywords": "tesla, ble",
   "repository": {

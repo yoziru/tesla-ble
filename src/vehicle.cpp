@@ -20,15 +20,9 @@ namespace TeslaBLE {
 Vehicle::Vehicle(std::shared_ptr<BleAdapter> ble, std::shared_ptr<StorageAdapter> storage)
     : ble_adapter_(ble), storage_adapter_(storage), client_(std::make_shared<Client>())
 {
-    // Load existing keys/session from storage if available?
-    // Client currently has method loadPrivateKey.
-    // We should probably load keys on startup.
-    // For now, we assume the platform might trigger loading or we do it here.
-    // Let's defer strict storage logic for a moment or do basic load.
-    // Since StorageAdapter abstract keys, we need a convention.
-    // "private_key", "vcsec_session", "infotainment_session" etc.
+    // Load existing keys and sessions from storage
     
-    // Attempt to load private key
+    // 1. Load private key
     std::vector<uint8_t> key_buffer;
     if (storage_adapter_->load("private_key", key_buffer)) {
          if (client_->loadPrivateKey(key_buffer.data(), key_buffer.size()) == 0) {
@@ -39,6 +33,12 @@ Vehicle::Vehicle(std::shared_ptr<BleAdapter> ble, std::shared_ptr<StorageAdapter
     } else {
         LOG_INFO("No private key found in storage");
     }
+    
+    // 2. Load VCSEC session
+    load_session_from_storage(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+    
+    // 3. Load Infotainment session
+    load_session_from_storage(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
 }
 
 void Vehicle::set_vin(const std::string& vin) {
@@ -699,6 +699,56 @@ void Vehicle::handle_authentication_response(UniversalMessage_Domain domain, boo
             } else {
                 mark_command_failed(cmd, "Auth failed");
             }
+        }
+    }
+}
+
+void Vehicle::load_session_from_storage(UniversalMessage_Domain domain) {
+    std::string key = (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) ? "session_vcsec" : "session_infotainment";
+    
+    std::vector<uint8_t> session_data;
+    if (!storage_adapter_->load(key, session_data)) {
+        LOG_DEBUG("No stored session found for %s", domain_to_string(domain));
+        return;
+    }
+    
+    if (session_data.empty()) {
+        LOG_DEBUG("Empty session data for %s", domain_to_string(domain));
+        return;
+    }
+    
+    // Create a session_info_t structure for parsing
+    UniversalMessage_RoutableMessage_session_info_t session_info_buffer;
+    if (session_data.size() > sizeof(session_info_buffer.bytes)) {
+        LOG_ERROR("Session data too large for %s: %zu bytes", domain_to_string(domain), session_data.size());
+        return;
+    }
+    
+    memcpy(session_info_buffer.bytes, session_data.data(), session_data.size());
+    session_info_buffer.size = session_data.size();
+    
+    // Parse the session info
+    Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
+    int result = client_->parsePayloadSessionInfo(&session_info_buffer, &session_info);
+    if (result != 0) {
+        LOG_ERROR("Failed to parse stored session info for %s: %d", domain_to_string(domain), result);
+        return;
+    }
+    
+    // Validate session status
+    if (session_info.status != Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK) {
+        LOG_WARNING("Stored session for %s has invalid status: %d", domain_to_string(domain), session_info.status);
+        return;
+    }
+    
+    // Update the peer with the loaded session
+    auto peer = client_->getPeer(domain);
+    if (peer) {
+        // Use forceUpdateSession since we're loading from storage (no anti-replay check needed)
+        if (peer->forceUpdateSession(&session_info) == 0) {
+            LOG_INFO("Loaded session from storage for %s (counter: %u)", domain_to_string(domain), session_info.counter);
+        } else {
+            LOG_ERROR("Failed to apply stored session for %s", domain_to_string(domain));
         }
     }
 }

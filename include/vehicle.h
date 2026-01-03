@@ -142,6 +142,9 @@ private:
     
     bool is_domain_authenticated(UniversalMessage_Domain domain);
     void handle_authentication_response(UniversalMessage_Domain domain, bool success);
+    
+    // Session persistence
+    void load_session_from_storage(UniversalMessage_Domain domain);
 
 protected:
     // Message Reassembly

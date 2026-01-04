@@ -89,6 +89,42 @@ TEST_F(VehicleTest, InfotainmentPollWithForceWakeSendsData) {
     EXPECT_GE(writes.size(), 1) << "Infotainment poll with force_wake should send data";
 }
 
+// ============================================================================
+// Vehicle Sleep State Tests - Regression test for charging vehicle polling bug
+// Issue: Infotainment polls were skipped when vehicle was charging because
+// VCSEC reports UNKNOWN status (not AWAKE) for charging vehicles.
+// Fix: Inverted logic to treat vehicle as awake unless explicitly ASLEEP.
+// ============================================================================
+
+TEST_F(VehicleTest, InfotainmentPollSkippedWhenAsleepByDefault) {
+    // Verify default behavior: vehicle starts in asleep state (no VCSEC status received)
+    // and infotainment polls without force_wake should be skipped
+    
+    bool poll_callback_called = false;
+    bool poll_success = false;
+    
+    vehicle_->send_command(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+        "Optional Poll",
+        [](Client* client, uint8_t* buff, size_t* len) {
+            return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getChargeState_tag);
+        },
+        [&](bool success) {
+            poll_callback_called = true;
+            poll_success = success;
+        },
+        false  // requires_wake = false (optional poll)
+    );
+    vehicle_->loop();
+    
+    // Poll should be skipped (no BLE writes) but callback invoked with success
+    EXPECT_TRUE(poll_callback_called) << "Callback should be invoked for skipped poll";
+    EXPECT_TRUE(poll_success) << "Skipped poll should report success (no-op)";
+    
+    auto writes = mock_ble_->get_written_data();
+    EXPECT_EQ(writes.size(), 0) << "Poll should be skipped when vehicle is asleep";
+}
+
 TEST_F(VehicleTest, SetChargingAmpsSendsData) {
     vehicle_->set_charging_amps(16);
     vehicle_->loop();

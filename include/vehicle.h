@@ -152,7 +152,7 @@ private:
     bool is_connected_ = false;
     bool is_vcsec_authenticated_ = false;
     bool is_infotainment_authenticated_ = false;
-    bool is_vehicle_awake_ = false;  // Track vehicle sleep state from VCSEC status
+    bool is_vehicle_awake_ = false;   // From VCSEC sleep status (inverted: true unless explicitly ASLEEP)
 
 
     // Constants

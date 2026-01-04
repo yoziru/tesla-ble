@@ -59,6 +59,10 @@ void Vehicle::set_connected(bool connected) {
         is_vcsec_authenticated_ = false;
         is_infotainment_authenticated_ = false;
         
+        // Reset vehicle awake state - we don't know the state after disconnect
+        // This prevents stale awake state from causing incorrect command handling
+        is_vehicle_awake_ = false;
+        
         // Clear command queue to prevent stale commands from blocking
         // New commands will be enqueued after reconnection
         while (!command_queue_.empty()) {
@@ -239,6 +243,7 @@ void Vehicle::initiate_vcsec_auth(std::shared_ptr<Command> command) {
 void Vehicle::initiate_infotainment_auth(std::shared_ptr<Command> command) {
     // FIRST: If vehicle is asleep and command doesn't require wake, skip immediately
     // This avoids unnecessary auth attempts for optional polls when vehicle is sleeping
+    // Note: is_vehicle_awake_ is true unless VCSEC explicitly reports ASLEEP
     if (!is_vehicle_awake_ && !command->requires_wake) {
         LOG_DEBUG("Vehicle is asleep and command doesn't require wake, skipping: %s", command->name.c_str());
         mark_command_completed(command);  // Mark as completed (no-op when asleep)
@@ -617,7 +622,8 @@ void Vehicle::handle_vcsec_message(const UniversalMessage_RoutableMessage& msg) 
             log_vehicle_status(TESLA_LOG_TAG, &vcsec_msg.sub_message.vehicleStatus);
             
             // Track vehicle sleep state for command state machine
-            is_vehicle_awake_ = (vcsec_msg.sub_message.vehicleStatus.vehicleSleepStatus == VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_AWAKE);
+            // Assume awake unless explicitly asleep (charging vehicles may report UNKNOWN)
+            is_vehicle_awake_ = (vcsec_msg.sub_message.vehicleStatus.vehicleSleepStatus != VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_ASLEEP);
             
             if (vehicle_status_callback_) vehicle_status_callback_(vcsec_msg.sub_message.vehicleStatus);
             

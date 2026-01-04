@@ -481,4 +481,94 @@ TEST_F(MessageBuildingTest, VehicleActionCoverageReport) {
     }
 }
 
+TEST_F(MessageBuildingTest, SetCabinOverheatProtection_On) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    int result = client->setCabinOverheatProtection(buffer, &length, true, false);
+    EXPECT_EQ(result, 0) << "Setting cabin overheat protection ON should succeed";
+    EXPECT_GT(length, 0) << "Message should have non-zero length";
+    EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer";
+}
+
+TEST_F(MessageBuildingTest, SetCabinOverheatProtection_Off) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    int result = client->setCabinOverheatProtection(buffer, &length, false, false);
+    EXPECT_EQ(result, 0) << "Setting cabin overheat protection OFF should succeed";
+    EXPECT_GT(length, 0) << "Message should have non-zero length";
+}
+
+TEST_F(MessageBuildingTest, SetCabinOverheatProtection_FanOnly) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    int result = client->setCabinOverheatProtection(buffer, &length, true, true);
+    EXPECT_EQ(result, 0) << "Setting cabin overheat protection fan_only should succeed";
+    EXPECT_GT(length, 0) << "Message should have non-zero length";
+}
+
+TEST_F(MessageBuildingTest, ScheduleSoftwareUpdate) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    int32_t offset_sec = 3600; // 1 hour from now
+    int result = client->scheduleSoftwareUpdate(buffer, &length, offset_sec);
+    EXPECT_EQ(result, 0) << "Scheduling software update should succeed";
+    EXPECT_GT(length, 0) << "Message should have non-zero length";
+    EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer";
+}
+
+TEST_F(MessageBuildingTest, ScheduleSoftwareUpdate_Delay) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    int32_t offset_sec = 86400; // 24 hours from now
+    int result = client->scheduleSoftwareUpdate(buffer, &length, offset_sec);
+    EXPECT_EQ(result, 0) << "Scheduling software update with 24h delay should succeed";
+    EXPECT_GT(length, 0) << "Message should have non-zero length";
+}
+
+TEST_F(MessageBuildingTest, CancelSoftwareUpdate) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    int result = client->cancelSoftwareUpdate(buffer, &length);
+    EXPECT_EQ(result, 0) << "Canceling software update should succeed";
+    EXPECT_GT(length, 0) << "Message should have non-zero length";
+    EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer";
+}
+
+TEST_F(MessageBuildingTest, BuildScheduleSoftwareUpdateViaBuilder) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    int32_t offset_sec = 7200; // 2 hours
+    int result = client->buildCarServerVehicleActionMessage(
+        buffer, 
+        &length, 
+        CarServer_VehicleAction_vehicleControlScheduleSoftwareUpdateAction_tag,
+        &offset_sec);
+    EXPECT_EQ(result, 0) << "Building schedule software update via builder should succeed";
+    EXPECT_GT(length, 0) << "Message should have non-zero length";
+}
+
+TEST_F(MessageBuildingTest, BuildSetCabinOverheatProtectionViaBuilder) {
+    pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+    size_t length = 0;
+    
+    CarServer_SetCabinOverheatProtectionAction cop_action = CarServer_SetCabinOverheatProtectionAction_init_default;
+    cop_action.on = true;
+    cop_action.fan_only = false;
+    
+    int result = client->buildCarServerVehicleActionMessage(
+        buffer, 
+        &length, 
+        CarServer_VehicleAction_setCabinOverheatProtectionAction_tag,
+        &cop_action);
+    EXPECT_EQ(result, 0) << "Building set cabin overheat protection via builder should succeed";
+    EXPECT_GT(length, 0) << "Message should have non-zero length";
+}
+
 

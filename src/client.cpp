@@ -933,6 +933,43 @@ namespace TeslaBLE
     return TeslaBLE_Status_E_OK;
   }
 
+  int Client::setCabinOverheatProtection(pb_byte_t *output_buffer,
+                                         size_t *output_length,
+                                         bool on,
+                                         bool fan_only)
+  {
+    CarServer_SetCabinOverheatProtectionAction cop_action = CarServer_SetCabinOverheatProtectionAction_init_default;
+    cop_action.on = on;
+    cop_action.fan_only = fan_only;
+
+    return this->buildCarServerVehicleActionMessage(
+        output_buffer,
+        output_length,
+        CarServer_VehicleAction_setCabinOverheatProtectionAction_tag,
+        &cop_action);
+  }
+
+  int Client::scheduleSoftwareUpdate(pb_byte_t *output_buffer,
+                                     size_t *output_length,
+                                     int32_t offset_sec)
+  {
+    return this->buildCarServerVehicleActionMessage(
+        output_buffer,
+        output_length,
+        CarServer_VehicleAction_vehicleControlScheduleSoftwareUpdateAction_tag,
+        &offset_sec);
+  }
+
+  int Client::cancelSoftwareUpdate(pb_byte_t *output_buffer,
+                                   size_t *output_length)
+  {
+    return this->buildCarServerVehicleActionMessage(
+        output_buffer,
+        output_length,
+        CarServer_VehicleAction_vehicleControlCancelSoftwareUpdateAction_tag,
+        nullptr);
+  }
+
   int Client::buildVCSECActionMessage(const VCSEC_RKEAction_E action, pb_byte_t *output_buffer,
                                       size_t *output_length)
   {

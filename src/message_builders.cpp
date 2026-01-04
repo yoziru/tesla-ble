@@ -32,6 +32,8 @@ namespace TeslaBLE
     static int buildHvacTemperatureAdjustment(CarServer_VehicleAction& action, const void* data);
     static int buildHvacClimateKeeper(CarServer_VehicleAction& action, const void* data);
     static int buildHvacBioweaponMode(CarServer_VehicleAction& action, const void* data);
+    static int buildVehicleControlScheduleSoftwareUpdate(CarServer_VehicleAction& action, const void* data);
+    static int buildSetCabinOverheatProtection(CarServer_VehicleAction& action, const void* data);
 
     // Initialize the static builder map
     const std::unordered_map<pb_size_t, VehicleActionBuilder::BuilderFunction> 
@@ -62,7 +64,9 @@ namespace TeslaBLE
         {CarServer_VehicleAction_hvacSetPreconditioningMaxAction_tag, buildHvacSetPreconditioningMax},
         {CarServer_VehicleAction_hvacTemperatureAdjustmentAction_tag, buildHvacTemperatureAdjustment},
         {CarServer_VehicleAction_hvacClimateKeeperAction_tag, buildHvacClimateKeeper},
-        {CarServer_VehicleAction_hvacBioweaponModeAction_tag, buildHvacBioweaponMode}
+        {CarServer_VehicleAction_hvacBioweaponModeAction_tag, buildHvacBioweaponMode},
+        {CarServer_VehicleAction_vehicleControlScheduleSoftwareUpdateAction_tag, buildVehicleControlScheduleSoftwareUpdate},
+        {CarServer_VehicleAction_setCabinOverheatProtectionAction_tag, buildSetCabinOverheatProtection}
     };
 
     // Builder implementations
@@ -363,6 +367,31 @@ namespace TeslaBLE
         action.vehicle_action_msg.hvacBioweaponModeAction = CarServer_HvacBioweaponModeAction_init_default;
         action.vehicle_action_msg.hvacBioweaponModeAction.on = isOn;
         action.vehicle_action_msg.hvacBioweaponModeAction.manual_override = true;
+        return TeslaBLE_Status_E_OK;
+    }
+
+    int VehicleActionBuilder::buildVehicleControlScheduleSoftwareUpdate(CarServer_VehicleAction& action, const void* data)
+    {
+        if (!data) {
+            LOG_ERROR("Schedule software update action requires int32_t data");
+            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+
+        int32_t offset_sec = *static_cast<const int32_t*>(data);
+        action.vehicle_action_msg.vehicleControlScheduleSoftwareUpdateAction = CarServer_VehicleControlScheduleSoftwareUpdateAction_init_default;
+        action.vehicle_action_msg.vehicleControlScheduleSoftwareUpdateAction.offset_sec = offset_sec;
+        return TeslaBLE_Status_E_OK;
+    }
+
+    int VehicleActionBuilder::buildSetCabinOverheatProtection(CarServer_VehicleAction& action, const void* data)
+    {
+        if (!data) {
+            LOG_ERROR("Set cabin overheat protection action requires data");
+            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        }
+
+        const auto* cop_data = static_cast<const CarServer_SetCabinOverheatProtectionAction*>(data);
+        action.vehicle_action_msg.setCabinOverheatProtectionAction = *cop_data;
         return TeslaBLE_Status_E_OK;
     }
 

@@ -123,6 +123,21 @@ namespace TeslaBLE
             int32_t which_vehicle_action,
             const void* action_data = nullptr);
 
+        int setCabinOverheatProtection(
+            pb_byte_t* output_buffer,
+            size_t* output_length,
+            bool on,
+            bool fan_only = false);
+
+        int scheduleSoftwareUpdate(
+            pb_byte_t* output_buffer,
+            size_t* output_length,
+            int32_t offset_sec);
+
+        int cancelSoftwareUpdate(
+            pb_byte_t* output_buffer,
+            size_t* output_length);
+
         // Session management (public for testing)
         Peer* getPeer(UniversalMessage_Domain domain);
         const Peer* getPeer(UniversalMessage_Domain domain) const;

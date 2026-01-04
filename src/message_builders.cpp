@@ -8,16 +8,6 @@
 
 namespace TeslaBLE
 {
-    // Helper function to complete the encoding - will be moved to Client class
-    static int completeVehicleActionEncoding(
-        CarServer_Action& action,
-        pb_byte_t* output_buffer,
-        size_t* output_length)
-    {
-        // For now, return error to indicate incomplete implementation
-        // This will be completed when we integrate with Client class
-        return TeslaBLE_Status_E_ERROR_INTERNAL;
-    }
 
     // Forward declarations of builder functions  
     static int buildChargingSetLimit(CarServer_VehicleAction& action, const void* data);
@@ -74,49 +64,6 @@ namespace TeslaBLE
         {CarServer_VehicleAction_hvacClimateKeeperAction_tag, buildHvacClimateKeeper},
         {CarServer_VehicleAction_hvacBioweaponModeAction_tag, buildHvacBioweaponMode}
     };
-
-    int VehicleActionBuilder::buildVehicleAction(
-        pb_size_t action_type,
-        const void* action_data,
-        pb_byte_t* output_buffer,
-        size_t* output_length)
-    {
-        // Validate input parameters
-        int result = validateInputParameters(output_buffer, output_length);
-        if (result != TeslaBLE_Status_E_OK) {
-            return result;
-        }
-
-        // Find the appropriate builder
-        auto it = builders_.find(action_type);
-        if (it == builders_.end()) {
-            LOG_ERROR("Unsupported vehicle action type: %d", action_type);
-            return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-        }
-
-        // Create the action structure
-        CarServer_Action action = CarServer_Action_init_default;
-        action.which_action_msg = CarServer_Action_vehicleAction_tag;
-
-        CarServer_VehicleAction vehicle_action = CarServer_VehicleAction_init_default;
-        vehicle_action.which_vehicle_action_msg = action_type;
-
-        // Build the specific action
-        result = it->second(vehicle_action, action_data);
-        if (result != TeslaBLE_Status_E_OK) {
-            return result;
-        }
-
-        action.action_msg.vehicleAction = vehicle_action;
-
-        // Complete the encoding using the helper function
-        return completeVehicleActionEncoding(action, output_buffer, output_length);
-    }
-
-    const std::unordered_map<pb_size_t, VehicleActionBuilder::BuilderFunction>& 
-    VehicleActionBuilder::getBuilders() {
-        return builders_;
-    }
 
     // Builder implementations
     int VehicleActionBuilder::buildChargingSetLimit(CarServer_VehicleAction& action, const void* data)

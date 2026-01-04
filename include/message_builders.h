@@ -21,24 +21,12 @@ namespace TeslaBLE
         using BuilderFunction = int(*)(CarServer_VehicleAction&, const void*);
         
         /**
-         * @brief Build a vehicle action message
-         * @param action_type The type of action to build
-         * @param action_data Optional data for the action (can be nullptr for simple actions)
-         * @param output_buffer Buffer to write the encoded message
-         * @param output_length Pointer to size variable that will contain the output length
-         * @return Error code (0 on success)
-         */
-        static int buildVehicleAction(
-            pb_size_t action_type,
-            const void* action_data,
-            pb_byte_t* output_buffer,
-            size_t* output_length);
-
-        /**
          * @brief Get the map of builders for direct access
          * @return Reference to the builders map
          */
-        static const std::unordered_map<pb_size_t, BuilderFunction>& getBuilders();
+        static const std::unordered_map<pb_size_t, BuilderFunction>& getBuilders() {
+            return builders_;
+        }
 
     private:
         // Builder functions for different action types

@@ -2,8 +2,20 @@
 
 ## Build Commands
 ```bash
-cmake -B build -DCMAKE_MESSAGE_LOG_LEVEL=ERROR && cmake --build build -j8 2>&1 | grep -E "error:|Error:|Built target|failed" | head -20 || true
-cd build && ctest -j1 --output-on-failure 2>&1 | grep -E "(FAILED.*\]|^[0-9]+% tests|expected equality|Which is:|tests/.*:.*:.*Failure|Failed to)"
+cmake -B build -DCMAKE_MESSAGE_LOG_LEVEL=ERROR && cmake --build build -j 2>&1 | grep -E "error:|Error:|Built target|failed" | head -20 || true
+cd build && ctest -j 2>&1 | grep -E "(FAILED.*\]|^[0-9]+% tests|expected equality|Which is:|tests/.*:.*:.*Failure|Failed to)"
+```
+
+## Lint and Format Commands
+```bash
+# Run all linting and formatting checks
+./scripts/lint.sh
+
+# Format code with clang-format
+find src include tests examples -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+
+# Run clang-tidy on source files
+find src -name "*.cpp" | xargs clang-tidy
 ```
 
 ## Architecture

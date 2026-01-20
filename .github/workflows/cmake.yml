@@ -10,6 +10,56 @@ env:
   BUILD_TYPE: Release
 
 jobs:
+  format-check:
+    name: Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Check clang-format
+        run: |
+          find src include tests examples -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror --style=file
+
+  tidy-check:
+    name: Tidy Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler build-essential clang-tidy
+          python3 -m pip install protobuf grpcio-tools
+
+      - name: Set reusable strings
+        id: strings
+        shell: bash
+        run: |
+          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+      - name: Configure CMake
+        run: >
+          cmake -B ${{ steps.strings.outputs.build-output-dir }}
+          -DCMAKE_CXX_COMPILER=g++
+          -DCMAKE_C_COMPILER=gcc
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          -S ${{ github.workspace }}
+
+      - name: Run clang-tidy
+        run: |
+          find src -name "*.cpp" | xargs clang-tidy -p ${{ steps.strings.outputs.build-output-dir }} --header-filter="^(?!.*_deps).*" --quiet
+
   test:
     name: Build and Test
     runs-on: ubuntu-latest
@@ -43,10 +93,11 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_C_COMPILER_LAUNCHER=ccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           -S ${{ github.workspace }}
 
       - name: Build Library
-        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release
+        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release -j
 
       - name: Run Tests
         working-directory: ${{ steps.strings.outputs.build-output-dir }}

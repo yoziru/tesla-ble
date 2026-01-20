@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler build-essential clang clang-tidy
+          sudo apt-get install -y protobuf-compiler build-essential clang clang-tidy cmake
 
       - name: Set reusable strings
         id: strings

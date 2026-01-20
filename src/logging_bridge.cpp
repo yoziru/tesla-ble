@@ -66,7 +66,7 @@ void log_internal(LogLevel level, const char *tag, int line, const char *format,
         break;
     }
     char buffer[1024];
-    vsnprintf(buffer, sizeof(buffer), format, args);
+    vsnprintf(buffer, sizeof(buffer), format, args);  // NOLINT(clang-analyzer-valist.Uninitialized)
     std::string msg(buffer);
     std::cout << std::format("[{}][{}] {}", level_str, tag, msg) << '\n';
 #endif

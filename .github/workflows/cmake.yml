@@ -35,11 +35,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4.1.7
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler build-essential clang clang-tidy
-          python3 -m pip install protobuf grpcio-tools
+       - name: Install dependencies
+         run: |
+           sudo apt-get update
+           sudo apt-get install -y protobuf-compiler build-essential clang clang-tidy
 
       - name: Set reusable strings
         id: strings

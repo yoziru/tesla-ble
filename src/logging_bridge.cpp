@@ -1,6 +1,7 @@
 #include <cstdarg>
 #include <cstdio>
-#include <print>
+#include <format>
+#include <iostream>
 
 #include "defs.h"
 
@@ -64,9 +65,10 @@ void log_internal(LogLevel level, const char *tag, int line, const char *format,
         level_str = "VERBOSE";
         break;
     }
-    std::print("[{}][{}] ", level_str, tag);
-    vprintf(format, args);
-    std::println("");
+    char buffer[1024];
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    std::string msg(buffer);
+    std::cout << std::format("[{}][{}] {}", level_str, tag, msg) << '\n';
 #endif
   }
 

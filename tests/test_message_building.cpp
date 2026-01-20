@@ -208,10 +208,12 @@ class VehicleDataTest : public MessageBuildingTest {
     std::vector<VehicleDataTag> all_vehicle_data_tags;
 
     // Extract field names and tag numbers from the nanopb FIELDLIST macro
+    // clang-format off
 #define EXTRACT_FIELD_INFO(a, type, label, datatype, name, tag_num) \
   all_vehicle_data_tags.push_back({#name, CarServer_GetVehicleData_##name##_tag});
 
     CarServer_GetVehicleData_FIELDLIST(EXTRACT_FIELD_INFO, unused)
+    // clang-format on
 
 #undef EXTRACT_FIELD_INFO
 

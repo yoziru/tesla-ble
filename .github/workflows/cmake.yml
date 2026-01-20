@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-format
+          sudo apt-get install -y clang-format clang
 
       - name: Check clang-format
         run: |
@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler build-essential clang-tidy
+          sudo apt-get install -y protobuf-compiler build-essential clang clang-tidy
           python3 -m pip install protobuf grpcio-tools
 
       - name: Set reusable strings

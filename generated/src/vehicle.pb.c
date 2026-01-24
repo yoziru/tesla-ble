@@ -8,149 +8,78 @@
 
 PB_BIND(CarServer_VehicleData, CarServer_VehicleData, 2)
 
-
 PB_BIND(CarServer_ClosuresState, CarServer_ClosuresState, 2)
-
 
 PB_BIND(CarServer_ClosuresState_SunRoofState, CarServer_ClosuresState_SunRoofState, AUTO)
 
-
 PB_BIND(CarServer_ClosuresState_DisplayState, CarServer_ClosuresState_DisplayState, AUTO)
-
 
 PB_BIND(CarServer_ClosuresState_SentryModeState, CarServer_ClosuresState_SentryModeState, AUTO)
 
-
 PB_BIND(CarServer_ChargeScheduleState, CarServer_ChargeScheduleState, AUTO)
-
 
 PB_BIND(CarServer_PreconditioningScheduleState, CarServer_PreconditioningScheduleState, AUTO)
 
-
 PB_BIND(CarServer_SpeedLimitMode, CarServer_SpeedLimitMode, 2)
-
 
 PB_BIND(CarServer_ParentalControlsSettings, CarServer_ParentalControlsSettings, AUTO)
 
-
 PB_BIND(CarServer_ParentalControlsState, CarServer_ParentalControlsState, AUTO)
-
 
 PB_BIND(CarServer_SoftwareUpdateState, CarServer_SoftwareUpdateState, 2)
 
-
 PB_BIND(CarServer_SoftwareUpdateState_SoftwareUpdateStatus, CarServer_SoftwareUpdateState_SoftwareUpdateStatus, AUTO)
-
 
 PB_BIND(CarServer_DriveState, CarServer_DriveState, 2)
 
-
 PB_BIND(CarServer_ChargeState, CarServer_ChargeState, 2)
-
 
 PB_BIND(CarServer_ChargeState_CableType, CarServer_ChargeState_CableType, AUTO)
 
-
 PB_BIND(CarServer_ChargeState_ChargerType, CarServer_ChargeState_ChargerType, AUTO)
-
 
 PB_BIND(CarServer_ChargeState_ChargingState, CarServer_ChargeState_ChargingState, AUTO)
 
-
 PB_BIND(CarServer_ChargeState_ChargerBrand, CarServer_ChargeState_ChargerBrand, AUTO)
-
 
 PB_BIND(CarServer_ManagedChargingState, CarServer_ManagedChargingState, AUTO)
 
-
 PB_BIND(CarServer_ChargeOnSolarState, CarServer_ChargeOnSolarState, AUTO)
-
 
 PB_BIND(CarServer_ChargeOnSolarStateNotAllowed, CarServer_ChargeOnSolarStateNotAllowed, AUTO)
 
-
 PB_BIND(CarServer_ChargeOnSolarStateNoChargeRecommended, CarServer_ChargeOnSolarStateNoChargeRecommended, AUTO)
-
 
 PB_BIND(CarServer_ChargeOnSolarStateChargingOnExcessSolar, CarServer_ChargeOnSolarStateChargingOnExcessSolar, AUTO)
 
-
 PB_BIND(CarServer_ChargeOnSolarStateChargingOnAnything, CarServer_ChargeOnSolarStateChargingOnAnything, AUTO)
-
 
 PB_BIND(CarServer_ChargeOnSolarStateUserDisabled, CarServer_ChargeOnSolarStateUserDisabled, AUTO)
 
-
 PB_BIND(CarServer_ChargeOnSolarStateWaitingForServer, CarServer_ChargeOnSolarStateWaitingForServer, AUTO)
-
 
 PB_BIND(CarServer_ChargeOnSolarStateError, CarServer_ChargeOnSolarStateError, AUTO)
 
-
 PB_BIND(CarServer_ChargeOnSolarStateUserStopped, CarServer_ChargeOnSolarStateUserStopped, AUTO)
-
 
 PB_BIND(CarServer_LocationState, CarServer_LocationState, 2)
 
-
 PB_BIND(CarServer_LocationState_GPSCoordinateType, CarServer_LocationState_GPSCoordinateType, AUTO)
-
 
 PB_BIND(CarServer_VehicleState, CarServer_VehicleState, 2)
 
-
 PB_BIND(CarServer_VehicleState_GuestMode, CarServer_VehicleState_GuestMode, AUTO)
-
 
 PB_BIND(CarServer_ClimateState, CarServer_ClimateState, 2)
 
-
 PB_BIND(CarServer_ClimateState_ClimateKeeperMode, CarServer_ClimateState_ClimateKeeperMode, AUTO)
-
 
 PB_BIND(CarServer_ClimateState_DefrostMode, CarServer_ClimateState_DefrostMode, AUTO)
 
-
 PB_BIND(CarServer_TirePressureState, CarServer_TirePressureState, AUTO)
-
 
 PB_BIND(CarServer_MediaState, CarServer_MediaState, AUTO)
 
-
 PB_BIND(CarServer_MediaDetailState, CarServer_MediaDetailState, AUTO)
 
-
 PB_BIND(CarServer_ShiftState, CarServer_ShiftState, AUTO)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

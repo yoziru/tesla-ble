@@ -18,11 +18,13 @@ update:
 generate:
 	@echo "Regenerating protobuf files..."
 	mkdir -p ../generated/src ../generated/include/google/protobuf
-	python3 ../build/nanopb/generator/nanopb_generator.py --output-dir=../generated/src *.proto google/protobuf/*.proto
+	python3 ../build/_deps/nanopb-src/generator/nanopb_generator.py --output-dir=../generated/src *.proto google/protobuf/*.proto
 	@echo "Moving generated headers to generated/include..."
 	mv ../generated/src/*.pb.h ../generated/include/
 	mv ../generated/src/google/protobuf/*.pb.h ../generated/include/google/protobuf/
-	@echo "Protobuf files regenerated successfully!"
+	@echo "Reformatting generated files..."
+	clang-format -i ../generated/include/*.h ../generated/include/google/protobuf/*.h ../generated/src/*.c
+	@echo "Protobuf files regenerated and formatted successfully!"
 
 help:
 	@echo "Makefile commands:"

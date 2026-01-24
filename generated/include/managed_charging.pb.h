@@ -13,18 +13,18 @@
 /* The reasons why the site controller may recommend no charge.
  The site controller will only return the highest priority reason to the vehicle. */
 typedef enum _ManagedCharging_ChargeOnSolarNoChargeReason {
-    ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_INVALID = 0,
-    /* The Powerwall is being prioritized over the vehicle to charge. */
-    ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_POWERWALL_CHARGE_PRIORITY = 1,
-    /* There is not enough solar for the vehicle to charge effectively. */
-    ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_INSUFFICIENT_SOLAR = 2,
-    /* The site controller is prioritizing export to the grid. This can
- happen when the site controller is in autonomous mode and it is
- most economical to export excess solar to the grid, or during a
- virtual power plant event. */
-    ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_GRID_EXPORT_PRIORITY = 3,
-    /* Another vehicle is charging on solar at this location and has priority. */
-    ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_ALTERNATE_VEHICLE_CHARGE_PRIORITY = 4
+  ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_INVALID = 0,
+  /* The Powerwall is being prioritized over the vehicle to charge. */
+  ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_POWERWALL_CHARGE_PRIORITY = 1,
+  /* There is not enough solar for the vehicle to charge effectively. */
+  ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_INSUFFICIENT_SOLAR = 2,
+  /* The site controller is prioritizing export to the grid. This can
+happen when the site controller is in autonomous mode and it is
+most economical to export excess solar to the grid, or during a
+virtual power plant event. */
+  ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_GRID_EXPORT_PRIORITY = 3,
+  /* Another vehicle is charging on solar at this location and has priority. */
+  ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_ALTERNATE_VEHICLE_CHARGE_PRIORITY = 4
 } ManagedCharging_ChargeOnSolarNoChargeReason;
 
 #ifdef __cplusplus
@@ -32,10 +32,13 @@ extern "C" {
 #endif
 
 /* Helper constants for enums */
-#define _ManagedCharging_ChargeOnSolarNoChargeReason_MIN ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_INVALID
-#define _ManagedCharging_ChargeOnSolarNoChargeReason_MAX ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_ALTERNATE_VEHICLE_CHARGE_PRIORITY
-#define _ManagedCharging_ChargeOnSolarNoChargeReason_ARRAYSIZE ((ManagedCharging_ChargeOnSolarNoChargeReason)(ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_ALTERNATE_VEHICLE_CHARGE_PRIORITY+1))
-
+#define _ManagedCharging_ChargeOnSolarNoChargeReason_MIN \
+  ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_INVALID
+#define _ManagedCharging_ChargeOnSolarNoChargeReason_MAX \
+  ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_ALTERNATE_VEHICLE_CHARGE_PRIORITY
+#define _ManagedCharging_ChargeOnSolarNoChargeReason_ARRAYSIZE \
+  ((ManagedCharging_ChargeOnSolarNoChargeReason) (ManagedCharging_ChargeOnSolarNoChargeReason_CHARGE_ON_SOLAR_NO_CHARGE_REASON_ALTERNATE_VEHICLE_CHARGE_PRIORITY + \
+                                                  1))
 
 #ifdef __cplusplus
 } /* extern "C" */

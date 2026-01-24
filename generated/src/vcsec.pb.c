@@ -8,86 +8,40 @@
 
 PB_BIND(VCSEC_SignedMessage, VCSEC_SignedMessage, AUTO)
 
-
 PB_BIND(VCSEC_ToVCSECMessage, VCSEC_ToVCSECMessage, AUTO)
-
 
 PB_BIND(VCSEC_KeyIdentifier, VCSEC_KeyIdentifier, AUTO)
 
-
 PB_BIND(VCSEC_KeyMetadata, VCSEC_KeyMetadata, AUTO)
-
 
 PB_BIND(VCSEC_PublicKey, VCSEC_PublicKey, AUTO)
 
-
 PB_BIND(VCSEC_WhitelistInfo, VCSEC_WhitelistInfo, AUTO)
-
 
 PB_BIND(VCSEC_WhitelistEntryInfo, VCSEC_WhitelistEntryInfo, AUTO)
 
-
 PB_BIND(VCSEC_InformationRequest, VCSEC_InformationRequest, AUTO)
-
 
 PB_BIND(VCSEC_ClosureMoveRequest, VCSEC_ClosureMoveRequest, AUTO)
 
-
 PB_BIND(VCSEC_PermissionChange, VCSEC_PermissionChange, AUTO)
-
 
 PB_BIND(VCSEC_ReplaceKey, VCSEC_ReplaceKey, AUTO)
 
-
 PB_BIND(VCSEC_WhitelistOperation, VCSEC_WhitelistOperation, AUTO)
-
 
 PB_BIND(VCSEC_WhitelistOperation_status, VCSEC_WhitelistOperation_status, AUTO)
 
-
 PB_BIND(VCSEC_SignedMessage_status, VCSEC_SignedMessage_status, AUTO)
-
 
 PB_BIND(VCSEC_CommandStatus, VCSEC_CommandStatus, AUTO)
 
-
 PB_BIND(VCSEC_UnsignedMessage, VCSEC_UnsignedMessage, AUTO)
-
 
 PB_BIND(VCSEC_ClosureStatuses, VCSEC_ClosureStatuses, AUTO)
 
-
 PB_BIND(VCSEC_DetailedClosureStatus, VCSEC_DetailedClosureStatus, AUTO)
-
 
 PB_BIND(VCSEC_VehicleStatus, VCSEC_VehicleStatus, AUTO)
 
-
 PB_BIND(VCSEC_FromVCSECMessage, VCSEC_FromVCSECMessage, AUTO)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -31,6 +31,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang-format clang
 
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ github.job }}-${{ runner.os }}-mbedtls-3.6.5
+
       - name: Check clang-format
         run: |
           find src include tests examples -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror --style=file
@@ -55,6 +60,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler build-essential clang clang-tidy cmake
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ github.job }}-${{ runner.os }}-mbedtls-3.6.5
 
       - name: Set reusable strings
         id: strings
@@ -100,7 +110,7 @@ jobs:
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: ${{ github.job }}-${{ matrix.os || 'ubuntu-latest' }}-mbedtls-3.6.2
+          key: ${{ github.job }}-${{ matrix.os || 'ubuntu-latest' }}-mbedtls-3.6.5
 
       - name: Set reusable strings
         id: strings

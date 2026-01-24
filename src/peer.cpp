@@ -24,6 +24,7 @@
 #include <cinttypes>
 #include <cstring>
 #include <utility>
+#include <vector>
 
 #include "crypto_context.h"
 #include "defs.h"
@@ -508,8 +509,8 @@ int Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t
 
   // Log encrypted data (nonce, ciphertext, and tag)
   char nonce_hex[25];
-  char output_buffer_hex[(output_buffer_length * 2) + 1];
-  char signature_buffer_hex[(tag_length * 2) + 1];
+  std::vector<char> output_buffer_hex((output_buffer_length * 2) + 1);
+  std::vector<char> signature_buffer_hex((tag_length * 2) + 1);
 
   // Convert nonce to hex
   for (int i = 0; i < 12; i++) {
@@ -519,17 +520,18 @@ int Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t
 
   // Convert output buffer to hex
   for (size_t i = 0; i < *output_length; i++) {
-    snprintf(output_buffer_hex + (i * 2), 3, "%02x", output_buffer[i]);
+    snprintf(output_buffer_hex.data() + (i * 2), 3, "%02x", output_buffer[i]);
   }
   output_buffer_hex[*output_length * 2] = '\0';
 
   // Convert signature buffer to hex
   for (size_t i = 0; i < tag_length; i++) {
-    snprintf(signature_buffer_hex + (i * 2), 3, "%02x", signature_buffer[i]);
+    snprintf(signature_buffer_hex.data() + (i * 2), 3, "%02x", signature_buffer[i]);
   }
   signature_buffer_hex[tag_length * 2] = '\0';
 
-  LOG_DEBUG("[Encrypt] Nonce: %s, Ciphertext: %s, Tag: %s", nonce_hex, output_buffer_hex, signature_buffer_hex);
+  LOG_DEBUG("[Encrypt] Nonce: %s, Ciphertext: %s, Tag: %s", nonce_hex, output_buffer_hex.data(),
+            signature_buffer_hex.data());
 
   return TeslaBLE_Status_E_OK;
 }

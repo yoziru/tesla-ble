@@ -324,9 +324,9 @@ int Client::parseUniversalMessage(pb_byte_t *input_buffer, size_t input_size,
 }
 int Client::parseUniversalMessageBLE(pb_byte_t *input_buffer, size_t input_buffer_length,
                                      UniversalMessage_RoutableMessage *output) {
-  pb_byte_t temp[input_buffer_length - 2];
-  memcpy(&temp, input_buffer + 2, input_buffer_length - 2);
-  return parseUniversalMessage(temp, sizeof(temp), output);
+  std::vector<pb_byte_t> temp(input_buffer_length - 2);
+  memcpy(temp.data(), input_buffer + 2, input_buffer_length - 2);
+  return parseUniversalMessage(temp.data(), temp.size(), output);
 }
 
 int Client::parsePayloadSessionInfo(UniversalMessage_RoutableMessage_session_info_t *input_buffer,
@@ -604,14 +604,15 @@ int Client::buildSessionInfoRequestMessage(UniversalMessage_Domain domain, pb_by
   universal_message.uuid.size = sizeof(uuid);
 
   size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-  pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-  int return_code = pb_encode_fields(universal_encode_buffer, &universal_encode_buffer_size,
+  std::vector<pb_byte_t> universal_encode_buffer(universal_encode_buffer_size);
+  int return_code = pb_encode_fields(universal_encode_buffer.data(), &universal_encode_buffer_size,
                                      UniversalMessage_RoutableMessage_fields, &universal_message);
   if (return_code != 0) {
     LOG_ERROR("[buildSessionInfoRequest] Failed to encode universal message");
     return TeslaBLE_Status_E_ERROR_PB_ENCODING;
   }
-  TeslaBLE::Client::prependLength(universal_encode_buffer, universal_encode_buffer_size, output_buffer, output_length);
+  TeslaBLE::Client::prependLength(universal_encode_buffer.data(), universal_encode_buffer_size, output_buffer,
+                                  output_length);
 
   return TeslaBLE_Status_E_OK;
 }
@@ -651,14 +652,15 @@ int Client::buildKeySummary(pb_byte_t *output_buffer, size_t *output_length) {
   payload.sub_message.InformationRequest = information_request;
 
   size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-  pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
+  std::vector<pb_byte_t> universal_encode_buffer(universal_encode_buffer_size);
   int status =
-      this->buildUnsignedMessagePayload(&payload, universal_encode_buffer, &universal_encode_buffer_size, false);
+      this->buildUnsignedMessagePayload(&payload, universal_encode_buffer.data(), &universal_encode_buffer_size, false);
   if (status != 0) {
     LOG_ERROR("[buildKeySummary] Failed to build unsigned message\n");
     return status;
   }
-  TeslaBLE::Client::prependLength(universal_encode_buffer, universal_encode_buffer_size, output_buffer, output_length);
+  TeslaBLE::Client::prependLength(universal_encode_buffer.data(), universal_encode_buffer_size, output_buffer,
+                                  output_length);
   return TeslaBLE_Status_E_OK;
 }
 
@@ -748,13 +750,15 @@ int Client::buildCarServerGetVehicleDataMessage(pb_byte_t *output_buffer, size_t
   action.action_msg.vehicleAction = vehicle_action;
 
   size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-  pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-  int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
+  std::vector<pb_byte_t> universal_encode_buffer(universal_encode_buffer_size);
+  int status =
+      this->buildCarServerActionPayload(&action, universal_encode_buffer.data(), &universal_encode_buffer_size);
   if (status != 0) {
     LOG_ERROR("Failed to build car action message");
     return status;
   }
-  TeslaBLE::Client::prependLength(universal_encode_buffer, universal_encode_buffer_size, output_buffer, output_length);
+  TeslaBLE::Client::prependLength(universal_encode_buffer.data(), universal_encode_buffer_size, output_buffer,
+                                  output_length);
   return TeslaBLE_Status_E_OK;
 }
 
@@ -793,14 +797,16 @@ int Client::buildCarServerVehicleActionMessage(pb_byte_t *output_buffer, size_t 
 
   // Encode the action into a universal message
   size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-  pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-  int status = this->buildCarServerActionPayload(&action, universal_encode_buffer, &universal_encode_buffer_size);
+  std::vector<pb_byte_t> universal_encode_buffer(universal_encode_buffer_size);
+  int status =
+      this->buildCarServerActionPayload(&action, universal_encode_buffer.data(), &universal_encode_buffer_size);
   if (status != 0) {
     LOG_ERROR("Failed to build car action message");
     return status;
   }
 
-  TeslaBLE::Client::prependLength(universal_encode_buffer, universal_encode_buffer_size, output_buffer, output_length);
+  TeslaBLE::Client::prependLength(universal_encode_buffer.data(), universal_encode_buffer_size, output_buffer,
+                                  output_length);
   return TeslaBLE_Status_E_OK;
 }
 
@@ -830,14 +836,15 @@ int Client::buildVCSECActionMessage(const VCSEC_RKEAction_E action, pb_byte_t *o
   unsigned_message.sub_message.RKEAction = action;
 
   size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-  pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-  int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer,
+  std::vector<pb_byte_t> universal_encode_buffer(universal_encode_buffer_size);
+  int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer.data(),
                                                  &universal_encode_buffer_size, true);
   if (status != 0) {
     LOG_ERROR("Failed to build unsigned message");
     return status;
   }
-  TeslaBLE::Client::prependLength(universal_encode_buffer, universal_encode_buffer_size, output_buffer, output_length);
+  TeslaBLE::Client::prependLength(universal_encode_buffer.data(), universal_encode_buffer_size, output_buffer,
+                                  output_length);
   return TeslaBLE_Status_E_OK;
 }
 
@@ -857,14 +864,15 @@ int Client::buildVCSECInformationRequestMessage(VCSEC_InformationRequestType req
   unsigned_message.sub_message.InformationRequest = information_request;
 
   size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-  pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-  int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer,
+  std::vector<pb_byte_t> universal_encode_buffer(universal_encode_buffer_size);
+  int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer.data(),
                                                  &universal_encode_buffer_size, false);
   if (status != 0) {
     LOG_ERROR("Failed to build unsigned message");
     return status;
   }
-  TeslaBLE::Client::prependLength(universal_encode_buffer, universal_encode_buffer_size, output_buffer, output_length);
+  TeslaBLE::Client::prependLength(universal_encode_buffer.data(), universal_encode_buffer_size, output_buffer,
+                                  output_length);
   return TeslaBLE_Status_E_OK;
 }
 
@@ -880,14 +888,15 @@ int Client::buildVCSECClosureMessage(const VCSEC_ClosureMoveRequest *closure_req
   unsigned_message.sub_message.closureMoveRequest = *closure_request;
 
   size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
-  pb_byte_t universal_encode_buffer[universal_encode_buffer_size];
-  int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer,
+  std::vector<pb_byte_t> universal_encode_buffer(universal_encode_buffer_size);
+  int status = this->buildUnsignedMessagePayload(&unsigned_message, universal_encode_buffer.data(),
                                                  &universal_encode_buffer_size, true);
   if (status != 0) {
     LOG_ERROR("[buildVCSECClosureMessage] Failed to build unsigned message");
     return status;
   }
-  TeslaBLE::Client::prependLength(universal_encode_buffer, universal_encode_buffer_size, output_buffer, output_length);
+  TeslaBLE::Client::prependLength(universal_encode_buffer.data(), universal_encode_buffer_size, output_buffer,
+                                  output_length);
   return TeslaBLE_Status_E_OK;
 }
 }  // namespace TeslaBLE

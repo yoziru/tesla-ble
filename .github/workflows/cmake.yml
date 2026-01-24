@@ -6,13 +6,31 @@ on:
   pull_request:
     branches: ["main", "develop"]
 
+# Prevent redundant runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   BUILD_TYPE: Release
 
 jobs:
-  format-check:
-    name: Format Check
+  checks:
+    name: ${{ matrix.check-name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # Show all failures instead of stopping early
+      matrix:
+        include:
+          - check: format
+            check-name: Format Check
+            packages: clang-format clang
+          - check: tidy
+            check-name: Tidy Check
+            packages: protobuf-compiler build-essential clang clang-tidy cmake
+          - check: test
+            check-name: Build and Test
+            packages: protobuf-compiler build-essential cmake
 
     steps:
       - name: Checkout
@@ -21,105 +39,61 @@ jobs:
       - name: Cache apt dependencies
         uses: awalsh128/cache-apt-pkgs-action@v1.6.0
         with:
-          packages: clang-format clang
-          version: 1.0
-
-      - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.20
-        with:
-          key: ${{ github.job }}-${{ runner.os }}-mbedtls-3.6.5
-
-      - name: Check clang-format
-        run: |
-          find src include tests examples -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror --style=file
-
-  tidy-check:
-    name: Tidy Check
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Cache apt dependencies
-        uses: awalsh128/cache-apt-pkgs-action@v1.6.0
-        with:
-          packages: protobuf-compiler build-essential clang clang-tidy cmake
-          version: 1.0
-
-      - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.20
-        with:
-          key: ${{ github.job }}-${{ runner.os }}-mbedtls-3.6.5
-
-      - name: Set reusable strings
-        id: strings
-        shell: bash
-        run: |
-          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
-
-      - name: Configure CMake
-        run: >
-          cmake -B ${{ steps.strings.outputs.build-output-dir }}
-          -DCMAKE_CXX_COMPILER=g++
-          -DCMAKE_C_COMPILER=gcc
-          -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-          -S ${{ github.workspace }}
-
-      - name: Run clang-tidy
-        run: |
-          find src -name "*.cpp" | xargs clang-tidy -p ${{ steps.strings.outputs.build-output-dir }} --header-filter="^(?!.*_deps).*" --quiet
-
-  test:
-    name: Build and Test
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Cache apt dependencies
-        uses: awalsh128/cache-apt-pkgs-action@v1.6.0
-        with:
-          packages: protobuf-compiler build-essential
+          packages: ${{ matrix.packages }}
           version: 1.0
 
       - name: Install python dependencies
+        if: matrix.check == 'test'
         run: python3 -m pip install protobuf grpcio-tools
 
       - name: Setup ccache
+        # Skip ccache for format check as it doesn't compile code
+        if: matrix.check != 'format'
         uses: hendrikmuhs/ccache-action@v1.2.20
         with:
-          key: ${{ github.job }}-${{ matrix.os || 'ubuntu-latest' }}-mbedtls-3.6.5
+          key: checks-${{ matrix.check }}-${{ runner.os }}-mbedtls-3.6.5
 
       - name: Set reusable strings
+        if: matrix.check != 'format'
         id: strings
         shell: bash
-        run: |
-          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+        run: echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
       - name: Configure CMake
+        if: matrix.check != 'format'
         run: >
           cmake -B ${{ steps.strings.outputs.build-output-dir }}
           -DCMAKE_CXX_COMPILER=g++
           -DCMAKE_C_COMPILER=gcc
-          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           -DCMAKE_C_COMPILER_LAUNCHER=ccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           -S ${{ github.workspace }}
 
+      - name: Check clang-format
+        if: matrix.check == 'format'
+        run: |
+          find src include tests examples -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror --style=file
+
+      - name: Run clang-tidy
+        if: matrix.check == 'tidy'
+        run: |
+          find src -name "*.cpp" | xargs clang-tidy -p ${{ steps.strings.outputs.build-output-dir }} --header-filter="^(?!.*_deps).*" --quiet
+
       - name: Build Library
-        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release -j
+        if: matrix.check == 'test'
+        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ env.BUILD_TYPE }} -j
 
       - name: Run Tests
+        if: matrix.check == 'test'
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        run: ctest --build-config Release --output-on-failure --verbose
+        run: ctest --build-config ${{ env.BUILD_TYPE }} --output-on-failure --verbose
 
       - name: Build and run example
+        if: matrix.check == 'test'
         run: |
           mkdir -p build-example && cd build-example
-          cmake ../examples/simple -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          cmake --build . --config Release
+          cmake ../examples/simple -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --build . --config ${{ env.BUILD_TYPE }}
           ./simple

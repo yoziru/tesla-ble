@@ -132,6 +132,29 @@ cppcheck --enable=all --inconclusive \
     src/ include/ examples/
 ```
 
+### Code Formatting and Linting
+
+The project uses clang-format for code formatting and clang-tidy for static analysis:
+
+```bash
+# Install clang tools
+sudo apt-get install clang-format clang-tidy  # Ubuntu/Debian
+brew install clang-format clang-tidy          # macOS
+
+# Run formatting and linting checks (will configure CMake if needed)
+./scripts/lint.sh
+
+# Or run individually:
+# Format code
+find src include tests examples -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+
+# Check formatting
+find src include tests examples -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror --style=file
+
+# Run clang-tidy on source files (requires compile_commands.json)
+find src -name "*.cpp" | xargs clang-tidy
+```
+
 ### Development Environment Setup
 
 Use the provided script to set up your development environment:

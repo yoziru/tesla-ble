@@ -12,82 +12,74 @@
 
 namespace TeslaBLE {
 
-std::string getVINAdvertisementName(const char* vin) {
-    if (vin == nullptr || strlen(vin) != 17) {
-        return "";
-    }
-    
-    // Calculate SHA1 of the VIN
-    unsigned char sha1_hash[20];
-    int ret = mbedtls_sha1(
-        reinterpret_cast<const unsigned char*>(vin),
-        17,
-        sha1_hash
-    );
-    
-    if (ret != 0) {
-        return "";
-    }
-    
-    // Build result: 'S' + 16 hex chars (first 8 bytes) + 'C'
-    char result[19];
-    result[0] = 'S';
-    
-    for (int i = 0; i < 8; i++) {
-        snprintf(&result[1 + i * 2], 3, "%02x", sha1_hash[i]);
-    }
-    
-    result[17] = 'C';
-    result[18] = '\0';
-    
-    return std::string(result);
+std::string getVINAdvertisementName(const char *vin) {
+  if (vin == nullptr || strlen(vin) != 17) {
+    return "";
+  }
+
+  // Calculate SHA1 of the VIN
+  unsigned char sha1_hash[20];
+  int ret = mbedtls_sha1(reinterpret_cast<const unsigned char *>(vin), 17, sha1_hash);
+
+  if (ret != 0) {
+    return "";
+  }
+
+  // Build result: 'S' + 16 hex chars (first 8 bytes) + 'C'
+  char result[19];
+  result[0] = 'S';
+
+  for (int i = 0; i < 8; i++) {
+    snprintf(&result[1 + (i * 2)], 3, "%02x", sha1_hash[i]);
+  }
+
+  result[17] = 'C';
+  result[18] = '\0';
+
+  return std::string(result);
 }
 
-std::string getVINAdvertisementName(const std::string& vin) {
-    return getVINAdvertisementName(vin.c_str());
+std::string getVINAdvertisementName(const std::string &vin) { return getVINAdvertisementName(vin.c_str()); }
+
+bool isTeslaVehicleName(const char *name) {
+  if (name == nullptr) {
+    return false;
+  }
+
+  size_t len = strlen(name);
+  if (len != 18) {
+    return false;
+  }
+
+  if (name[0] != 'S' || name[17] != 'C') {
+    return false;
+  }
+
+  // Check that the middle 16 characters are valid hex
+  for (int i = 1; i < 17; i++) {
+    if (!isxdigit(static_cast<unsigned char>(name[i]))) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
-bool isTeslaVehicleName(const char* name) {
-    if (name == nullptr) {
-        return false;
-    }
-    
-    size_t len = strlen(name);
-    if (len != 18) {
-        return false;
-    }
-    
-    if (name[0] != 'S' || name[17] != 'C') {
-        return false;
-    }
-    
-    // Check that the middle 16 characters are valid hex
-    for (int i = 1; i < 17; i++) {
-        if (!isxdigit(static_cast<unsigned char>(name[i]))) {
-            return false;
-        }
-    }
-    
-    return true;
+bool isTeslaVehicleName(const std::string &name) { return isTeslaVehicleName(name.c_str()); }
+
+bool matchesVIN(const char *device_name, const char *vin) {
+  if (device_name == nullptr || vin == nullptr) {
+    return false;
+  }
+  std::string expected_name = getVINAdvertisementName(vin);
+  if (expected_name.empty()) {
+    return false;
+  }
+  return expected_name == device_name;
 }
 
-bool isTeslaVehicleName(const std::string& name) {
-    return isTeslaVehicleName(name.c_str());
+bool matchesVIN(const std::string &device_name, const std::string &vin) {
+  return matchesVIN(device_name.c_str(), vin.c_str());
 }
 
-bool matchesVIN(const char* deviceName, const char* vin) {
-    if (deviceName == nullptr || vin == nullptr) {
-        return false;
-    }
-    std::string expectedName = getVINAdvertisementName(vin);
-    if (expectedName.empty()) {
-        return false;
-    }
-    return expectedName == deviceName;
-}
-
-bool matchesVIN(const std::string& deviceName, const std::string& vin) {
-    return matchesVIN(deviceName.c_str(), vin.c_str());
-}
-
-} // namespace TeslaBLE
+}  // namespace TeslaBLE

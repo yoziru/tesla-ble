@@ -22,7 +22,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/cache/apt
-          key: apt-${{ runner.os }}-v1-${{ hashFiles('**/cmake.yml') }}
+          key: apt-${{ runner.os }}-v1-${{ hashFiles('.github/workflows/cmake.yml') }}
           restore-keys: |
             apt-${{ runner.os }}-v1-
 
@@ -47,7 +47,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/cache/apt
-          key: apt-${{ runner.os }}-v1-${{ hashFiles('**/cmake.yml') }}
+          key: apt-${{ runner.os }}-v1-${{ hashFiles('.github/workflows/cmake.yml') }}
           restore-keys: |
             apt-${{ runner.os }}-v1-
 
@@ -87,7 +87,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/cache/apt
-          key: apt-${{ runner.os }}-v1-${{ hashFiles('**/cmake.yml') }}
+          key: apt-${{ runner.os }}-v1-${{ hashFiles('.github/workflows/cmake.yml') }}
           restore-keys: |
             apt-${{ runner.os }}-v1-
 

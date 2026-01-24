@@ -49,7 +49,7 @@ fi
 # Check clang-tidy (only on source files, not headers or tests for now)
 SOURCE_FILES=$(find src -name "*.cpp" | sort)
 echo "Running clang-tidy on $(echo "$SOURCE_FILES" | wc -l) source files..."
-if echo "$SOURCE_FILES" | xargs clang-tidy -p build/ --header-filter="^(?!.*_deps).*" --quiet 2>&1 | grep -v "warnings generated"; then
+if echo "$SOURCE_FILES" | xargs -P $(nproc) clang-tidy -p build/ --header-filter="^(?!.*/(build|_deps|generated)/).*" --quiet; then
     echo "✓ clang-tidy check passed"
 else
     echo "✗ clang-tidy check failed. Fix the issues reported above."

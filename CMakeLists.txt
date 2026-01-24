@@ -118,6 +118,11 @@ else()
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
     set(CMAKE_CXX_EXTENSIONS OFF)
     
+    # Enable strict standard compliance
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        add_compile_options(-pedantic -Werror=vla)
+    endif()
+    
     # Disable mbedtls tests/programs/examples
     set(MBEDTLS_AS_SUBPROJECT ON)
     set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)

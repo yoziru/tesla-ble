@@ -19,17 +19,10 @@ jobs:
         uses: actions/checkout@v4.1.7
 
       - name: Cache apt dependencies
-        uses: actions/cache@v4
+        uses: awalsh128/cache-apt-pkgs-action@v1.6.0
         with:
-          path: /var/cache/apt
-          key: apt-${{ runner.os }}-v1-${{ hashFiles('.github/workflows/cmake.yml') }}
-          restore-keys: |
-            apt-${{ runner.os }}-v1-
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format clang
+          packages: clang-format clang
+          version: 1.0
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2.20
@@ -49,17 +42,10 @@ jobs:
         uses: actions/checkout@v4.1.7
 
       - name: Cache apt dependencies
-        uses: actions/cache@v4
+        uses: awalsh128/cache-apt-pkgs-action@v1.6.0
         with:
-          path: /var/cache/apt
-          key: apt-${{ runner.os }}-v1-${{ hashFiles('.github/workflows/cmake.yml') }}
-          restore-keys: |
-            apt-${{ runner.os }}-v1-
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler build-essential clang clang-tidy cmake
+          packages: protobuf-compiler build-essential clang clang-tidy cmake
+          version: 1.0
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2.20
@@ -94,18 +80,13 @@ jobs:
         uses: actions/checkout@v4.1.7
 
       - name: Cache apt dependencies
-        uses: actions/cache@v4
+        uses: awalsh128/cache-apt-pkgs-action@v1.6.0
         with:
-          path: /var/cache/apt
-          key: apt-${{ runner.os }}-v1-${{ hashFiles('.github/workflows/cmake.yml') }}
-          restore-keys: |
-            apt-${{ runner.os }}-v1-
+          packages: protobuf-compiler build-essential
+          version: 1.0
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler build-essential
-          python3 -m pip install protobuf grpcio-tools
+      - name: Install python dependencies
+        run: python3 -m pip install protobuf grpcio-tools
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2.20

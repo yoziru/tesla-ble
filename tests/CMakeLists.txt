@@ -23,7 +23,6 @@ set(TEST_INCLUDE_DIRS
 )
 
 set(TEST_LINK_LIBS gtest_main gtest TeslaBLE)
-set(TEST_SOURCE ../examples/simple/log.cpp)
 
 # List of all test files
 set(TEST_FILES

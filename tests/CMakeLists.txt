@@ -23,7 +23,6 @@ set(TEST_INCLUDE_DIRS
 )
 
 set(TEST_LINK_LIBS gtest_main gtest TeslaBLE)
-set(TEST_SOURCE ../examples/simple/log.cpp)
 
 # List of all test files
 set(TEST_FILES
@@ -45,12 +44,6 @@ set(TEST_FILES
     test_vin_utils.cpp
     test_vehicle.cpp
 )
-
-# Main test executable with all tests
-add_executable(tesla_ble_tests ${TEST_FILES} ${TEST_SOURCE})
-target_link_libraries(tesla_ble_tests ${TEST_LINK_LIBS})
-target_include_directories(tesla_ble_tests ${TEST_INCLUDE_DIRS})
-gtest_discover_tests(tesla_ble_tests)
 
 # Individual test executables for granular testing
 foreach(TEST_FILE ${TEST_FILES})

@@ -46,12 +46,6 @@ set(TEST_FILES
     test_vehicle.cpp
 )
 
-# Main test executable with all tests
-add_executable(tesla_ble_tests ${TEST_FILES} ${TEST_SOURCE})
-target_link_libraries(tesla_ble_tests ${TEST_LINK_LIBS})
-target_include_directories(tesla_ble_tests ${TEST_INCLUDE_DIRS})
-gtest_discover_tests(tesla_ble_tests)
-
 # Individual test executables for granular testing
 foreach(TEST_FILE ${TEST_FILES})
     string(REPLACE ".cpp" "" TEST_NAME ${TEST_FILE})

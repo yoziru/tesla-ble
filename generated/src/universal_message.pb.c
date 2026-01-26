@@ -8,22 +8,8 @@
 
 PB_BIND(UniversalMessage_Destination, UniversalMessage_Destination, AUTO)
 
-
 PB_BIND(UniversalMessage_MessageStatus, UniversalMessage_MessageStatus, AUTO)
-
 
 PB_BIND(UniversalMessage_SessionInfoRequest, UniversalMessage_SessionInfoRequest, AUTO)
 
-
 PB_BIND(UniversalMessage_RoutableMessage, UniversalMessage_RoutableMessage, 2)
-
-
-
-
-
-
-
-
-
-
-

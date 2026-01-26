@@ -13,299 +13,303 @@
 
 /* Enum definitions */
 typedef enum _VCSEC_SignatureType {
-    VCSEC_SignatureType_SIGNATURE_TYPE_NONE = 0,
-    VCSEC_SignatureType_SIGNATURE_TYPE_PRESENT_KEY = 2
+  VCSEC_SignatureType_SIGNATURE_TYPE_NONE = 0,
+  VCSEC_SignatureType_SIGNATURE_TYPE_PRESENT_KEY = 2
 } VCSEC_SignatureType;
 
 typedef enum _VCSEC_KeyFormFactor {
-    VCSEC_KeyFormFactor_KEY_FORM_FACTOR_UNKNOWN = 0,
-    VCSEC_KeyFormFactor_KEY_FORM_FACTOR_NFC_CARD = 1,
-    VCSEC_KeyFormFactor_KEY_FORM_FACTOR_IOS_DEVICE = 6,
-    VCSEC_KeyFormFactor_KEY_FORM_FACTOR_ANDROID_DEVICE = 7,
-    VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY = 9
+  VCSEC_KeyFormFactor_KEY_FORM_FACTOR_UNKNOWN = 0,
+  VCSEC_KeyFormFactor_KEY_FORM_FACTOR_NFC_CARD = 1,
+  VCSEC_KeyFormFactor_KEY_FORM_FACTOR_IOS_DEVICE = 6,
+  VCSEC_KeyFormFactor_KEY_FORM_FACTOR_ANDROID_DEVICE = 7,
+  VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY = 9
 } VCSEC_KeyFormFactor;
 
 typedef enum _VCSEC_InformationRequestType {
-    VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS = 0,
-    VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_WHITELIST_INFO = 5,
-    VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_WHITELIST_ENTRY_INFO = 6
+  VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS = 0,
+  VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_WHITELIST_INFO = 5,
+  VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_WHITELIST_ENTRY_INFO = 6
 } VCSEC_InformationRequestType;
 
 typedef enum _VCSEC_RKEAction_E {
-    VCSEC_RKEAction_E_RKE_ACTION_UNLOCK = 0,
-    VCSEC_RKEAction_E_RKE_ACTION_LOCK = 1,
-    VCSEC_RKEAction_E_RKE_ACTION_REMOTE_DRIVE = 20,
-    VCSEC_RKEAction_E_RKE_ACTION_AUTO_SECURE_VEHICLE = 29,
-    VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE = 30
+  VCSEC_RKEAction_E_RKE_ACTION_UNLOCK = 0,
+  VCSEC_RKEAction_E_RKE_ACTION_LOCK = 1,
+  VCSEC_RKEAction_E_RKE_ACTION_REMOTE_DRIVE = 20,
+  VCSEC_RKEAction_E_RKE_ACTION_AUTO_SECURE_VEHICLE = 29,
+  VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE = 30
 } VCSEC_RKEAction_E;
 
 typedef enum _VCSEC_ClosureMoveType_E {
-    VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_NONE = 0,
-    VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_MOVE = 1,
-    VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_STOP = 2,
-    VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN = 3,
-    VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE = 4
+  VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_NONE = 0,
+  VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_MOVE = 1,
+  VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_STOP = 2,
+  VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN = 3,
+  VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE = 4
 } VCSEC_ClosureMoveType_E;
 
 typedef enum _VCSEC_OperationStatus_E {
-    VCSEC_OperationStatus_E_OPERATIONSTATUS_OK = 0,
-    VCSEC_OperationStatus_E_OPERATIONSTATUS_WAIT = 1,
-    VCSEC_OperationStatus_E_OPERATIONSTATUS_ERROR = 2
+  VCSEC_OperationStatus_E_OPERATIONSTATUS_OK = 0,
+  VCSEC_OperationStatus_E_OPERATIONSTATUS_WAIT = 1,
+  VCSEC_OperationStatus_E_OPERATIONSTATUS_ERROR = 2
 } VCSEC_OperationStatus_E;
 
 typedef enum _VCSEC_SignedMessage_information_E {
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_NONE = 0,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_UNKNOWN = 1,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_NOT_ON_WHITELIST = 2,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_IV_SMALLER_THAN_EXPECTED = 3,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_INVALID_TOKEN = 4,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_TOKEN_AND_COUNTER_INVALID = 5,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_AES_DECRYPT_AUTH = 6,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_ECDSA_INPUT = 7,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_ECDSA_SIGNATURE = 8,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_LOCAL_ENTITY_START = 9,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_LOCAL_ENTITY_RESULT = 10,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_COULD_NOT_RETRIEVE_KEY = 11,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_COULD_NOT_RETRIEVE_TOKEN = 12,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_SIGNATURE_TOO_SHORT = 13,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_TOKEN_IS_INCORRECT_LENGTH = 14,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_INCORRECT_EPOCH = 15,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_IV_INCORRECT_LENGTH = 16,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_TIME_EXPIRED = 17,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_NOT_PROVISIONED_WITH_IDENTITY = 18,
-    VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_COULD_NOT_HASH_METADATA = 19
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_NONE = 0,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_UNKNOWN = 1,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_NOT_ON_WHITELIST = 2,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_IV_SMALLER_THAN_EXPECTED = 3,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_INVALID_TOKEN = 4,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_TOKEN_AND_COUNTER_INVALID = 5,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_AES_DECRYPT_AUTH = 6,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_ECDSA_INPUT = 7,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_ECDSA_SIGNATURE = 8,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_LOCAL_ENTITY_START = 9,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_LOCAL_ENTITY_RESULT = 10,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_COULD_NOT_RETRIEVE_KEY = 11,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_COULD_NOT_RETRIEVE_TOKEN = 12,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_SIGNATURE_TOO_SHORT = 13,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_TOKEN_IS_INCORRECT_LENGTH = 14,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_INCORRECT_EPOCH = 15,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_IV_INCORRECT_LENGTH = 16,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_TIME_EXPIRED = 17,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_NOT_PROVISIONED_WITH_IDENTITY = 18,
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_COULD_NOT_HASH_METADATA = 19
 } VCSEC_SignedMessage_information_E;
 
 typedef enum _VCSEC_WhitelistOperation_information_E {
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NONE = 0,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_UNDOCUMENTED_ERROR = 1,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NO_PERMISSION_TO_REMOVE_ONESELF = 2,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_KEYFOB_SLOTS_FULL = 3,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_WHITELIST_FULL = 4,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NO_PERMISSION_TO_ADD = 5,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_INVALID_PUBLIC_KEY = 6,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NO_PERMISSION_TO_REMOVE = 7,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NO_PERMISSION_TO_CHANGE_PERMISSIONS = 8,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_ATTEMPTING_TO_ELEVATE_OTHER_ABOVE_ONESELF = 9,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_ATTEMPTING_TO_DEMOTE_SUPERIOR_TO_ONESELF = 10,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_ATTEMPTING_TO_REMOVE_OWN_PERMISSIONS = 11,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_PUBLIC_KEY_NOT_ON_WHITELIST = 12,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_ATTEMPTING_TO_ADD_KEY_THAT_IS_ALREADY_ON_THE_WHITELIST = 13,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NOT_ALLOWED_TO_ADD_UNLESS_ON_READER = 14,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_FM_MODIFYING_OUTSIDE_OF_F_MODE = 15,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_FM_ATTEMPTING_TO_ADD_PERMANENT_KEY = 16,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_FM_ATTEMPTING_TO_REMOVE_PERMANENT_KEY = 17,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_KEYCHAIN_WHILE_FS_FULL = 18,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_ATTEMPTING_TO_ADD_KEY_WITHOUT_ROLE = 19,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_ATTEMPTING_TO_ADD_KEY_WITH_SERVICE_ROLE = 20,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NON_SERVICE_KEY_ATTEMPTING_TO_ADD_SERVICE_TECH = 21,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_SERVICE_KEY_ATTEMPTING_TO_ADD_SERVICE_TECH_OUTSIDE_SERVICE_MODE = 22,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_COULD_NOT_START_LOCAL_ENTITY_AUTH = 23,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_UI_DENIED = 24,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_TIMED_OUT_WAITING_FOR_TAP = 25,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_TIMED_OUT_WAITING_FOR_UI_ACK = 26,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_VALET_MODE = 27,
-    VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_CANCELLED = 28
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NONE = 0,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_UNDOCUMENTED_ERROR = 1,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NO_PERMISSION_TO_REMOVE_ONESELF = 2,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_KEYFOB_SLOTS_FULL = 3,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_WHITELIST_FULL = 4,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NO_PERMISSION_TO_ADD = 5,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_INVALID_PUBLIC_KEY = 6,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NO_PERMISSION_TO_REMOVE = 7,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NO_PERMISSION_TO_CHANGE_PERMISSIONS = 8,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_ATTEMPTING_TO_ELEVATE_OTHER_ABOVE_ONESELF = 9,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_ATTEMPTING_TO_DEMOTE_SUPERIOR_TO_ONESELF = 10,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_ATTEMPTING_TO_REMOVE_OWN_PERMISSIONS = 11,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_PUBLIC_KEY_NOT_ON_WHITELIST = 12,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_ATTEMPTING_TO_ADD_KEY_THAT_IS_ALREADY_ON_THE_WHITELIST =
+      13,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NOT_ALLOWED_TO_ADD_UNLESS_ON_READER = 14,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_FM_MODIFYING_OUTSIDE_OF_F_MODE = 15,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_FM_ATTEMPTING_TO_ADD_PERMANENT_KEY = 16,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_FM_ATTEMPTING_TO_REMOVE_PERMANENT_KEY = 17,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_KEYCHAIN_WHILE_FS_FULL = 18,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_ATTEMPTING_TO_ADD_KEY_WITHOUT_ROLE = 19,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_ATTEMPTING_TO_ADD_KEY_WITH_SERVICE_ROLE = 20,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NON_SERVICE_KEY_ATTEMPTING_TO_ADD_SERVICE_TECH =
+      21,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_SERVICE_KEY_ATTEMPTING_TO_ADD_SERVICE_TECH_OUTSIDE_SERVICE_MODE =
+      22,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_COULD_NOT_START_LOCAL_ENTITY_AUTH = 23,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_UI_DENIED = 24,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_TIMED_OUT_WAITING_FOR_TAP =
+      25,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_TIMED_OUT_WAITING_FOR_UI_ACK =
+      26,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_VALET_MODE = 27,
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_CANCELLED = 28
 } VCSEC_WhitelistOperation_information_E;
 
 typedef enum _VCSEC_ClosureState_E {
-    VCSEC_ClosureState_E_CLOSURESTATE_CLOSED = 0,
-    VCSEC_ClosureState_E_CLOSURESTATE_OPEN = 1,
-    VCSEC_ClosureState_E_CLOSURESTATE_AJAR = 2,
-    VCSEC_ClosureState_E_CLOSURESTATE_UNKNOWN = 3,
-    VCSEC_ClosureState_E_CLOSURESTATE_FAILED_UNLATCH = 4,
-    VCSEC_ClosureState_E_CLOSURESTATE_OPENING = 5,
-    VCSEC_ClosureState_E_CLOSURESTATE_CLOSING = 6
+  VCSEC_ClosureState_E_CLOSURESTATE_CLOSED = 0,
+  VCSEC_ClosureState_E_CLOSURESTATE_OPEN = 1,
+  VCSEC_ClosureState_E_CLOSURESTATE_AJAR = 2,
+  VCSEC_ClosureState_E_CLOSURESTATE_UNKNOWN = 3,
+  VCSEC_ClosureState_E_CLOSURESTATE_FAILED_UNLATCH = 4,
+  VCSEC_ClosureState_E_CLOSURESTATE_OPENING = 5,
+  VCSEC_ClosureState_E_CLOSURESTATE_CLOSING = 6
 } VCSEC_ClosureState_E;
 
 typedef enum _VCSEC_VehicleLockState_E {
-    VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_UNLOCKED = 0,
-    VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_LOCKED = 1,
-    VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_INTERNAL_LOCKED = 2,
-    VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_SELECTIVE_UNLOCKED = 3
+  VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_UNLOCKED = 0,
+  VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_LOCKED = 1,
+  VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_INTERNAL_LOCKED = 2,
+  VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_SELECTIVE_UNLOCKED = 3
 } VCSEC_VehicleLockState_E;
 
 typedef enum _VCSEC_VehicleSleepStatus_E {
-    VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_UNKNOWN = 0,
-    VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_AWAKE = 1,
-    VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_ASLEEP = 2
+  VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_UNKNOWN = 0,
+  VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_AWAKE = 1,
+  VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_ASLEEP = 2
 } VCSEC_VehicleSleepStatus_E;
 
 typedef enum _VCSEC_UserPresence_E {
-    VCSEC_UserPresence_E_VEHICLE_USER_PRESENCE_UNKNOWN = 0,
-    VCSEC_UserPresence_E_VEHICLE_USER_PRESENCE_NOT_PRESENT = 1,
-    VCSEC_UserPresence_E_VEHICLE_USER_PRESENCE_PRESENT = 2
+  VCSEC_UserPresence_E_VEHICLE_USER_PRESENCE_UNKNOWN = 0,
+  VCSEC_UserPresence_E_VEHICLE_USER_PRESENCE_NOT_PRESENT = 1,
+  VCSEC_UserPresence_E_VEHICLE_USER_PRESENCE_PRESENT = 2
 } VCSEC_UserPresence_E;
 
 /* Struct definitions */
 typedef PB_BYTES_ARRAY_T(100) VCSEC_SignedMessage_protobufMessageAsBytes_t;
 typedef struct _VCSEC_SignedMessage {
-    VCSEC_SignedMessage_protobufMessageAsBytes_t protobufMessageAsBytes;
-    VCSEC_SignatureType signatureType;
+  VCSEC_SignedMessage_protobufMessageAsBytes_t protobufMessageAsBytes;
+  VCSEC_SignatureType signatureType;
 } VCSEC_SignedMessage;
 
 typedef struct _VCSEC_ToVCSECMessage {
-    bool has_signedMessage;
-    VCSEC_SignedMessage signedMessage;
+  bool has_signedMessage;
+  VCSEC_SignedMessage signedMessage;
 } VCSEC_ToVCSECMessage;
 
 typedef PB_BYTES_ARRAY_T(4) VCSEC_KeyIdentifier_publicKeySHA1_t;
 typedef struct _VCSEC_KeyIdentifier {
-    VCSEC_KeyIdentifier_publicKeySHA1_t publicKeySHA1;
+  VCSEC_KeyIdentifier_publicKeySHA1_t publicKeySHA1;
 } VCSEC_KeyIdentifier;
 
 typedef struct _VCSEC_KeyMetadata {
-    VCSEC_KeyFormFactor keyFormFactor;
+  VCSEC_KeyFormFactor keyFormFactor;
 } VCSEC_KeyMetadata;
 
 typedef PB_BYTES_ARRAY_T(65) VCSEC_PublicKey_PublicKeyRaw_t;
 typedef struct _VCSEC_PublicKey {
-    VCSEC_PublicKey_PublicKeyRaw_t PublicKeyRaw;
+  VCSEC_PublicKey_PublicKeyRaw_t PublicKeyRaw;
 } VCSEC_PublicKey;
 
 typedef struct _VCSEC_WhitelistInfo {
-    uint32_t numberOfEntries;
-    pb_callback_t whitelistEntries;
-    uint32_t slotMask;
+  uint32_t numberOfEntries;
+  pb_callback_t whitelistEntries;
+  uint32_t slotMask;
 } VCSEC_WhitelistInfo;
 
 typedef struct _VCSEC_WhitelistEntryInfo {
-    bool has_keyId;
-    VCSEC_KeyIdentifier keyId;
-    bool has_publicKey;
-    VCSEC_PublicKey publicKey;
-    bool has_metadataForKey;
-    VCSEC_KeyMetadata metadataForKey;
-    uint32_t slot;
-    Keys_Role keyRole;
+  bool has_keyId;
+  VCSEC_KeyIdentifier keyId;
+  bool has_publicKey;
+  VCSEC_PublicKey publicKey;
+  bool has_metadataForKey;
+  VCSEC_KeyMetadata metadataForKey;
+  uint32_t slot;
+  Keys_Role keyRole;
 } VCSEC_WhitelistEntryInfo;
 
 typedef PB_BYTES_ARRAY_T(65) VCSEC_InformationRequest_publicKey_t;
 typedef struct _VCSEC_InformationRequest {
-    VCSEC_InformationRequestType informationRequestType;
-    pb_size_t which_key;
-    union {
-        VCSEC_KeyIdentifier keyId;
-        VCSEC_InformationRequest_publicKey_t publicKey;
-        uint32_t slot;
-    } key;
+  VCSEC_InformationRequestType informationRequestType;
+  pb_size_t which_key;
+  union {
+    VCSEC_KeyIdentifier keyId;
+    VCSEC_InformationRequest_publicKey_t publicKey;
+    uint32_t slot;
+  } key;
 } VCSEC_InformationRequest;
 
 typedef struct _VCSEC_ClosureMoveRequest {
-    VCSEC_ClosureMoveType_E frontDriverDoor;
-    VCSEC_ClosureMoveType_E frontPassengerDoor;
-    VCSEC_ClosureMoveType_E rearDriverDoor;
-    VCSEC_ClosureMoveType_E rearPassengerDoor;
-    VCSEC_ClosureMoveType_E rearTrunk;
-    VCSEC_ClosureMoveType_E frontTrunk;
-    VCSEC_ClosureMoveType_E chargePort;
-    VCSEC_ClosureMoveType_E tonneau;
+  VCSEC_ClosureMoveType_E frontDriverDoor;
+  VCSEC_ClosureMoveType_E frontPassengerDoor;
+  VCSEC_ClosureMoveType_E rearDriverDoor;
+  VCSEC_ClosureMoveType_E rearPassengerDoor;
+  VCSEC_ClosureMoveType_E rearTrunk;
+  VCSEC_ClosureMoveType_E frontTrunk;
+  VCSEC_ClosureMoveType_E chargePort;
+  VCSEC_ClosureMoveType_E tonneau;
 } VCSEC_ClosureMoveRequest;
 
 typedef struct _VCSEC_PermissionChange {
-    bool has_key;
-    VCSEC_PublicKey key;
-    uint32_t secondsToBeActive;
-    Keys_Role keyRole;
+  bool has_key;
+  VCSEC_PublicKey key;
+  uint32_t secondsToBeActive;
+  Keys_Role keyRole;
 } VCSEC_PermissionChange;
 
 typedef struct _VCSEC_ReplaceKey {
-    pb_size_t which_keyToReplace;
-    union {
-        VCSEC_PublicKey publicKeyToReplace;
-        uint32_t slotToReplace;
-    } keyToReplace;
-    bool has_keyToAdd;
-    VCSEC_PublicKey keyToAdd;
-    Keys_Role keyRole;
-    bool impermanent;
+  pb_size_t which_keyToReplace;
+  union {
+    VCSEC_PublicKey publicKeyToReplace;
+    uint32_t slotToReplace;
+  } keyToReplace;
+  bool has_keyToAdd;
+  VCSEC_PublicKey keyToAdd;
+  Keys_Role keyRole;
+  bool impermanent;
 } VCSEC_ReplaceKey;
 
 typedef struct _VCSEC_WhitelistOperation {
-    pb_size_t which_sub_message;
-    union {
-        VCSEC_PublicKey addPublicKeyToWhitelist;
-        VCSEC_PublicKey removePublicKeyFromWhitelist;
-        VCSEC_PermissionChange addPermissionsToPublicKey;
-        VCSEC_PermissionChange removePermissionsFromPublicKey;
-        VCSEC_PermissionChange addKeyToWhitelistAndAddPermissions;
-        VCSEC_PermissionChange updateKeyAndPermissions;
-        VCSEC_PermissionChange addImpermanentKey;
-        VCSEC_PermissionChange addImpermanentKeyAndRemoveExisting;
-        bool removeAllImpermanentKeys;
-        VCSEC_ReplaceKey replaceKey;
-    } sub_message;
-    bool has_metadataForKey;
-    VCSEC_KeyMetadata metadataForKey;
+  pb_size_t which_sub_message;
+  union {
+    VCSEC_PublicKey addPublicKeyToWhitelist;
+    VCSEC_PublicKey removePublicKeyFromWhitelist;
+    VCSEC_PermissionChange addPermissionsToPublicKey;
+    VCSEC_PermissionChange removePermissionsFromPublicKey;
+    VCSEC_PermissionChange addKeyToWhitelistAndAddPermissions;
+    VCSEC_PermissionChange updateKeyAndPermissions;
+    VCSEC_PermissionChange addImpermanentKey;
+    VCSEC_PermissionChange addImpermanentKeyAndRemoveExisting;
+    bool removeAllImpermanentKeys;
+    VCSEC_ReplaceKey replaceKey;
+  } sub_message;
+  bool has_metadataForKey;
+  VCSEC_KeyMetadata metadataForKey;
 } VCSEC_WhitelistOperation;
 
 typedef struct _VCSEC_WhitelistOperation_status {
-    VCSEC_WhitelistOperation_information_E whitelistOperationInformation;
-    bool has_signerOfOperation;
-    VCSEC_KeyIdentifier signerOfOperation;
-    VCSEC_OperationStatus_E operationStatus;
+  VCSEC_WhitelistOperation_information_E whitelistOperationInformation;
+  bool has_signerOfOperation;
+  VCSEC_KeyIdentifier signerOfOperation;
+  VCSEC_OperationStatus_E operationStatus;
 } VCSEC_WhitelistOperation_status;
 
 typedef struct _VCSEC_SignedMessage_status {
-    uint32_t counter;
-    VCSEC_SignedMessage_information_E signedMessageInformation;
+  uint32_t counter;
+  VCSEC_SignedMessage_information_E signedMessageInformation;
 } VCSEC_SignedMessage_status;
 
 typedef struct _VCSEC_CommandStatus {
-    VCSEC_OperationStatus_E operationStatus;
-    pb_size_t which_sub_message;
-    union {
-        VCSEC_SignedMessage_status signedMessageStatus;
-        VCSEC_WhitelistOperation_status whitelistOperationStatus;
-    } sub_message;
+  VCSEC_OperationStatus_E operationStatus;
+  pb_size_t which_sub_message;
+  union {
+    VCSEC_SignedMessage_status signedMessageStatus;
+    VCSEC_WhitelistOperation_status whitelistOperationStatus;
+  } sub_message;
 } VCSEC_CommandStatus;
 
 typedef struct _VCSEC_UnsignedMessage {
-    pb_size_t which_sub_message;
-    union {
-        VCSEC_InformationRequest InformationRequest;
-        VCSEC_RKEAction_E RKEAction;
-        VCSEC_ClosureMoveRequest closureMoveRequest;
-        VCSEC_WhitelistOperation WhitelistOperation;
-    } sub_message;
+  pb_size_t which_sub_message;
+  union {
+    VCSEC_InformationRequest InformationRequest;
+    VCSEC_RKEAction_E RKEAction;
+    VCSEC_ClosureMoveRequest closureMoveRequest;
+    VCSEC_WhitelistOperation WhitelistOperation;
+  } sub_message;
 } VCSEC_UnsignedMessage;
 
 typedef struct _VCSEC_ClosureStatuses {
-    VCSEC_ClosureState_E frontDriverDoor;
-    VCSEC_ClosureState_E frontPassengerDoor;
-    VCSEC_ClosureState_E rearDriverDoor;
-    VCSEC_ClosureState_E rearPassengerDoor;
-    VCSEC_ClosureState_E rearTrunk;
-    VCSEC_ClosureState_E frontTrunk;
-    VCSEC_ClosureState_E chargePort;
-    VCSEC_ClosureState_E tonneau;
+  VCSEC_ClosureState_E frontDriverDoor;
+  VCSEC_ClosureState_E frontPassengerDoor;
+  VCSEC_ClosureState_E rearDriverDoor;
+  VCSEC_ClosureState_E rearPassengerDoor;
+  VCSEC_ClosureState_E rearTrunk;
+  VCSEC_ClosureState_E frontTrunk;
+  VCSEC_ClosureState_E chargePort;
+  VCSEC_ClosureState_E tonneau;
 } VCSEC_ClosureStatuses;
 
 typedef struct _VCSEC_DetailedClosureStatus {
-    uint32_t tonneauPercentOpen;
+  uint32_t tonneauPercentOpen;
 } VCSEC_DetailedClosureStatus;
 
 typedef struct _VCSEC_VehicleStatus {
-    bool has_closureStatuses;
-    VCSEC_ClosureStatuses closureStatuses;
-    VCSEC_VehicleLockState_E vehicleLockState;
-    VCSEC_VehicleSleepStatus_E vehicleSleepStatus;
-    VCSEC_UserPresence_E userPresence;
-    bool has_detailedClosureStatus;
-    VCSEC_DetailedClosureStatus detailedClosureStatus;
+  bool has_closureStatuses;
+  VCSEC_ClosureStatuses closureStatuses;
+  VCSEC_VehicleLockState_E vehicleLockState;
+  VCSEC_VehicleSleepStatus_E vehicleSleepStatus;
+  VCSEC_UserPresence_E userPresence;
+  bool has_detailedClosureStatus;
+  VCSEC_DetailedClosureStatus detailedClosureStatus;
 } VCSEC_VehicleStatus;
 
 typedef struct _VCSEC_FromVCSECMessage {
-    pb_size_t which_sub_message;
-    union {
-        VCSEC_VehicleStatus vehicleStatus;
-        VCSEC_CommandStatus commandStatus;
-        VCSEC_WhitelistInfo whitelistInfo;
-        VCSEC_WhitelistEntryInfo whitelistEntryInfo;
-        Errors_NominalError nominalError;
-    } sub_message;
+  pb_size_t which_sub_message;
+  union {
+    VCSEC_VehicleStatus vehicleStatus;
+    VCSEC_CommandStatus commandStatus;
+    VCSEC_WhitelistInfo whitelistInfo;
+    VCSEC_WhitelistEntryInfo whitelistEntryInfo;
+    Errors_NominalError nominalError;
+  } sub_message;
 } VCSEC_FromVCSECMessage;
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -314,59 +318,68 @@ extern "C" {
 /* Helper constants for enums */
 #define _VCSEC_SignatureType_MIN VCSEC_SignatureType_SIGNATURE_TYPE_NONE
 #define _VCSEC_SignatureType_MAX VCSEC_SignatureType_SIGNATURE_TYPE_PRESENT_KEY
-#define _VCSEC_SignatureType_ARRAYSIZE ((VCSEC_SignatureType)(VCSEC_SignatureType_SIGNATURE_TYPE_PRESENT_KEY+1))
+#define _VCSEC_SignatureType_ARRAYSIZE ((VCSEC_SignatureType) (VCSEC_SignatureType_SIGNATURE_TYPE_PRESENT_KEY + 1))
 
 #define _VCSEC_KeyFormFactor_MIN VCSEC_KeyFormFactor_KEY_FORM_FACTOR_UNKNOWN
 #define _VCSEC_KeyFormFactor_MAX VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY
-#define _VCSEC_KeyFormFactor_ARRAYSIZE ((VCSEC_KeyFormFactor)(VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY+1))
+#define _VCSEC_KeyFormFactor_ARRAYSIZE ((VCSEC_KeyFormFactor) (VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY + 1))
 
 #define _VCSEC_InformationRequestType_MIN VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS
 #define _VCSEC_InformationRequestType_MAX VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_WHITELIST_ENTRY_INFO
-#define _VCSEC_InformationRequestType_ARRAYSIZE ((VCSEC_InformationRequestType)(VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_WHITELIST_ENTRY_INFO+1))
+#define _VCSEC_InformationRequestType_ARRAYSIZE \
+  ((VCSEC_InformationRequestType) (VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_WHITELIST_ENTRY_INFO + 1))
 
 #define _VCSEC_RKEAction_E_MIN VCSEC_RKEAction_E_RKE_ACTION_UNLOCK
 #define _VCSEC_RKEAction_E_MAX VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE
-#define _VCSEC_RKEAction_E_ARRAYSIZE ((VCSEC_RKEAction_E)(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE+1))
+#define _VCSEC_RKEAction_E_ARRAYSIZE ((VCSEC_RKEAction_E) (VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE + 1))
 
 #define _VCSEC_ClosureMoveType_E_MIN VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_NONE
 #define _VCSEC_ClosureMoveType_E_MAX VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE
-#define _VCSEC_ClosureMoveType_E_ARRAYSIZE ((VCSEC_ClosureMoveType_E)(VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE+1))
+#define _VCSEC_ClosureMoveType_E_ARRAYSIZE \
+  ((VCSEC_ClosureMoveType_E) (VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE + 1))
 
 #define _VCSEC_OperationStatus_E_MIN VCSEC_OperationStatus_E_OPERATIONSTATUS_OK
 #define _VCSEC_OperationStatus_E_MAX VCSEC_OperationStatus_E_OPERATIONSTATUS_ERROR
-#define _VCSEC_OperationStatus_E_ARRAYSIZE ((VCSEC_OperationStatus_E)(VCSEC_OperationStatus_E_OPERATIONSTATUS_ERROR+1))
+#define _VCSEC_OperationStatus_E_ARRAYSIZE \
+  ((VCSEC_OperationStatus_E) (VCSEC_OperationStatus_E_OPERATIONSTATUS_ERROR + 1))
 
 #define _VCSEC_SignedMessage_information_E_MIN VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_NONE
-#define _VCSEC_SignedMessage_information_E_MAX VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_COULD_NOT_HASH_METADATA
-#define _VCSEC_SignedMessage_information_E_ARRAYSIZE ((VCSEC_SignedMessage_information_E)(VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_COULD_NOT_HASH_METADATA+1))
+#define _VCSEC_SignedMessage_information_E_MAX \
+  VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_COULD_NOT_HASH_METADATA
+#define _VCSEC_SignedMessage_information_E_ARRAYSIZE \
+  ((VCSEC_SignedMessage_information_E) (VCSEC_SignedMessage_information_E_SIGNEDMESSAGE_INFORMATION_FAULT_COULD_NOT_HASH_METADATA + \
+                                        1))
 
-#define _VCSEC_WhitelistOperation_information_E_MIN VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NONE
-#define _VCSEC_WhitelistOperation_information_E_MAX VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_CANCELLED
-#define _VCSEC_WhitelistOperation_information_E_ARRAYSIZE ((VCSEC_WhitelistOperation_information_E)(VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_CANCELLED+1))
+#define _VCSEC_WhitelistOperation_information_E_MIN \
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NONE
+#define _VCSEC_WhitelistOperation_information_E_MAX \
+  VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_CANCELLED
+#define _VCSEC_WhitelistOperation_information_E_ARRAYSIZE \
+  ((VCSEC_WhitelistOperation_information_E) (VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_CANCELLED + \
+                                             1))
 
 #define _VCSEC_ClosureState_E_MIN VCSEC_ClosureState_E_CLOSURESTATE_CLOSED
 #define _VCSEC_ClosureState_E_MAX VCSEC_ClosureState_E_CLOSURESTATE_CLOSING
-#define _VCSEC_ClosureState_E_ARRAYSIZE ((VCSEC_ClosureState_E)(VCSEC_ClosureState_E_CLOSURESTATE_CLOSING+1))
+#define _VCSEC_ClosureState_E_ARRAYSIZE ((VCSEC_ClosureState_E) (VCSEC_ClosureState_E_CLOSURESTATE_CLOSING + 1))
 
 #define _VCSEC_VehicleLockState_E_MIN VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_UNLOCKED
 #define _VCSEC_VehicleLockState_E_MAX VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_SELECTIVE_UNLOCKED
-#define _VCSEC_VehicleLockState_E_ARRAYSIZE ((VCSEC_VehicleLockState_E)(VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_SELECTIVE_UNLOCKED+1))
+#define _VCSEC_VehicleLockState_E_ARRAYSIZE \
+  ((VCSEC_VehicleLockState_E) (VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_SELECTIVE_UNLOCKED + 1))
 
 #define _VCSEC_VehicleSleepStatus_E_MIN VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_UNKNOWN
 #define _VCSEC_VehicleSleepStatus_E_MAX VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_ASLEEP
-#define _VCSEC_VehicleSleepStatus_E_ARRAYSIZE ((VCSEC_VehicleSleepStatus_E)(VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_ASLEEP+1))
+#define _VCSEC_VehicleSleepStatus_E_ARRAYSIZE \
+  ((VCSEC_VehicleSleepStatus_E) (VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_ASLEEP + 1))
 
 #define _VCSEC_UserPresence_E_MIN VCSEC_UserPresence_E_VEHICLE_USER_PRESENCE_UNKNOWN
 #define _VCSEC_UserPresence_E_MAX VCSEC_UserPresence_E_VEHICLE_USER_PRESENCE_PRESENT
-#define _VCSEC_UserPresence_E_ARRAYSIZE ((VCSEC_UserPresence_E)(VCSEC_UserPresence_E_VEHICLE_USER_PRESENCE_PRESENT+1))
+#define _VCSEC_UserPresence_E_ARRAYSIZE \
+  ((VCSEC_UserPresence_E) (VCSEC_UserPresence_E_VEHICLE_USER_PRESENCE_PRESENT + 1))
 
 #define VCSEC_SignedMessage_signatureType_ENUMTYPE VCSEC_SignatureType
 
-
-
 #define VCSEC_KeyMetadata_keyFormFactor_ENUMTYPE VCSEC_KeyFormFactor
-
-
 
 #define VCSEC_WhitelistEntryInfo_keyRole_ENUMTYPE Keys_Role
 
@@ -384,7 +397,6 @@ extern "C" {
 #define VCSEC_PermissionChange_keyRole_ENUMTYPE Keys_Role
 
 #define VCSEC_ReplaceKey_keyRole_ENUMTYPE Keys_Role
-
 
 #define VCSEC_WhitelistOperation_status_whitelistOperationInformation_ENUMTYPE VCSEC_WhitelistOperation_information_E
 #define VCSEC_WhitelistOperation_status_operationStatus_ENUMTYPE VCSEC_OperationStatus_E
@@ -404,90 +416,162 @@ extern "C" {
 #define VCSEC_ClosureStatuses_chargePort_ENUMTYPE VCSEC_ClosureState_E
 #define VCSEC_ClosureStatuses_tonneau_ENUMTYPE VCSEC_ClosureState_E
 
-
 #define VCSEC_VehicleStatus_vehicleLockState_ENUMTYPE VCSEC_VehicleLockState_E
 #define VCSEC_VehicleStatus_vehicleSleepStatus_ENUMTYPE VCSEC_VehicleSleepStatus_E
 #define VCSEC_VehicleStatus_userPresence_ENUMTYPE VCSEC_UserPresence_E
 
-
-
 /* Initializer values for message structs */
-#define VCSEC_SignedMessage_init_default         {{0, {0}}, _VCSEC_SignatureType_MIN}
-#define VCSEC_ToVCSECMessage_init_default        {false, VCSEC_SignedMessage_init_default}
-#define VCSEC_KeyIdentifier_init_default         {{0, {0}}}
-#define VCSEC_KeyMetadata_init_default           {_VCSEC_KeyFormFactor_MIN}
-#define VCSEC_PublicKey_init_default             {{0, {0}}}
-#define VCSEC_WhitelistInfo_init_default         {0, {{NULL}, NULL}, 0}
-#define VCSEC_WhitelistEntryInfo_init_default    {false, VCSEC_KeyIdentifier_init_default, false, VCSEC_PublicKey_init_default, false, VCSEC_KeyMetadata_init_default, 0, _Keys_Role_MIN}
-#define VCSEC_InformationRequest_init_default    {_VCSEC_InformationRequestType_MIN, 0, {VCSEC_KeyIdentifier_init_default}}
-#define VCSEC_ClosureMoveRequest_init_default    {_VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN}
-#define VCSEC_PermissionChange_init_default      {false, VCSEC_PublicKey_init_default, 0, _Keys_Role_MIN}
-#define VCSEC_ReplaceKey_init_default            {0, {VCSEC_PublicKey_init_default}, false, VCSEC_PublicKey_init_default, _Keys_Role_MIN, 0}
-#define VCSEC_WhitelistOperation_init_default    {0, {VCSEC_PublicKey_init_default}, false, VCSEC_KeyMetadata_init_default}
-#define VCSEC_WhitelistOperation_status_init_default {_VCSEC_WhitelistOperation_information_E_MIN, false, VCSEC_KeyIdentifier_init_default, _VCSEC_OperationStatus_E_MIN}
-#define VCSEC_SignedMessage_status_init_default  {0, _VCSEC_SignedMessage_information_E_MIN}
-#define VCSEC_CommandStatus_init_default         {_VCSEC_OperationStatus_E_MIN, 0, {VCSEC_SignedMessage_status_init_default}}
-#define VCSEC_UnsignedMessage_init_default       {0, {VCSEC_InformationRequest_init_default}}
-#define VCSEC_ClosureStatuses_init_default       {_VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN}
+#define VCSEC_SignedMessage_init_default {{0, {0}}, _VCSEC_SignatureType_MIN}
+#define VCSEC_ToVCSECMessage_init_default {false, VCSEC_SignedMessage_init_default}
+#define VCSEC_KeyIdentifier_init_default \
+  { \
+    { \
+      0, {0} \
+    } \
+  }
+#define VCSEC_KeyMetadata_init_default {_VCSEC_KeyFormFactor_MIN}
+#define VCSEC_PublicKey_init_default \
+  { \
+    { \
+      0, {0} \
+    } \
+  }
+#define VCSEC_WhitelistInfo_init_default {0, {{NULL}, NULL}, 0}
+#define VCSEC_WhitelistEntryInfo_init_default \
+  {false, VCSEC_KeyIdentifier_init_default, false, VCSEC_PublicKey_init_default, \
+   false, VCSEC_KeyMetadata_init_default,   0,     _Keys_Role_MIN}
+#define VCSEC_InformationRequest_init_default \
+  { \
+    _VCSEC_InformationRequestType_MIN, 0, { VCSEC_KeyIdentifier_init_default } \
+  }
+#define VCSEC_ClosureMoveRequest_init_default \
+  {_VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, \
+   _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, \
+   _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN}
+#define VCSEC_PermissionChange_init_default {false, VCSEC_PublicKey_init_default, 0, _Keys_Role_MIN}
+#define VCSEC_ReplaceKey_init_default \
+  {0, {VCSEC_PublicKey_init_default}, false, VCSEC_PublicKey_init_default, _Keys_Role_MIN, 0}
+#define VCSEC_WhitelistOperation_init_default {0, {VCSEC_PublicKey_init_default}, false, VCSEC_KeyMetadata_init_default}
+#define VCSEC_WhitelistOperation_status_init_default \
+  {_VCSEC_WhitelistOperation_information_E_MIN, false, VCSEC_KeyIdentifier_init_default, _VCSEC_OperationStatus_E_MIN}
+#define VCSEC_SignedMessage_status_init_default {0, _VCSEC_SignedMessage_information_E_MIN}
+#define VCSEC_CommandStatus_init_default \
+  { \
+    _VCSEC_OperationStatus_E_MIN, 0, { VCSEC_SignedMessage_status_init_default } \
+  }
+#define VCSEC_UnsignedMessage_init_default \
+  { \
+    0, { VCSEC_InformationRequest_init_default } \
+  }
+#define VCSEC_ClosureStatuses_init_default \
+  {_VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, \
+   _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN}
 #define VCSEC_DetailedClosureStatus_init_default {0}
-#define VCSEC_VehicleStatus_init_default         {false, VCSEC_ClosureStatuses_init_default, _VCSEC_VehicleLockState_E_MIN, _VCSEC_VehicleSleepStatus_E_MIN, _VCSEC_UserPresence_E_MIN, false, VCSEC_DetailedClosureStatus_init_default}
-#define VCSEC_FromVCSECMessage_init_default      {0, {VCSEC_VehicleStatus_init_default}}
-#define VCSEC_SignedMessage_init_zero            {{0, {0}}, _VCSEC_SignatureType_MIN}
-#define VCSEC_ToVCSECMessage_init_zero           {false, VCSEC_SignedMessage_init_zero}
-#define VCSEC_KeyIdentifier_init_zero            {{0, {0}}}
-#define VCSEC_KeyMetadata_init_zero              {_VCSEC_KeyFormFactor_MIN}
-#define VCSEC_PublicKey_init_zero                {{0, {0}}}
-#define VCSEC_WhitelistInfo_init_zero            {0, {{NULL}, NULL}, 0}
-#define VCSEC_WhitelistEntryInfo_init_zero       {false, VCSEC_KeyIdentifier_init_zero, false, VCSEC_PublicKey_init_zero, false, VCSEC_KeyMetadata_init_zero, 0, _Keys_Role_MIN}
-#define VCSEC_InformationRequest_init_zero       {_VCSEC_InformationRequestType_MIN, 0, {VCSEC_KeyIdentifier_init_zero}}
-#define VCSEC_ClosureMoveRequest_init_zero       {_VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN}
-#define VCSEC_PermissionChange_init_zero         {false, VCSEC_PublicKey_init_zero, 0, _Keys_Role_MIN}
-#define VCSEC_ReplaceKey_init_zero               {0, {VCSEC_PublicKey_init_zero}, false, VCSEC_PublicKey_init_zero, _Keys_Role_MIN, 0}
-#define VCSEC_WhitelistOperation_init_zero       {0, {VCSEC_PublicKey_init_zero}, false, VCSEC_KeyMetadata_init_zero}
-#define VCSEC_WhitelistOperation_status_init_zero {_VCSEC_WhitelistOperation_information_E_MIN, false, VCSEC_KeyIdentifier_init_zero, _VCSEC_OperationStatus_E_MIN}
-#define VCSEC_SignedMessage_status_init_zero     {0, _VCSEC_SignedMessage_information_E_MIN}
-#define VCSEC_CommandStatus_init_zero            {_VCSEC_OperationStatus_E_MIN, 0, {VCSEC_SignedMessage_status_init_zero}}
-#define VCSEC_UnsignedMessage_init_zero          {0, {VCSEC_InformationRequest_init_zero}}
-#define VCSEC_ClosureStatuses_init_zero          {_VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN}
-#define VCSEC_DetailedClosureStatus_init_zero    {0}
-#define VCSEC_VehicleStatus_init_zero            {false, VCSEC_ClosureStatuses_init_zero, _VCSEC_VehicleLockState_E_MIN, _VCSEC_VehicleSleepStatus_E_MIN, _VCSEC_UserPresence_E_MIN, false, VCSEC_DetailedClosureStatus_init_zero}
-#define VCSEC_FromVCSECMessage_init_zero         {0, {VCSEC_VehicleStatus_init_zero}}
+#define VCSEC_VehicleStatus_init_default \
+  {false, \
+   VCSEC_ClosureStatuses_init_default, \
+   _VCSEC_VehicleLockState_E_MIN, \
+   _VCSEC_VehicleSleepStatus_E_MIN, \
+   _VCSEC_UserPresence_E_MIN, \
+   false, \
+   VCSEC_DetailedClosureStatus_init_default}
+#define VCSEC_FromVCSECMessage_init_default \
+  { \
+    0, { VCSEC_VehicleStatus_init_default } \
+  }
+#define VCSEC_SignedMessage_init_zero {{0, {0}}, _VCSEC_SignatureType_MIN}
+#define VCSEC_ToVCSECMessage_init_zero {false, VCSEC_SignedMessage_init_zero}
+#define VCSEC_KeyIdentifier_init_zero \
+  { \
+    { \
+      0, {0} \
+    } \
+  }
+#define VCSEC_KeyMetadata_init_zero {_VCSEC_KeyFormFactor_MIN}
+#define VCSEC_PublicKey_init_zero \
+  { \
+    { \
+      0, {0} \
+    } \
+  }
+#define VCSEC_WhitelistInfo_init_zero {0, {{NULL}, NULL}, 0}
+#define VCSEC_WhitelistEntryInfo_init_zero \
+  {false, VCSEC_KeyIdentifier_init_zero, false, VCSEC_PublicKey_init_zero, \
+   false, VCSEC_KeyMetadata_init_zero,   0,     _Keys_Role_MIN}
+#define VCSEC_InformationRequest_init_zero \
+  { \
+    _VCSEC_InformationRequestType_MIN, 0, { VCSEC_KeyIdentifier_init_zero } \
+  }
+#define VCSEC_ClosureMoveRequest_init_zero \
+  {_VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, \
+   _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN, \
+   _VCSEC_ClosureMoveType_E_MIN, _VCSEC_ClosureMoveType_E_MIN}
+#define VCSEC_PermissionChange_init_zero {false, VCSEC_PublicKey_init_zero, 0, _Keys_Role_MIN}
+#define VCSEC_ReplaceKey_init_zero {0, {VCSEC_PublicKey_init_zero}, false, VCSEC_PublicKey_init_zero, _Keys_Role_MIN, 0}
+#define VCSEC_WhitelistOperation_init_zero {0, {VCSEC_PublicKey_init_zero}, false, VCSEC_KeyMetadata_init_zero}
+#define VCSEC_WhitelistOperation_status_init_zero \
+  {_VCSEC_WhitelistOperation_information_E_MIN, false, VCSEC_KeyIdentifier_init_zero, _VCSEC_OperationStatus_E_MIN}
+#define VCSEC_SignedMessage_status_init_zero {0, _VCSEC_SignedMessage_information_E_MIN}
+#define VCSEC_CommandStatus_init_zero \
+  { \
+    _VCSEC_OperationStatus_E_MIN, 0, { VCSEC_SignedMessage_status_init_zero } \
+  }
+#define VCSEC_UnsignedMessage_init_zero \
+  { \
+    0, { VCSEC_InformationRequest_init_zero } \
+  }
+#define VCSEC_ClosureStatuses_init_zero \
+  {_VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, \
+   _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN, _VCSEC_ClosureState_E_MIN}
+#define VCSEC_DetailedClosureStatus_init_zero {0}
+#define VCSEC_VehicleStatus_init_zero \
+  {false, \
+   VCSEC_ClosureStatuses_init_zero, \
+   _VCSEC_VehicleLockState_E_MIN, \
+   _VCSEC_VehicleSleepStatus_E_MIN, \
+   _VCSEC_UserPresence_E_MIN, \
+   false, \
+   VCSEC_DetailedClosureStatus_init_zero}
+#define VCSEC_FromVCSECMessage_init_zero \
+  { \
+    0, { VCSEC_VehicleStatus_init_zero } \
+  }
 
 /* Field tags (for use in manual encoding/decoding) */
 #define VCSEC_SignedMessage_protobufMessageAsBytes_tag 2
-#define VCSEC_SignedMessage_signatureType_tag    3
-#define VCSEC_ToVCSECMessage_signedMessage_tag   1
-#define VCSEC_KeyIdentifier_publicKeySHA1_tag    1
-#define VCSEC_KeyMetadata_keyFormFactor_tag      1
-#define VCSEC_PublicKey_PublicKeyRaw_tag         1
-#define VCSEC_WhitelistInfo_numberOfEntries_tag  1
+#define VCSEC_SignedMessage_signatureType_tag 3
+#define VCSEC_ToVCSECMessage_signedMessage_tag 1
+#define VCSEC_KeyIdentifier_publicKeySHA1_tag 1
+#define VCSEC_KeyMetadata_keyFormFactor_tag 1
+#define VCSEC_PublicKey_PublicKeyRaw_tag 1
+#define VCSEC_WhitelistInfo_numberOfEntries_tag 1
 #define VCSEC_WhitelistInfo_whitelistEntries_tag 2
-#define VCSEC_WhitelistInfo_slotMask_tag         3
-#define VCSEC_WhitelistEntryInfo_keyId_tag       1
-#define VCSEC_WhitelistEntryInfo_publicKey_tag   2
+#define VCSEC_WhitelistInfo_slotMask_tag 3
+#define VCSEC_WhitelistEntryInfo_keyId_tag 1
+#define VCSEC_WhitelistEntryInfo_publicKey_tag 2
 #define VCSEC_WhitelistEntryInfo_metadataForKey_tag 4
-#define VCSEC_WhitelistEntryInfo_slot_tag        6
-#define VCSEC_WhitelistEntryInfo_keyRole_tag     7
+#define VCSEC_WhitelistEntryInfo_slot_tag 6
+#define VCSEC_WhitelistEntryInfo_keyRole_tag 7
 #define VCSEC_InformationRequest_informationRequestType_tag 1
-#define VCSEC_InformationRequest_keyId_tag       2
-#define VCSEC_InformationRequest_publicKey_tag   3
-#define VCSEC_InformationRequest_slot_tag        4
+#define VCSEC_InformationRequest_keyId_tag 2
+#define VCSEC_InformationRequest_publicKey_tag 3
+#define VCSEC_InformationRequest_slot_tag 4
 #define VCSEC_ClosureMoveRequest_frontDriverDoor_tag 1
 #define VCSEC_ClosureMoveRequest_frontPassengerDoor_tag 2
 #define VCSEC_ClosureMoveRequest_rearDriverDoor_tag 3
 #define VCSEC_ClosureMoveRequest_rearPassengerDoor_tag 4
-#define VCSEC_ClosureMoveRequest_rearTrunk_tag   5
-#define VCSEC_ClosureMoveRequest_frontTrunk_tag  6
-#define VCSEC_ClosureMoveRequest_chargePort_tag  7
-#define VCSEC_ClosureMoveRequest_tonneau_tag     8
-#define VCSEC_PermissionChange_key_tag           1
+#define VCSEC_ClosureMoveRequest_rearTrunk_tag 5
+#define VCSEC_ClosureMoveRequest_frontTrunk_tag 6
+#define VCSEC_ClosureMoveRequest_chargePort_tag 7
+#define VCSEC_ClosureMoveRequest_tonneau_tag 8
+#define VCSEC_PermissionChange_key_tag 1
 #define VCSEC_PermissionChange_secondsToBeActive_tag 3
-#define VCSEC_PermissionChange_keyRole_tag       4
-#define VCSEC_ReplaceKey_publicKeyToReplace_tag  1
-#define VCSEC_ReplaceKey_slotToReplace_tag       2
-#define VCSEC_ReplaceKey_keyToAdd_tag            3
-#define VCSEC_ReplaceKey_keyRole_tag             4
-#define VCSEC_ReplaceKey_impermanent_tag         5
+#define VCSEC_PermissionChange_keyRole_tag 4
+#define VCSEC_ReplaceKey_publicKeyToReplace_tag 1
+#define VCSEC_ReplaceKey_slotToReplace_tag 2
+#define VCSEC_ReplaceKey_keyToAdd_tag 3
+#define VCSEC_ReplaceKey_keyRole_tag 4
+#define VCSEC_ReplaceKey_impermanent_tag 5
 #define VCSEC_WhitelistOperation_addPublicKeyToWhitelist_tag 1
 #define VCSEC_WhitelistOperation_removePublicKeyFromWhitelist_tag 2
 #define VCSEC_WhitelistOperation_addPermissionsToPublicKey_tag 3
@@ -497,82 +581,78 @@ extern "C" {
 #define VCSEC_WhitelistOperation_addImpermanentKey_tag 8
 #define VCSEC_WhitelistOperation_addImpermanentKeyAndRemoveExisting_tag 9
 #define VCSEC_WhitelistOperation_removeAllImpermanentKeys_tag 16
-#define VCSEC_WhitelistOperation_replaceKey_tag  17
+#define VCSEC_WhitelistOperation_replaceKey_tag 17
 #define VCSEC_WhitelistOperation_metadataForKey_tag 6
 #define VCSEC_WhitelistOperation_status_whitelistOperationInformation_tag 1
 #define VCSEC_WhitelistOperation_status_signerOfOperation_tag 2
 #define VCSEC_WhitelistOperation_status_operationStatus_tag 3
-#define VCSEC_SignedMessage_status_counter_tag   1
+#define VCSEC_SignedMessage_status_counter_tag 1
 #define VCSEC_SignedMessage_status_signedMessageInformation_tag 2
-#define VCSEC_CommandStatus_operationStatus_tag  1
+#define VCSEC_CommandStatus_operationStatus_tag 1
 #define VCSEC_CommandStatus_signedMessageStatus_tag 2
 #define VCSEC_CommandStatus_whitelistOperationStatus_tag 3
 #define VCSEC_UnsignedMessage_InformationRequest_tag 1
-#define VCSEC_UnsignedMessage_RKEAction_tag      2
+#define VCSEC_UnsignedMessage_RKEAction_tag 2
 #define VCSEC_UnsignedMessage_closureMoveRequest_tag 4
 #define VCSEC_UnsignedMessage_WhitelistOperation_tag 16
 #define VCSEC_ClosureStatuses_frontDriverDoor_tag 1
 #define VCSEC_ClosureStatuses_frontPassengerDoor_tag 2
 #define VCSEC_ClosureStatuses_rearDriverDoor_tag 3
 #define VCSEC_ClosureStatuses_rearPassengerDoor_tag 4
-#define VCSEC_ClosureStatuses_rearTrunk_tag      5
-#define VCSEC_ClosureStatuses_frontTrunk_tag     6
-#define VCSEC_ClosureStatuses_chargePort_tag     7
-#define VCSEC_ClosureStatuses_tonneau_tag        8
+#define VCSEC_ClosureStatuses_rearTrunk_tag 5
+#define VCSEC_ClosureStatuses_frontTrunk_tag 6
+#define VCSEC_ClosureStatuses_chargePort_tag 7
+#define VCSEC_ClosureStatuses_tonneau_tag 8
 #define VCSEC_DetailedClosureStatus_tonneauPercentOpen_tag 1
-#define VCSEC_VehicleStatus_closureStatuses_tag  1
+#define VCSEC_VehicleStatus_closureStatuses_tag 1
 #define VCSEC_VehicleStatus_vehicleLockState_tag 2
 #define VCSEC_VehicleStatus_vehicleSleepStatus_tag 3
-#define VCSEC_VehicleStatus_userPresence_tag     4
+#define VCSEC_VehicleStatus_userPresence_tag 4
 #define VCSEC_VehicleStatus_detailedClosureStatus_tag 5
 #define VCSEC_FromVCSECMessage_vehicleStatus_tag 1
 #define VCSEC_FromVCSECMessage_commandStatus_tag 4
 #define VCSEC_FromVCSECMessage_whitelistInfo_tag 16
 #define VCSEC_FromVCSECMessage_whitelistEntryInfo_tag 17
-#define VCSEC_FromVCSECMessage_nominalError_tag  46
+#define VCSEC_FromVCSECMessage_nominalError_tag 46
 
 /* Struct field encoding specification for nanopb */
 #define VCSEC_SignedMessage_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, BYTES,    protobufMessageAsBytes,   2) \
-X(a, STATIC,   SINGULAR, UENUM,    signatureType,     3)
+  X(a, STATIC, SINGULAR, BYTES, protobufMessageAsBytes, 2) \
+  X(a, STATIC, SINGULAR, UENUM, signatureType, 3)
 #define VCSEC_SignedMessage_CALLBACK NULL
 #define VCSEC_SignedMessage_DEFAULT NULL
 
-#define VCSEC_ToVCSECMessage_FIELDLIST(X, a) \
-X(a, STATIC,   OPTIONAL, MESSAGE,  signedMessage,     1)
+#define VCSEC_ToVCSECMessage_FIELDLIST(X, a) X(a, STATIC, OPTIONAL, MESSAGE, signedMessage, 1)
 #define VCSEC_ToVCSECMessage_CALLBACK NULL
 #define VCSEC_ToVCSECMessage_DEFAULT NULL
 #define VCSEC_ToVCSECMessage_signedMessage_MSGTYPE VCSEC_SignedMessage
 
-#define VCSEC_KeyIdentifier_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, BYTES,    publicKeySHA1,     1)
+#define VCSEC_KeyIdentifier_FIELDLIST(X, a) X(a, STATIC, SINGULAR, BYTES, publicKeySHA1, 1)
 #define VCSEC_KeyIdentifier_CALLBACK NULL
 #define VCSEC_KeyIdentifier_DEFAULT NULL
 
-#define VCSEC_KeyMetadata_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, UENUM,    keyFormFactor,     1)
+#define VCSEC_KeyMetadata_FIELDLIST(X, a) X(a, STATIC, SINGULAR, UENUM, keyFormFactor, 1)
 #define VCSEC_KeyMetadata_CALLBACK NULL
 #define VCSEC_KeyMetadata_DEFAULT NULL
 
-#define VCSEC_PublicKey_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, BYTES,    PublicKeyRaw,      1)
+#define VCSEC_PublicKey_FIELDLIST(X, a) X(a, STATIC, SINGULAR, BYTES, PublicKeyRaw, 1)
 #define VCSEC_PublicKey_CALLBACK NULL
 #define VCSEC_PublicKey_DEFAULT NULL
 
 #define VCSEC_WhitelistInfo_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, UINT32,   numberOfEntries,   1) \
-X(a, CALLBACK, REPEATED, MESSAGE,  whitelistEntries,   2) \
-X(a, STATIC,   SINGULAR, UINT32,   slotMask,          3)
+  X(a, STATIC, SINGULAR, UINT32, numberOfEntries, 1) \
+  X(a, CALLBACK, REPEATED, MESSAGE, whitelistEntries, 2) \
+  X(a, STATIC, SINGULAR, UINT32, slotMask, 3)
 #define VCSEC_WhitelistInfo_CALLBACK pb_default_field_callback
 #define VCSEC_WhitelistInfo_DEFAULT NULL
 #define VCSEC_WhitelistInfo_whitelistEntries_MSGTYPE VCSEC_KeyIdentifier
 
 #define VCSEC_WhitelistEntryInfo_FIELDLIST(X, a) \
-X(a, STATIC,   OPTIONAL, MESSAGE,  keyId,             1) \
-X(a, STATIC,   OPTIONAL, MESSAGE,  publicKey,         2) \
-X(a, STATIC,   OPTIONAL, MESSAGE,  metadataForKey,    4) \
-X(a, STATIC,   SINGULAR, UINT32,   slot,              6) \
-X(a, STATIC,   SINGULAR, UENUM,    keyRole,           7)
+  X(a, STATIC, OPTIONAL, MESSAGE, keyId, 1) \
+  X(a, STATIC, OPTIONAL, MESSAGE, publicKey, 2) \
+  X(a, STATIC, OPTIONAL, MESSAGE, metadataForKey, 4) \
+  X(a, STATIC, SINGULAR, UINT32, slot, 6) \
+  X(a, STATIC, SINGULAR, UENUM, keyRole, 7)
 #define VCSEC_WhitelistEntryInfo_CALLBACK NULL
 #define VCSEC_WhitelistEntryInfo_DEFAULT NULL
 #define VCSEC_WhitelistEntryInfo_keyId_MSGTYPE VCSEC_KeyIdentifier
@@ -580,57 +660,61 @@ X(a, STATIC,   SINGULAR, UENUM,    keyRole,           7)
 #define VCSEC_WhitelistEntryInfo_metadataForKey_MSGTYPE VCSEC_KeyMetadata
 
 #define VCSEC_InformationRequest_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, UENUM,    informationRequestType,   1) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (key,keyId,key.keyId),   2) \
-X(a, STATIC,   ONEOF,    BYTES,    (key,publicKey,key.publicKey),   3) \
-X(a, STATIC,   ONEOF,    UINT32,   (key,slot,key.slot),   4)
+  X(a, STATIC, SINGULAR, UENUM, informationRequestType, 1) \
+  X(a, STATIC, ONEOF, MESSAGE, (key, keyId, key.keyId), 2) \
+  X(a, STATIC, ONEOF, BYTES, (key, publicKey, key.publicKey), 3) \
+  X(a, STATIC, ONEOF, UINT32, (key, slot, key.slot), 4)
 #define VCSEC_InformationRequest_CALLBACK NULL
 #define VCSEC_InformationRequest_DEFAULT NULL
 #define VCSEC_InformationRequest_key_keyId_MSGTYPE VCSEC_KeyIdentifier
 
 #define VCSEC_ClosureMoveRequest_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, UENUM,    frontDriverDoor,   1) \
-X(a, STATIC,   SINGULAR, UENUM,    frontPassengerDoor,   2) \
-X(a, STATIC,   SINGULAR, UENUM,    rearDriverDoor,    3) \
-X(a, STATIC,   SINGULAR, UENUM,    rearPassengerDoor,   4) \
-X(a, STATIC,   SINGULAR, UENUM,    rearTrunk,         5) \
-X(a, STATIC,   SINGULAR, UENUM,    frontTrunk,        6) \
-X(a, STATIC,   SINGULAR, UENUM,    chargePort,        7) \
-X(a, STATIC,   SINGULAR, UENUM,    tonneau,           8)
+  X(a, STATIC, SINGULAR, UENUM, frontDriverDoor, 1) \
+  X(a, STATIC, SINGULAR, UENUM, frontPassengerDoor, 2) \
+  X(a, STATIC, SINGULAR, UENUM, rearDriverDoor, 3) \
+  X(a, STATIC, SINGULAR, UENUM, rearPassengerDoor, 4) \
+  X(a, STATIC, SINGULAR, UENUM, rearTrunk, 5) \
+  X(a, STATIC, SINGULAR, UENUM, frontTrunk, 6) \
+  X(a, STATIC, SINGULAR, UENUM, chargePort, 7) \
+  X(a, STATIC, SINGULAR, UENUM, tonneau, 8)
 #define VCSEC_ClosureMoveRequest_CALLBACK NULL
 #define VCSEC_ClosureMoveRequest_DEFAULT NULL
 
 #define VCSEC_PermissionChange_FIELDLIST(X, a) \
-X(a, STATIC,   OPTIONAL, MESSAGE,  key,               1) \
-X(a, STATIC,   SINGULAR, UINT32,   secondsToBeActive,   3) \
-X(a, STATIC,   SINGULAR, UENUM,    keyRole,           4)
+  X(a, STATIC, OPTIONAL, MESSAGE, key, 1) \
+  X(a, STATIC, SINGULAR, UINT32, secondsToBeActive, 3) \
+  X(a, STATIC, SINGULAR, UENUM, keyRole, 4)
 #define VCSEC_PermissionChange_CALLBACK NULL
 #define VCSEC_PermissionChange_DEFAULT NULL
 #define VCSEC_PermissionChange_key_MSGTYPE VCSEC_PublicKey
 
 #define VCSEC_ReplaceKey_FIELDLIST(X, a) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (keyToReplace,publicKeyToReplace,keyToReplace.publicKeyToReplace),   1) \
-X(a, STATIC,   ONEOF,    UINT32,   (keyToReplace,slotToReplace,keyToReplace.slotToReplace),   2) \
-X(a, STATIC,   OPTIONAL, MESSAGE,  keyToAdd,          3) \
-X(a, STATIC,   SINGULAR, UENUM,    keyRole,           4) \
-X(a, STATIC,   SINGULAR, BOOL,     impermanent,       5)
+  X(a, STATIC, ONEOF, MESSAGE, (keyToReplace, publicKeyToReplace, keyToReplace.publicKeyToReplace), 1) \
+  X(a, STATIC, ONEOF, UINT32, (keyToReplace, slotToReplace, keyToReplace.slotToReplace), 2) \
+  X(a, STATIC, OPTIONAL, MESSAGE, keyToAdd, 3) \
+  X(a, STATIC, SINGULAR, UENUM, keyRole, 4) \
+  X(a, STATIC, SINGULAR, BOOL, impermanent, 5)
 #define VCSEC_ReplaceKey_CALLBACK NULL
 #define VCSEC_ReplaceKey_DEFAULT NULL
 #define VCSEC_ReplaceKey_keyToReplace_publicKeyToReplace_MSGTYPE VCSEC_PublicKey
 #define VCSEC_ReplaceKey_keyToAdd_MSGTYPE VCSEC_PublicKey
 
 #define VCSEC_WhitelistOperation_FIELDLIST(X, a) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,addPublicKeyToWhitelist,sub_message.addPublicKeyToWhitelist),   1) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,removePublicKeyFromWhitelist,sub_message.removePublicKeyFromWhitelist),   2) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,addPermissionsToPublicKey,sub_message.addPermissionsToPublicKey),   3) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,removePermissionsFromPublicKey,sub_message.removePermissionsFromPublicKey),   4) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,addKeyToWhitelistAndAddPermissions,sub_message.addKeyToWhitelistAndAddPermissions),   5) \
-X(a, STATIC,   OPTIONAL, MESSAGE,  metadataForKey,    6) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,updateKeyAndPermissions,sub_message.updateKeyAndPermissions),   7) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,addImpermanentKey,sub_message.addImpermanentKey),   8) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,addImpermanentKeyAndRemoveExisting,sub_message.addImpermanentKeyAndRemoveExisting),   9) \
-X(a, STATIC,   ONEOF,    BOOL,     (sub_message,removeAllImpermanentKeys,sub_message.removeAllImpermanentKeys),  16) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,replaceKey,sub_message.replaceKey),  17)
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, addPublicKeyToWhitelist, sub_message.addPublicKeyToWhitelist), 1) \
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, removePublicKeyFromWhitelist, sub_message.removePublicKeyFromWhitelist), \
+    2) \
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, addPermissionsToPublicKey, sub_message.addPermissionsToPublicKey), 3) \
+  X(a, STATIC, ONEOF, MESSAGE, \
+    (sub_message, removePermissionsFromPublicKey, sub_message.removePermissionsFromPublicKey), 4) \
+  X(a, STATIC, ONEOF, MESSAGE, \
+    (sub_message, addKeyToWhitelistAndAddPermissions, sub_message.addKeyToWhitelistAndAddPermissions), 5) \
+  X(a, STATIC, OPTIONAL, MESSAGE, metadataForKey, 6) \
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, updateKeyAndPermissions, sub_message.updateKeyAndPermissions), 7) \
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, addImpermanentKey, sub_message.addImpermanentKey), 8) \
+  X(a, STATIC, ONEOF, MESSAGE, \
+    (sub_message, addImpermanentKeyAndRemoveExisting, sub_message.addImpermanentKeyAndRemoveExisting), 9) \
+  X(a, STATIC, ONEOF, BOOL, (sub_message, removeAllImpermanentKeys, sub_message.removeAllImpermanentKeys), 16) \
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, replaceKey, sub_message.replaceKey), 17)
 #define VCSEC_WhitelistOperation_CALLBACK NULL
 #define VCSEC_WhitelistOperation_DEFAULT NULL
 #define VCSEC_WhitelistOperation_sub_message_addPublicKeyToWhitelist_MSGTYPE VCSEC_PublicKey
@@ -645,33 +729,33 @@ X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,replaceKey,sub_message.replaceKe
 #define VCSEC_WhitelistOperation_sub_message_replaceKey_MSGTYPE VCSEC_ReplaceKey
 
 #define VCSEC_WhitelistOperation_status_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, UENUM,    whitelistOperationInformation,   1) \
-X(a, STATIC,   OPTIONAL, MESSAGE,  signerOfOperation,   2) \
-X(a, STATIC,   SINGULAR, UENUM,    operationStatus,   3)
+  X(a, STATIC, SINGULAR, UENUM, whitelistOperationInformation, 1) \
+  X(a, STATIC, OPTIONAL, MESSAGE, signerOfOperation, 2) \
+  X(a, STATIC, SINGULAR, UENUM, operationStatus, 3)
 #define VCSEC_WhitelistOperation_status_CALLBACK NULL
 #define VCSEC_WhitelistOperation_status_DEFAULT NULL
 #define VCSEC_WhitelistOperation_status_signerOfOperation_MSGTYPE VCSEC_KeyIdentifier
 
 #define VCSEC_SignedMessage_status_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, UINT32,   counter,           1) \
-X(a, STATIC,   SINGULAR, UENUM,    signedMessageInformation,   2)
+  X(a, STATIC, SINGULAR, UINT32, counter, 1) \
+  X(a, STATIC, SINGULAR, UENUM, signedMessageInformation, 2)
 #define VCSEC_SignedMessage_status_CALLBACK NULL
 #define VCSEC_SignedMessage_status_DEFAULT NULL
 
 #define VCSEC_CommandStatus_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, UENUM,    operationStatus,   1) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,signedMessageStatus,sub_message.signedMessageStatus),   2) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,whitelistOperationStatus,sub_message.whitelistOperationStatus),   3)
+  X(a, STATIC, SINGULAR, UENUM, operationStatus, 1) \
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, signedMessageStatus, sub_message.signedMessageStatus), 2) \
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, whitelistOperationStatus, sub_message.whitelistOperationStatus), 3)
 #define VCSEC_CommandStatus_CALLBACK NULL
 #define VCSEC_CommandStatus_DEFAULT NULL
 #define VCSEC_CommandStatus_sub_message_signedMessageStatus_MSGTYPE VCSEC_SignedMessage_status
 #define VCSEC_CommandStatus_sub_message_whitelistOperationStatus_MSGTYPE VCSEC_WhitelistOperation_status
 
 #define VCSEC_UnsignedMessage_FIELDLIST(X, a) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,InformationRequest,sub_message.InformationRequest),   1) \
-X(a, STATIC,   ONEOF,    UENUM,    (sub_message,RKEAction,sub_message.RKEAction),   2) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,closureMoveRequest,sub_message.closureMoveRequest),   4) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,WhitelistOperation,sub_message.WhitelistOperation),  16)
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, InformationRequest, sub_message.InformationRequest), 1) \
+  X(a, STATIC, ONEOF, UENUM, (sub_message, RKEAction, sub_message.RKEAction), 2) \
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, closureMoveRequest, sub_message.closureMoveRequest), 4) \
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, WhitelistOperation, sub_message.WhitelistOperation), 16)
 #define VCSEC_UnsignedMessage_CALLBACK NULL
 #define VCSEC_UnsignedMessage_DEFAULT NULL
 #define VCSEC_UnsignedMessage_sub_message_InformationRequest_MSGTYPE VCSEC_InformationRequest
@@ -679,39 +763,38 @@ X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,WhitelistOperation,sub_message.W
 #define VCSEC_UnsignedMessage_sub_message_WhitelistOperation_MSGTYPE VCSEC_WhitelistOperation
 
 #define VCSEC_ClosureStatuses_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, UENUM,    frontDriverDoor,   1) \
-X(a, STATIC,   SINGULAR, UENUM,    frontPassengerDoor,   2) \
-X(a, STATIC,   SINGULAR, UENUM,    rearDriverDoor,    3) \
-X(a, STATIC,   SINGULAR, UENUM,    rearPassengerDoor,   4) \
-X(a, STATIC,   SINGULAR, UENUM,    rearTrunk,         5) \
-X(a, STATIC,   SINGULAR, UENUM,    frontTrunk,        6) \
-X(a, STATIC,   SINGULAR, UENUM,    chargePort,        7) \
-X(a, STATIC,   SINGULAR, UENUM,    tonneau,           8)
+  X(a, STATIC, SINGULAR, UENUM, frontDriverDoor, 1) \
+  X(a, STATIC, SINGULAR, UENUM, frontPassengerDoor, 2) \
+  X(a, STATIC, SINGULAR, UENUM, rearDriverDoor, 3) \
+  X(a, STATIC, SINGULAR, UENUM, rearPassengerDoor, 4) \
+  X(a, STATIC, SINGULAR, UENUM, rearTrunk, 5) \
+  X(a, STATIC, SINGULAR, UENUM, frontTrunk, 6) \
+  X(a, STATIC, SINGULAR, UENUM, chargePort, 7) \
+  X(a, STATIC, SINGULAR, UENUM, tonneau, 8)
 #define VCSEC_ClosureStatuses_CALLBACK NULL
 #define VCSEC_ClosureStatuses_DEFAULT NULL
 
-#define VCSEC_DetailedClosureStatus_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, UINT32,   tonneauPercentOpen,   1)
+#define VCSEC_DetailedClosureStatus_FIELDLIST(X, a) X(a, STATIC, SINGULAR, UINT32, tonneauPercentOpen, 1)
 #define VCSEC_DetailedClosureStatus_CALLBACK NULL
 #define VCSEC_DetailedClosureStatus_DEFAULT NULL
 
 #define VCSEC_VehicleStatus_FIELDLIST(X, a) \
-X(a, STATIC,   OPTIONAL, MESSAGE,  closureStatuses,   1) \
-X(a, STATIC,   SINGULAR, UENUM,    vehicleLockState,   2) \
-X(a, STATIC,   SINGULAR, UENUM,    vehicleSleepStatus,   3) \
-X(a, STATIC,   SINGULAR, UENUM,    userPresence,      4) \
-X(a, STATIC,   OPTIONAL, MESSAGE,  detailedClosureStatus,   5)
+  X(a, STATIC, OPTIONAL, MESSAGE, closureStatuses, 1) \
+  X(a, STATIC, SINGULAR, UENUM, vehicleLockState, 2) \
+  X(a, STATIC, SINGULAR, UENUM, vehicleSleepStatus, 3) \
+  X(a, STATIC, SINGULAR, UENUM, userPresence, 4) \
+  X(a, STATIC, OPTIONAL, MESSAGE, detailedClosureStatus, 5)
 #define VCSEC_VehicleStatus_CALLBACK NULL
 #define VCSEC_VehicleStatus_DEFAULT NULL
 #define VCSEC_VehicleStatus_closureStatuses_MSGTYPE VCSEC_ClosureStatuses
 #define VCSEC_VehicleStatus_detailedClosureStatus_MSGTYPE VCSEC_DetailedClosureStatus
 
 #define VCSEC_FromVCSECMessage_FIELDLIST(X, a) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,vehicleStatus,sub_message.vehicleStatus),   1) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,commandStatus,sub_message.commandStatus),   4) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,whitelistInfo,sub_message.whitelistInfo),  16) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,whitelistEntryInfo,sub_message.whitelistEntryInfo),  17) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (sub_message,nominalError,sub_message.nominalError),  46)
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, vehicleStatus, sub_message.vehicleStatus), 1) \
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, commandStatus, sub_message.commandStatus), 4) \
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, whitelistInfo, sub_message.whitelistInfo), 16) \
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, whitelistEntryInfo, sub_message.whitelistEntryInfo), 17) \
+  X(a, STATIC, ONEOF, MESSAGE, (sub_message, nominalError, sub_message.nominalError), 46)
 #define VCSEC_FromVCSECMessage_CALLBACK NULL
 #define VCSEC_FromVCSECMessage_DEFAULT NULL
 #define VCSEC_FromVCSECMessage_sub_message_vehicleStatus_MSGTYPE VCSEC_VehicleStatus
@@ -766,25 +849,25 @@ extern const pb_msgdesc_t VCSEC_FromVCSECMessage_msg;
 /* Maximum encoded size of messages (where known) */
 /* VCSEC_WhitelistInfo_size depends on runtime parameters */
 /* VCSEC_FromVCSECMessage_size depends on runtime parameters */
-#define VCSEC_ClosureMoveRequest_size            16
-#define VCSEC_ClosureStatuses_size               16
-#define VCSEC_CommandStatus_size                 16
-#define VCSEC_DetailedClosureStatus_size         6
-#define VCSEC_InformationRequest_size            69
-#define VCSEC_KeyIdentifier_size                 6
-#define VCSEC_KeyMetadata_size                   2
-#define VCSEC_PermissionChange_size              77
-#define VCSEC_PublicKey_size                     67
-#define VCSEC_ReplaceKey_size                    142
-#define VCSEC_SignedMessage_size                 104
-#define VCSEC_SignedMessage_status_size          8
-#define VCSEC_ToVCSECMessage_size                106
-#define VCSEC_UnsignedMessage_size               154
-#define VCSEC_VCSEC_PB_H_MAX_SIZE                VCSEC_UnsignedMessage_size
-#define VCSEC_VehicleStatus_size                 32
-#define VCSEC_WhitelistEntryInfo_size            89
-#define VCSEC_WhitelistOperation_size            150
-#define VCSEC_WhitelistOperation_status_size     12
+#define VCSEC_ClosureMoveRequest_size 16
+#define VCSEC_ClosureStatuses_size 16
+#define VCSEC_CommandStatus_size 16
+#define VCSEC_DetailedClosureStatus_size 6
+#define VCSEC_InformationRequest_size 69
+#define VCSEC_KeyIdentifier_size 6
+#define VCSEC_KeyMetadata_size 2
+#define VCSEC_PermissionChange_size 77
+#define VCSEC_PublicKey_size 67
+#define VCSEC_ReplaceKey_size 142
+#define VCSEC_SignedMessage_size 104
+#define VCSEC_SignedMessage_status_size 8
+#define VCSEC_ToVCSECMessage_size 106
+#define VCSEC_UnsignedMessage_size 154
+#define VCSEC_VCSEC_PB_H_MAX_SIZE VCSEC_UnsignedMessage_size
+#define VCSEC_VehicleStatus_size 32
+#define VCSEC_WhitelistEntryInfo_size 89
+#define VCSEC_WhitelistOperation_size 150
+#define VCSEC_WhitelistOperation_status_size 12
 
 #ifdef __cplusplus
 } /* extern "C" */

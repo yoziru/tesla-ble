@@ -52,7 +52,7 @@ int main() {
     LOG_ERROR("Failed to get private key");
   }
   LOG_DEBUG("Private key length: %d", private_key_length);
-  LOG_DEBUG("Private key: %s", bytes_to_hex_string(private_key_buffer, private_key_length).c_str());
+  LOG_VERBOSE("Private key: %s", bytes_to_hex_string(private_key_buffer, private_key_length).c_str());
 
   unsigned char whitelist_message_buffer[VCSEC_ToVCSECMessage_size];
   size_t whitelist_message_length;

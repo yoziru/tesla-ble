@@ -3,13 +3,11 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-
 echo "Running clang-format and clang-tidy checks..."
 
 # Ensure we're in the project root
-cd "$PROJECT_ROOT"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$(dirname "$SCRIPT_DIR")"
 
 # Check if clang-format and clang-tidy are available
 if ! command -v clang-format &> /dev/null; then
@@ -46,10 +44,10 @@ if [ ! -f "build/compile_commands.json" ]; then
     echo "✓ CMake configured successfully"
 fi
 
-# Check clang-tidy (only on source files, not headers or tests for now)
-SOURCE_FILES=$(find src -name "*.cpp" | sort)
+# Check clang-tidy (on source files and headers, excluding generated and deps)
+SOURCE_FILES=$(find src include -name "*.cpp" -o -name "*.h" | grep -v "generated/" | grep -v "_deps/" | sort)
 echo "Running clang-tidy on $(echo "$SOURCE_FILES" | wc -l) source files..."
-if echo "$SOURCE_FILES" | xargs -P $(nproc) clang-tidy -p build/ --header-filter="^(?!.*/(build|_deps|generated)/).*" --quiet; then
+if echo "$SOURCE_FILES" | xargs -P $(nproc) clang-tidy --config-file=.clang-tidy -p build/ --quiet; then
     echo "✓ clang-tidy check passed"
 else
     echo "✗ clang-tidy check failed. Fix the issues reported above."

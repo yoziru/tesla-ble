@@ -79,7 +79,7 @@ jobs:
       - name: Run clang-tidy
         if: matrix.check == 'tidy'
         run: |
-          find src -name "*.cpp" | xargs -P $(nproc) clang-tidy -p ${{ steps.strings.outputs.build-output-dir }} --header-filter="^(?!.*/(build|_deps|generated)/).*" --quiet
+          find src include -name "*.cpp" -o -name "*.h" | grep -v "generated/" | grep -v "_deps/" | xargs -P $(nproc) clang-tidy --config-file=.clang-tidy -p ${{ steps.strings.outputs.build-output-dir }} --quiet
 
       - name: Build Library
         if: matrix.check == 'test'

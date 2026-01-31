@@ -51,10 +51,10 @@ class ProtocolHandshakeTest : public ::testing::Test {
 // Test 1: Handshake Request Generation
 TEST_F(ProtocolHandshakeTest, HandshakeRequestGeneration) {
   // Load client private key
-  int result = client->load_private_key(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1  // +1 for null terminator
+  auto result = client->load_private_key(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                         strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1  // +1 for null terminator
   );
-  ASSERT_EQ(result, 0) << "Failed to load client private key";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to load client private key";
 
   // Test session info request for VCSEC domain (this is the actual handshake)
   pb_byte_t vcsec_message[512];
@@ -62,7 +62,7 @@ TEST_F(ProtocolHandshakeTest, HandshakeRequestGeneration) {
 
   result = client->build_session_info_request_message(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, vcsec_message,
                                                       &vcsec_message_length);
-  ASSERT_EQ(result, 0) << "Failed to build VCSEC session info request";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to build VCSEC session info request";
   EXPECT_GT(vcsec_message_length, 0) << "VCSEC session info message should have content";
 
   // Test session info request for Infotainment domain
@@ -71,7 +71,7 @@ TEST_F(ProtocolHandshakeTest, HandshakeRequestGeneration) {
 
   result = client->build_session_info_request_message(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, info_message,
                                                       &info_message_length);
-  ASSERT_EQ(result, 0) << "Failed to build Infotainment session info request";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to build Infotainment session info request";
   EXPECT_GT(info_message_length, 0) << "Infotainment session info message should have content";
 
   // Verify messages are different (different domains should have different routing)
@@ -87,11 +87,11 @@ TEST_F(ProtocolHandshakeTest, HandshakeFlowProcessing) {
   // Test the complete handshake flow with proper response handling
 
   // Load client private key for key agreement
-  int result =
+  auto result =
       crypto_context->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
                                        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1  // +1 for null terminator
       );
-  ASSERT_EQ(result, 0) << "Failed to load private key into crypto context";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to load private key into crypto context";
 
   // Create a peer for handshake testing
   Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context, TestConstants::TEST_VIN);
@@ -109,7 +109,7 @@ TEST_F(ProtocolHandshakeTest, HandshakeFlowProcessing) {
   session_info.publicKey.size = 65;
 
   result = peer.update_session(&session_info);
-  ASSERT_EQ(result, 0) << "Failed to establish session during handshake";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to establish session during handshake";
 
   // Verify handshake completion
   EXPECT_TRUE(peer.is_valid()) << "Peer should be valid after successful handshake";
@@ -125,9 +125,9 @@ TEST_F(ProtocolHandshakeTest, ResponseEncryptionFlag) {
   // According to protocol spec: "Clients should always set the FLAG_ENCRYPT_RESPONSE bit"
 
   // Load private key for client
-  int result = client->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
-  ASSERT_EQ(result, 0) << "Failed to load private key";
+  auto result = client->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                         strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to load private key";
 
   // Test that session info request can be built successfully
   // The implementation should automatically set FLAG_ENCRYPT_RESPONSE
@@ -136,7 +136,7 @@ TEST_F(ProtocolHandshakeTest, ResponseEncryptionFlag) {
 
   result = client->build_session_info_request_message(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, session_request,
                                                       &session_request_length);
-  ASSERT_EQ(result, 0) << "Failed to build session info request";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to build session info request";
   EXPECT_GT(session_request_length, 0) << "Session request should have content";
 
   // Test that whitelist message can be built successfully
@@ -148,7 +148,7 @@ TEST_F(ProtocolHandshakeTest, ResponseEncryptionFlag) {
       client->build_white_list_message(Keys_Role_ROLE_DRIVER,                               // role parameter
                                        VCSEC_KeyFormFactor_KEY_FORM_FACTOR_ANDROID_DEVICE,  // form factor parameter
                                        whitelist_message, &whitelist_length);
-  ASSERT_EQ(result, 0) << "Failed to build whitelist message";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to build whitelist message";
   EXPECT_GT(whitelist_length, 0) << "Whitelist message should have content";
 
   // Test that VCSEC information request can be built successfully
@@ -157,7 +157,7 @@ TEST_F(ProtocolHandshakeTest, ResponseEncryptionFlag) {
 
   result = client->build_vcsec_information_request_message(
       VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_WHITELIST_INFO, vcsec_request, &vcsec_length);
-  ASSERT_EQ(result, 0) << "Failed to build VCSEC information request";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to build VCSEC information request";
   EXPECT_GT(vcsec_length, 0) << "VCSEC request should have content";
 
   // All message building methods should succeed when FLAG_ENCRYPT_RESPONSE
@@ -169,16 +169,16 @@ TEST_F(ProtocolHandshakeTest, ResponseDecryption) {
   // Test response decryption with mock encrypted response
 
   // Load private key for key agreement
-  int result =
+  auto result =
       crypto_context->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
                                        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1  // +1 for null terminator
       );
-  ASSERT_EQ(result, 0) << "Failed to load private key";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to load private key";
 
   // Create peer and load vehicle public key
   Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context, TestConstants::TEST_VIN);
   result = peer.load_tesla_key(TestConstants::EXPECTED_VEHICLE_PUBLIC_KEY, 65);
-  ASSERT_EQ(result, 0) << "Failed to load Tesla key";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to load Tesla key";
 
   // Mock session info to initialize peer
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
@@ -191,7 +191,7 @@ TEST_F(ProtocolHandshakeTest, ResponseDecryption) {
   session_info.publicKey.size = 65;
 
   result = peer.update_session(&session_info);
-  ASSERT_EQ(result, 0) << "Failed to update session";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to update session";
 
   // Test response decryption parameters
   uint8_t mock_encrypted_data[] = {0x38, 0x03, 0x8e, 0x8c, 0x0f, 0x2e};  // Mock ciphertext
@@ -215,9 +215,10 @@ TEST_F(ProtocolHandshakeTest, ResponseDecryption) {
 
   // The exact result depends on the mock data being valid
   // But we should get a meaningful response
-  EXPECT_TRUE(result == 0 || result < 0) << "Decryption should either succeed or fail gracefully";
+  EXPECT_TRUE(result == TeslaBLEStatus::OK || result != TeslaBLEStatus::OK)
+      << "Decryption should either succeed or fail gracefully";
 
-  if (result == 0) {
+  if (result == TeslaBLEStatus::OK) {
     EXPECT_GT(decrypted_length, 0) << "Successful decryption should produce content";
   }
 }
@@ -243,14 +244,14 @@ TEST_F(ProtocolHandshakeTest, DomainSpecificBehavior) {
   uint8_t vcsec_hash[17], info_hash[17];
   size_t vcsec_length, info_length;
 
-  int vcsec_result = vcsec_peer->construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                                        test_tag, 16, vcsec_hash, &vcsec_length);
+  auto vcsec_result = vcsec_peer->construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+                                                         test_tag, 16, vcsec_hash, &vcsec_length);
 
-  int info_result = info_peer->construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                                      test_tag, 16, info_hash, &info_length);
+  auto info_result = info_peer->construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+                                                       test_tag, 16, info_hash, &info_length);
 
-  ASSERT_EQ(vcsec_result, 0) << "VCSEC request hash construction should succeed";
-  ASSERT_EQ(info_result, 0) << "Infotainment request hash construction should succeed";
+  ASSERT_EQ(vcsec_result, TeslaBLEStatus::OK) << "VCSEC request hash construction should succeed";
+  ASSERT_EQ(info_result, TeslaBLEStatus::OK) << "Infotainment request hash construction should succeed";
 
   // Both should be 17 bytes for AES-GCM (VCSEC truncates, Infotainment doesn't truncate AES-GCM)
   EXPECT_EQ(vcsec_length, 17) << "VCSEC hash should be 17 bytes";

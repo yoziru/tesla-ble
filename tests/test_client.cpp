@@ -31,11 +31,11 @@ TEST_F(ClientTest, BuildWhiteListMessage) {
   unsigned char whitelist_message_buffer[VCSEC_ToVCSECMessage_size];
   size_t whitelist_message_length;
 
-  int result =
+  auto result =
       client->build_white_list_message(Keys_Role_ROLE_CHARGING_MANAGER, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY,
                                        whitelist_message_buffer, &whitelist_message_length);
 
-  EXPECT_EQ(result, 0) << "Failed to build whitelist message";
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Failed to build whitelist message";
   EXPECT_GT(whitelist_message_length, 0) << "Whitelist message should have content";
   EXPECT_LE(whitelist_message_length, sizeof(whitelist_message_buffer)) << "Message should fit in buffer";
 }
@@ -45,9 +45,9 @@ TEST_F(ClientTest, BuildWhiteListMessageInvalidRole) {
   size_t whitelist_message_length;
 
   // Test with invalid role (using a high number that's likely not defined)
-  int result =
+  auto result =
       client->build_white_list_message(static_cast<Keys_Role>(999), VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY,
                                        whitelist_message_buffer, &whitelist_message_length);
 
-  EXPECT_NE(result, 0) << "Building whitelist message with invalid role should fail";
+  EXPECT_NE(result, TeslaBLEStatus::OK) << "Building whitelist message with invalid role should fail";
 }

@@ -35,7 +35,7 @@ struct Command {
   UniversalMessage_Domain domain;
   std::string name;
   // Builder function: takes Client pointer, output buffer, output length pointer. Returns status code (0 for success).
-  std::function<int(Client *, uint8_t *, size_t *)> builder;
+  std::function<TeslaBLEStatus(Client *, uint8_t *, size_t *)> builder;
   // Callback: success state
   std::function<void(bool)> on_complete;
   // Whether this command requires the vehicle to be awake (write commands = true, read/poll = false)
@@ -46,7 +46,7 @@ struct Command {
   std::chrono::steady_clock::time_point last_tx_at;
   uint8_t retry_count = 0;
 
-  Command(UniversalMessage_Domain d, std::string n, std::function<int(Client *, uint8_t *, size_t *)> b,
+  Command(UniversalMessage_Domain d, std::string n, std::function<TeslaBLEStatus(Client *, uint8_t *, size_t *)> b,
           std::function<void(bool)> cb = nullptr, bool wake = true)
       : domain(d), name(std::move(n)), builder(std::move(b)), on_complete(std::move(cb)), requires_wake(wake) {
     started_at = std::chrono::steady_clock::now();
@@ -65,23 +65,27 @@ class Vehicle {
 
   // Command Enqueueing
   void send_command(UniversalMessage_Domain domain, std::string name,
-                    std::function<int(Client *, uint8_t *, size_t *)> builder,
+                    std::function<TeslaBLEStatus(Client *, uint8_t *, size_t *)> builder,
                     std::function<void(bool)> on_complete = nullptr, bool requires_wake = true);
 
   // State Callbacks
   void set_vehicle_status_callback(std::function<void(const VCSEC_VehicleStatus &)> cb) {
-    vehicle_status_callback_ = cb;
+    vehicle_status_callback_ = std::move(cb);
   }
-  void set_charge_state_callback(std::function<void(const CarServer_ChargeState &)> cb) { charge_state_callback_ = cb; }
+  void set_charge_state_callback(std::function<void(const CarServer_ChargeState &)> cb) {
+    charge_state_callback_ = std::move(cb);
+  }
   void set_climate_state_callback(std::function<void(const CarServer_ClimateState &)> cb) {
-    climate_state_callback_ = cb;
+    climate_state_callback_ = std::move(cb);
   }
-  void set_drive_state_callback(std::function<void(const CarServer_DriveState &)> cb) { drive_state_callback_ = cb; }
+  void set_drive_state_callback(std::function<void(const CarServer_DriveState &)> cb) {
+    drive_state_callback_ = std::move(cb);
+  }
   void set_tire_pressure_state_callback(std::function<void(const CarServer_TirePressureState &)> cb) {
-    tire_pressure_callback_ = cb;
+    tire_pressure_callback_ = std::move(cb);
   }
   void set_closures_state_callback(std::function<void(const CarServer_ClosuresState &)> cb) {
-    closures_state_callback_ = cb;
+    closures_state_callback_ = std::move(cb);
   }
 
   // Helpers for common commands (wrappers around send_command)
@@ -139,10 +143,10 @@ class Vehicle {
 
   // Callbacks
   using MessageCallback = std::function<void(const UniversalMessage_RoutableMessage &)>;
-  void set_message_callback(MessageCallback cb) { message_callback_ = cb; }
+  void set_message_callback(MessageCallback cb) { message_callback_ = std::move(cb); }
 
   using RawMessageCallback = std::function<void(const std::vector<uint8_t> &)>;
-  void set_raw_message_callback(RawMessageCallback cb) { raw_message_callback_ = cb; }
+  void set_raw_message_callback(RawMessageCallback cb) { raw_message_callback_ = std::move(cb); }
 
  private:
   std::shared_ptr<BleAdapter> ble_adapter_;
@@ -171,40 +175,40 @@ class Vehicle {
   static constexpr uint8_t MAX_RETRIES = 5;
 
   // Internal Helpers
-  void process_command_queue();
-  void handle_message(const UniversalMessage_RoutableMessage &msg);
+  void process_command_queue_();
+  void handle_message_(const UniversalMessage_RoutableMessage &msg);
 
-  void process_idle_command(const std::shared_ptr<Command> &command);
-  void process_auth_waiting_command(const std::shared_ptr<Command> &command);
-  void process_ready_command(const std::shared_ptr<Command> &command);
+  void process_idle_command_(const std::shared_ptr<Command> &command);
+  void process_auth_waiting_command_(const std::shared_ptr<Command> &command);
+  void process_ready_command_(const std::shared_ptr<Command> &command);
 
-  void initiate_vcsec_auth(const std::shared_ptr<Command> &command);
-  void initiate_infotainment_auth(const std::shared_ptr<Command> &command);
-  void initiate_wake_sequence(const std::shared_ptr<Command> &command);
-  void retry_command(const std::shared_ptr<Command> &command);
-  void mark_command_failed(const std::shared_ptr<Command> &command, const std::string &reason);
-  void mark_command_completed(const std::shared_ptr<Command> &command);
+  void initiate_vcsec_auth_(const std::shared_ptr<Command> &command);
+  void initiate_infotainment_auth_(const std::shared_ptr<Command> &command);
+  void initiate_wake_sequence_(const std::shared_ptr<Command> &command);
+  void retry_command_(const std::shared_ptr<Command> &command);
+  void mark_command_failed_(const std::shared_ptr<Command> &command, const std::string &reason);
+  void mark_command_completed_(const std::shared_ptr<Command> &command);
 
-  bool is_domain_authenticated(UniversalMessage_Domain domain);
-  void handle_authentication_response(UniversalMessage_Domain domain, bool success);
+  bool is_domain_authenticated_(UniversalMessage_Domain domain);
+  void handle_authentication_response_(UniversalMessage_Domain domain, bool success);
 
   // Session persistence
-  void load_session_from_storage(UniversalMessage_Domain domain);
+  void load_session_from_storage_(UniversalMessage_Domain domain);
 
  protected:
   // Message Reassembly
-  bool is_message_complete();
-  int get_expected_message_length();
-  void process_complete_message();
+  bool is_message_complete_();
+  int get_expected_message_length_();
+  void process_complete_message_();
 
   // Reassembly buffer
   std::vector<uint8_t> rx_buffer_;
 
  private:
   // Message Handlers
-  void handle_vcsec_message(const UniversalMessage_RoutableMessage &msg);
-  void handle_carserver_message(const UniversalMessage_RoutableMessage &msg);
-  void handle_session_info_message(const UniversalMessage_RoutableMessage &msg);
+  void handle_vcsec_message_(const UniversalMessage_RoutableMessage &msg);
+  void handle_carserver_message_(const UniversalMessage_RoutableMessage &msg);
+  void handle_session_info_message_(const UniversalMessage_RoutableMessage &msg);
 };
 
 }  // namespace TeslaBLE

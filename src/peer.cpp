@@ -78,12 +78,12 @@ void Peer::set_counter(uint32_t counter) { counter_ = counter; }
 
 void Peer::increment_counter() { counter_++; }
 
-int Peer::set_epoch(const pb_byte_t *epoch) {
+TeslaBLEStatus Peer::set_epoch(const pb_byte_t *epoch) {
   if (epoch == nullptr) {
-    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
   }
   std::copy(epoch, epoch + epoch_.size(), epoch_.begin());
-  return TeslaBLE_Status_E_OK;
+  return TeslaBLEStatus::OK;
 }
 
 uint32_t Peer::get_counter() const { return counter_; }
@@ -101,21 +101,21 @@ void Peer::generate_nonce(pb_byte_t *nonce) const {
     return;
   }
 
-  int result = crypto_context_->generate_random_bytes(nonce, NONCE_SIZE_BYTES);
-  if (result != TeslaBLE_Status_E_OK) {
-    LOG_ERROR("Failed to generate nonce: %d", result);
+  TeslaBLEStatus result = crypto_context_->generate_random_bytes(nonce, NONCE_SIZE_BYTES);
+  if (result != TeslaBLEStatus::OK) {
+    LOG_ERROR("Failed to generate nonce: %d", static_cast<int>(result));
   }
 }
 
-int Peer::load_tesla_key(const uint8_t *public_key_buffer, size_t public_key_size) {
+TeslaBLEStatus Peer::load_tesla_key(const uint8_t *public_key_buffer, size_t public_key_size) {
   if (public_key_buffer == nullptr || public_key_size == 0) {
     LOG_ERROR("Invalid public key buffer");
-    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
   }
 
   if (crypto_context_ == nullptr) {
     LOG_ERROR("Crypto context is null");
-    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
   }
 
   LOG_DEBUG("Loading Tesla public key (%zu bytes)", public_key_size);
@@ -130,14 +130,15 @@ int Peer::load_tesla_key(const uint8_t *public_key_buffer, size_t public_key_siz
     LOG_ERROR(
         "Invalid Tesla public key format: expected 65 bytes starting with 0x04, got %zu bytes starting with 0x%02x",
         public_key_size, public_key_buffer[0]);
-    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
   }
 
   // Use CryptoContext's Tesla ECDH method instead of duplicating crypto initialization
   LOG_DEBUG("Performing Tesla ECDH using CryptoContext");
-  int ret = crypto_context_->perform_tesla_ecdh(public_key_buffer, public_key_size, shared_secret_sha1_.data());
-  if (ret != TeslaBLE_Status_E_OK) {
-    LOG_ERROR("Failed to perform Tesla ECDH: %d", ret);
+  TeslaBLEStatus ret =
+      crypto_context_->perform_tesla_ecdh(public_key_buffer, public_key_size, shared_secret_sha1_.data());
+  if (ret != TeslaBLEStatus::OK) {
+    LOG_ERROR("Failed to perform Tesla ECDH: %d", static_cast<int>(ret));
     return ret;
   }
 
@@ -150,14 +151,14 @@ int Peer::load_tesla_key(const uint8_t *public_key_buffer, size_t public_key_siz
       shared_secret_sha1_[8], shared_secret_sha1_[9], shared_secret_sha1_[10], shared_secret_sha1_[11],
       shared_secret_sha1_[12], shared_secret_sha1_[13], shared_secret_sha1_[14], shared_secret_sha1_[15]);
 
-  return TeslaBLE_Status_E_OK;
+  return TeslaBLEStatus::OK;
 }
 
-int Peer::update_session(Signatures_SessionInfo *session_info) {
+TeslaBLEStatus Peer::update_session(Signatures_SessionInfo *session_info) {
   LOG_DEBUG("Updating session..");
   if (session_info == nullptr) {
     LOG_ERROR("Session info is null");
-    return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+    return TeslaBLEStatus::ERROR_INVALID_SESSION;
   }
 
   // Check if epoch is changing
@@ -170,11 +171,11 @@ int Peer::update_session(Signatures_SessionInfo *session_info) {
   if (!epoch_changed && session_info->counter < counter_) {
     LOG_ERROR("Counter anti-replay: attempted to set counter backwards (current: %u, new: %u)", counter_,
               session_info->counter);
-    return TeslaBLE_Status_E_ERROR_COUNTER_REPLAY;
+    return TeslaBLEStatus::ERROR_COUNTER_REPLAY;
   }
 
-  int status = set_epoch(session_info->epoch);
-  if (status != TeslaBLE_Status_E_OK) {
+  TeslaBLEStatus status = set_epoch(session_info->epoch);
+  if (status != TeslaBLEStatus::OK) {
     LOG_ERROR("Failed to set epoch");
     return status;
   }
@@ -188,7 +189,7 @@ int Peer::update_session(Signatures_SessionInfo *session_info) {
   // Load Tesla's public key if provided
   if (session_info->publicKey.size > 0) {
     status = load_tesla_key(session_info->publicKey.bytes, session_info->publicKey.size);
-    if (status != TeslaBLE_Status_E_OK) {
+    if (status != TeslaBLEStatus::OK) {
       LOG_ERROR("Failed to load Tesla public key from session info");
       return status;
     }
@@ -197,22 +198,22 @@ int Peer::update_session(Signatures_SessionInfo *session_info) {
   LOG_DEBUG("Updated session: counter=%d, clock_time=%d, time_zero=%d", session_info->counter, session_info->clock_time,
             time_zero);
 
-  return TeslaBLE_Status_E_OK;
+  return TeslaBLEStatus::OK;
 }
 
-int Peer::force_update_session(Signatures_SessionInfo *session_info) {
+TeslaBLEStatus Peer::force_update_session(Signatures_SessionInfo *session_info) {
   LOG_INFO("Force updating session (bypassing anti-replay protection)...");
   if (session_info == nullptr) {
     LOG_ERROR("Session info is null");
-    return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+    return TeslaBLEStatus::ERROR_INVALID_SESSION;
   }
 
   // Invalidate current session first
   is_valid_ = false;
 
   // Force set the epoch (this resets the counter validation baseline)
-  int status = set_epoch(session_info->epoch);
-  if (status != TeslaBLE_Status_E_OK) {
+  TeslaBLEStatus status = set_epoch(session_info->epoch);
+  if (status != TeslaBLEStatus::OK) {
     LOG_ERROR("Failed to set epoch during force update");
     return status;
   }
@@ -228,7 +229,7 @@ int Peer::force_update_session(Signatures_SessionInfo *session_info) {
   // Load Tesla's public key if provided
   if (session_info->publicKey.size > 0) {
     status = load_tesla_key(session_info->publicKey.bytes, session_info->publicKey.size);
-    if (status != TeslaBLE_Status_E_OK) {
+    if (status != TeslaBLEStatus::OK) {
       LOG_ERROR("Failed to load Tesla public key during force update");
       return status;
     }
@@ -240,15 +241,16 @@ int Peer::force_update_session(Signatures_SessionInfo *session_info) {
   LOG_INFO("Force updated session: counter=%d, clock_time=%d, time_zero=%d", session_info->counter,
            session_info->clock_time, time_zero);
 
-  return TeslaBLE_Status_E_OK;
+  return TeslaBLEStatus::OK;
 }
 
-int Peer::construct_ad_buffer(Signatures_SignatureType signature_type, const char *vin, uint32_t expires_at,
-                              pb_byte_t *output_buffer, size_t *output_length, uint32_t flags,
-                              const pb_byte_t *request_hash, size_t request_hash_length, uint32_t fault) const {
+TeslaBLEStatus Peer::construct_ad_buffer(Signatures_SignatureType signature_type, const char *vin, uint32_t expires_at,
+                                         pb_byte_t *output_buffer, size_t *output_length, uint32_t flags,
+                                         const pb_byte_t *request_hash, size_t request_hash_length,
+                                         uint32_t fault) const {
   if (output_buffer == nullptr || output_length == nullptr || vin == nullptr) {
     LOG_ERROR("Invalid parameters for AD buffer construction");
-    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
   }
 
   // Calculate maximum possible buffer size to prevent overflow
@@ -316,7 +318,7 @@ int Peer::construct_ad_buffer(Signatures_SignatureType signature_type, const cha
       // Validate request hash length fits in TLV length field (max 255)
       if (request_hash_length > 255) {
         LOG_ERROR("Request hash length %zu exceeds TLV maximum of 255", request_hash_length);
-        return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+        return TeslaBLEStatus::ERROR_INVALID_PARAMS;
       }
       output_buffer[index++] = Signatures_Tag_TAG_REQUEST_HASH;
       output_buffer[index++] = static_cast<pb_byte_t>(request_hash_length);
@@ -336,19 +338,20 @@ int Peer::construct_ad_buffer(Signatures_SignatureType signature_type, const cha
   // Terminal byte (important!)
   if (index >= MAX_AD_BUFFER_SIZE) {
     LOG_ERROR("AD buffer would exceed maximum size of %zu bytes", MAX_AD_BUFFER_SIZE);
-    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
   }
   output_buffer[index++] = Signatures_Tag_TAG_END;
 
   *output_length = index;
-  return TeslaBLE_Status_E_OK;
+  return TeslaBLEStatus::OK;
 }
 
-int Peer::construct_request_hash(Signatures_SignatureType auth_type, const pb_byte_t *auth_tag, size_t auth_tag_length,
-                                 pb_byte_t *request_hash, size_t *request_hash_length) const {
+TeslaBLEStatus Peer::construct_request_hash(Signatures_SignatureType auth_type, const pb_byte_t *auth_tag,
+                                            size_t auth_tag_length, pb_byte_t *request_hash,
+                                            size_t *request_hash_length) const {
   if (auth_tag == nullptr || request_hash == nullptr || request_hash_length == nullptr) {
     LOG_ERROR("Invalid parameters for request hash construction");
-    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
   }
 
   // Request hash = 1 byte (auth method) + auth tag
@@ -371,15 +374,16 @@ int Peer::construct_request_hash(Signatures_SignatureType auth_type, const pb_by
   memcpy(request_hash + 1, auth_tag, tag_copy_length);
   *request_hash_length = 1 + tag_copy_length;
 
-  return TeslaBLE_Status_E_OK;
+  return TeslaBLEStatus::OK;
 }
 
-int Peer::decrypt_response(const pb_byte_t *input_buffer, size_t input_length, const pb_byte_t *nonce, pb_byte_t *tag,
-                           const pb_byte_t *request_hash, size_t request_hash_length, uint32_t flags, uint32_t fault,
-                           pb_byte_t *output_buffer, size_t output_buffer_length, size_t *output_length) const {
+TeslaBLEStatus Peer::decrypt_response(const pb_byte_t *input_buffer, size_t input_length, const pb_byte_t *nonce,
+                                      pb_byte_t *tag, const pb_byte_t *request_hash, size_t request_hash_length,
+                                      uint32_t flags, uint32_t fault, pb_byte_t *output_buffer,
+                                      size_t output_buffer_length, size_t *output_length) const {
   if (!is_private_key_initialized()) {
     LOG_ERROR("[DecryptResponse] Private key not initialized");
-    return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
+    return TeslaBLEStatus::ERROR_PRIVATE_KEY_NOT_INITIALIZED;
   }
 
   mbedtls_gcm_context aes_context;
@@ -389,19 +393,19 @@ int Peer::decrypt_response(const pb_byte_t *input_buffer, size_t input_length, c
   int return_code = mbedtls_gcm_setkey(&aes_context, MBEDTLS_CIPHER_ID_AES, shared_secret_sha1_.data(), 128);
   if (return_code != 0) {
     LOG_ERROR("[DecryptResponse] GCM set key error: -0x%04x", (unsigned int) -return_code);
-    return TeslaBLE_Status_E_ERROR_DECRYPT;
+    return TeslaBLEStatus::ERROR_DECRYPT;
   }
 
   // Construct AD buffer for response
   pb_byte_t ad_buffer[256];
   size_t ad_length;
-  return_code = construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE, vin_.c_str(),
-                                    0,  // expires_at not used for responses
-                                    ad_buffer, &ad_length, flags, request_hash, request_hash_length, fault);
+  TeslaBLEStatus status = construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE, vin_.c_str(),
+                                              0,  // expires_at not used for responses
+                                              ad_buffer, &ad_length, flags, request_hash, request_hash_length, fault);
 
-  if (return_code != 0) {
+  if (status != TeslaBLEStatus::OK) {
     LOG_ERROR("[DecryptResponse] Failed to construct AD buffer");
-    return return_code;
+    return status;
   }
 
   // Hash the AD buffer
@@ -409,14 +413,14 @@ int Peer::decrypt_response(const pb_byte_t *input_buffer, size_t input_length, c
   return_code = mbedtls_sha256(ad_buffer, ad_length, ad_hash, 0);
   if (return_code != 0) {
     LOG_ERROR("[DecryptResponse] AD metadata SHA256 hash error: -0x%04x", (unsigned int) -return_code);
-    return TeslaBLE_Status_E_ERROR_DECRYPT;
+    return TeslaBLEStatus::ERROR_DECRYPT;
   }
 
   // Start decryption
   return_code = mbedtls_gcm_starts(&aes_context, MBEDTLS_GCM_DECRYPT, nonce, 12);  // nonce is always 12 bytes
   if (return_code != 0) {
     LOG_ERROR("[DecryptResponse] GCM start error: -0x%04x", (unsigned int) -return_code);
-    return TeslaBLE_Status_E_ERROR_DECRYPT;
+    return TeslaBLEStatus::ERROR_DECRYPT;
   }
 
   // Set AD hash as AAD
@@ -427,7 +431,7 @@ int Peer::decrypt_response(const pb_byte_t *input_buffer, size_t input_length, c
       mbedtls_gcm_update(&aes_context, input_buffer, input_length, output_buffer, output_buffer_length, output_length);
   if (return_code != 0) {
     LOG_ERROR("[DecryptResponse] Decryption error in gcm_update: -0x%04x", (unsigned int) -return_code);
-    return TeslaBLE_Status_E_ERROR_DECRYPT;
+    return TeslaBLEStatus::ERROR_DECRYPT;
   }
 
   // Finalize and verify the tag
@@ -437,19 +441,19 @@ int Peer::decrypt_response(const pb_byte_t *input_buffer, size_t input_length, c
                                    16);  // tag is always 16 bytes
   if (return_code != 0) {
     LOG_ERROR("[DecryptResponse] Authentication failed in gcm_finish: -0x%04x", (unsigned int) -return_code);
-    return TeslaBLE_Status_E_ERROR_DECRYPT;
+    return TeslaBLEStatus::ERROR_DECRYPT;
   }
 
   mbedtls_gcm_free(&aes_context);
-  return TeslaBLE_Status_E_OK;
+  return TeslaBLEStatus::OK;
 }
 
-int Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t *output_buffer,
-                  size_t output_buffer_length, size_t *output_length, pb_byte_t *signature_buffer, pb_byte_t *ad_buffer,
-                  size_t ad_buffer_length, pb_byte_t nonce[NONCE_SIZE_BYTES]) const {
+TeslaBLEStatus Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t *output_buffer,
+                             size_t output_buffer_length, size_t *output_length, pb_byte_t *signature_buffer,
+                             pb_byte_t *ad_buffer, size_t ad_buffer_length, pb_byte_t nonce[NONCE_SIZE_BYTES]) const {
   if (!is_private_key_initialized()) {
     LOG_ERROR("[Encrypt] Private key is not initialized");
-    return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
+    return TeslaBLEStatus::ERROR_PRIVATE_KEY_NOT_INITIALIZED;
   }
 
   mbedtls_gcm_context aes_context;
@@ -459,14 +463,14 @@ int Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t
 
   if (std::cmp_not_equal(shared_secret_size, TeslaBLE::Peer::SHARED_KEY_SIZE_BYTES)) {
     LOG_ERROR("[Encrypt] Shared secret SHA1 is not 16 bytes (actual size = %u)", shared_secret_size);
-    return TeslaBLE_Status_E_ERROR_ENCRYPT;
+    return TeslaBLEStatus::ERROR_ENCRYPT;
   }
 
   // Use 128-bit key as specified in the protocol
   int return_code = mbedtls_gcm_setkey(&aes_context, MBEDTLS_CIPHER_ID_AES, shared_secret_sha1_.data(), 128);
   if (return_code != 0) {
     LOG_ERROR("[Encrypt] GCM set key error: -0x%04x", (unsigned int) -return_code);
-    return TeslaBLE_Status_E_ERROR_ENCRYPT;
+    return TeslaBLEStatus::ERROR_ENCRYPT;
   }
 
   // Generate a new nonce for each encryption
@@ -476,7 +480,7 @@ int Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t
   return_code = mbedtls_gcm_starts(&aes_context, MBEDTLS_GCM_ENCRYPT, nonce, nonce_size);
   if (return_code != 0) {
     LOG_ERROR("[Encrypt] GCM start error: -0x%04x", (unsigned int) -return_code);
-    return TeslaBLE_Status_E_ERROR_ENCRYPT;
+    return TeslaBLEStatus::ERROR_ENCRYPT;
   }
 
   // Hash the AD buffer to create the AAD as per the protocol
@@ -484,7 +488,7 @@ int Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t
   return_code = mbedtls_sha256(ad_buffer, ad_buffer_length, ad_hash, 0);
   if (return_code != 0) {
     LOG_ERROR("[Encrypt] AD metadata SHA256 hash error: -0x%04x", (unsigned int) -return_code);
-    return TeslaBLE_Status_E_ERROR_ENCRYPT;
+    return TeslaBLEStatus::ERROR_ENCRYPT;
   }
   // Use the hash as the AAD for AES-GCM
   mbedtls_gcm_update_ad(&aes_context, ad_hash, sizeof(ad_hash));
@@ -493,7 +497,7 @@ int Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t
                                    output_length);
   if (return_code != 0) {
     LOG_ERROR("[Encrypt] Encryption error in gcm_update: -0x%04x", (unsigned int) -return_code);
-    return TeslaBLE_Status_E_ERROR_ENCRYPT;
+    return TeslaBLEStatus::ERROR_ENCRYPT;
   }
 
   size_t finish_buffer_length = 0;
@@ -504,7 +508,7 @@ int Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t
                                    signature_buffer, tag_length);
   if (return_code != 0) {
     LOG_ERROR("[Encrypt] Finalization error in gcm_finish: -0x%04x", (unsigned int) -return_code);
-    return TeslaBLE_Status_E_ERROR_ENCRYPT;
+    return TeslaBLEStatus::ERROR_ENCRYPT;
   }
 
   mbedtls_gcm_free(&aes_context);
@@ -535,7 +539,7 @@ int Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t
   LOG_DEBUG("[Encrypt] Nonce: %s, Ciphertext: %s, Tag: %s", nonce_hex, output_buffer_hex.data(),
             signature_buffer_hex.data());
 
-  return TeslaBLE_Status_E_OK;
+  return TeslaBLEStatus::OK;
 }
 
 bool Peer::validate_response_counter(uint32_t counter, uint32_t request_id) {

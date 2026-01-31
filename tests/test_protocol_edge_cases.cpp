@@ -35,8 +35,8 @@ TEST_F(ProtocolEdgeCasesTest, InvalidPublicKeyFormat) {
   Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context, TestConstants::TEST_VIN);
   // Public key not starting with 0x04 (uncompressed)
   uint8_t bad_pubkey[65] = {0x02};
-  int result = peer.load_tesla_key(bad_pubkey, 65);
-  EXPECT_NE(result, 0) << "Should fail with invalid public key format";
+  auto result = peer.load_tesla_key(bad_pubkey, 65);
+  EXPECT_NE(result, TeslaBLEStatus::OK) << "Should fail with invalid public key format";
 }
 
 // Test 2: Session Info with Empty Epoch (should be handled gracefully)
@@ -45,8 +45,9 @@ TEST_F(ProtocolEdgeCasesTest, InvalidSessionInfoMissingEpoch) {
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
   session_info.counter = 1;
   // No epoch set (zero-filled epoch)
-  int result = peer.update_session(&session_info);
-  EXPECT_EQ(result, 0) << "Should handle empty epoch gracefully (client trusts vehicle's session info)";
+  auto result = peer.update_session(&session_info);
+  EXPECT_EQ(result, TeslaBLEStatus::OK)
+      << "Should handle empty epoch gracefully (client trusts vehicle's session info)";
 }
 
 // Test 3: Invalid Counter (overflow)
@@ -84,9 +85,9 @@ TEST_F(ProtocolEdgeCasesTest, RequestHashInvalidTagLength) {
   uint8_t short_tag[4] = {1, 2, 3, 4};
   uint8_t hash[33];
   size_t hash_length;
-  int result = peer.construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, short_tag, 4,
-                                           hash, &hash_length);
-  EXPECT_EQ(result, 0) << "Should handle short tag gracefully (defensive programming)";
+  auto result = peer.construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, short_tag, 4,
+                                            hash, &hash_length);
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Should handle short tag gracefully (defensive programming)";
   EXPECT_EQ(hash_length, 5) << "Hash length should be 1 (auth type) + 4 (tag length)";
   EXPECT_EQ(hash[0], static_cast<uint8_t>(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED))
       << "First byte should be auth type";

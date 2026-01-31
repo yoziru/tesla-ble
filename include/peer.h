@@ -10,6 +10,7 @@
 
 #include <pb.h>
 
+#include "errors.h"
 #include "signatures.pb.h"
 #include "universal_message.pb.h"
 #include "crypto_context.h"
@@ -57,7 +58,7 @@ class Peer {
   // Setters
   void set_counter(uint32_t counter);
   void increment_counter();
-  int set_epoch(const pb_byte_t *epoch);
+  TeslaBLEStatus set_epoch(const pb_byte_t *epoch);
   void set_is_valid(bool is_valid) { is_valid_ = is_valid; }
   void set_time_zero(uint32_t time_zero) { time_zero_ = time_zero; }
   void set_vin(const std::string &vin) { vin_ = vin; }
@@ -65,8 +66,8 @@ class Peer {
   // Session operations
   uint32_t generate_expires_at(int seconds) const;
   void generate_nonce(pb_byte_t *nonce) const;
-  int load_tesla_key(const uint8_t *public_key_buffer, size_t public_key_size);
-  int update_session(Signatures_SessionInfo *session_info);
+  TeslaBLEStatus load_tesla_key(const uint8_t *public_key_buffer, size_t public_key_size);
+  TeslaBLEStatus update_session(Signatures_SessionInfo *session_info);
 
   /**
    * @brief Force update session, bypassing counter anti-replay protection
@@ -77,25 +78,27 @@ class Peer {
    * @param session_info The session info to apply
    * @return Status code (0 for success)
    */
-  int force_update_session(Signatures_SessionInfo *session_info);
+  TeslaBLEStatus force_update_session(Signatures_SessionInfo *session_info);
 
   // Cryptographic operations
-  int construct_ad_buffer(Signatures_SignatureType signature_type, const char *vin, uint32_t expires_at,
-                          pb_byte_t *output_buffer, size_t *output_length, uint32_t flags = 0,
-                          const pb_byte_t *request_hash = nullptr, size_t request_hash_length = 0,
-                          uint32_t fault = 0) const;
+  TeslaBLEStatus construct_ad_buffer(Signatures_SignatureType signature_type, const char *vin, uint32_t expires_at,
+                                     pb_byte_t *output_buffer, size_t *output_length, uint32_t flags = 0,
+                                     const pb_byte_t *request_hash = nullptr, size_t request_hash_length = 0,
+                                     uint32_t fault = 0) const;
 
-  int encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t *output_buffer,
-              size_t output_buffer_length, size_t *output_length, pb_byte_t *signature_buffer, pb_byte_t *ad_buffer,
-              size_t ad_buffer_length, pb_byte_t nonce[NONCE_SIZE_BYTES]) const;
+  TeslaBLEStatus encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t *output_buffer,
+                         size_t output_buffer_length, size_t *output_length, pb_byte_t *signature_buffer,
+                         pb_byte_t *ad_buffer, size_t ad_buffer_length, pb_byte_t nonce[NONCE_SIZE_BYTES]) const;
 
   // Response handling
-  int construct_request_hash(Signatures_SignatureType auth_type, const pb_byte_t *auth_tag, size_t auth_tag_length,
-                             pb_byte_t *request_hash, size_t *request_hash_length) const;
+  TeslaBLEStatus construct_request_hash(Signatures_SignatureType auth_type, const pb_byte_t *auth_tag,
+                                        size_t auth_tag_length, pb_byte_t *request_hash,
+                                        size_t *request_hash_length) const;
 
-  int decrypt_response(const pb_byte_t *input_buffer, size_t input_length, const pb_byte_t *nonce, pb_byte_t *tag,
-                       const pb_byte_t *request_hash, size_t request_hash_length, uint32_t flags, uint32_t fault,
-                       pb_byte_t *output_buffer, size_t output_buffer_length, size_t *output_length) const;
+  TeslaBLEStatus decrypt_response(const pb_byte_t *input_buffer, size_t input_length, const pb_byte_t *nonce,
+                                  pb_byte_t *tag, const pb_byte_t *request_hash, size_t request_hash_length,
+                                  uint32_t flags, uint32_t fault, pb_byte_t *output_buffer, size_t output_buffer_length,
+                                  size_t *output_length) const;
 
   bool validate_response_counter(uint32_t counter, uint32_t request_id);
 

@@ -118,9 +118,9 @@ namespace TestUtils {
 inline std::unique_ptr<Client> createTestClient() {
   auto client = std::make_unique<Client>();
   client->set_vin(TEST_VIN);
-  int status = client->load_private_key(reinterpret_cast<const unsigned char *>(CLIENT_PRIVATE_KEY_PEM),
-                                        strlen(CLIENT_PRIVATE_KEY_PEM) + 1);
-  if (status != 0) {
+  TeslaBLEStatus status = client->load_private_key(reinterpret_cast<const unsigned char *>(CLIENT_PRIVATE_KEY_PEM),
+                                                   strlen(CLIENT_PRIVATE_KEY_PEM) + 1);
+  if (status != TeslaBLEStatus::OK) {
     return nullptr;
   }
   client->set_connection_id(TEST_CONNECTION_ID);

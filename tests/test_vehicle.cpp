@@ -184,7 +184,7 @@ TEST_F(VehicleTest, CommandCallbackReceivesFailureOnDisconnect) {
       UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test",
       [](Client *, uint8_t *, size_t *len) {
         *len = 10;
-        return 0;
+        return TeslaBLEStatus::OK;
       },
       [&](bool success) {
         callback_called = true;
@@ -204,7 +204,7 @@ TEST_F(VehicleTest, NullCallbackIsHandledSafely) {
       UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "No Callback Command",
       [](Client *, uint8_t *, size_t *len) {
         *len = 10;
-        return 0;
+        return TeslaBLEStatus::OK;
       },
       nullptr);
 
@@ -316,7 +316,7 @@ TEST_F(VehicleTest, DisconnectClearsAllPendingCommands) {
       UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Command 1",
       [](Client *, uint8_t *, size_t *len) {
         *len = 10;
-        return 0;
+        return TeslaBLEStatus::OK;
       },
       [&](bool success) {
         callback1_called = true;
@@ -327,7 +327,7 @@ TEST_F(VehicleTest, DisconnectClearsAllPendingCommands) {
       UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Command 2",
       [](Client *, uint8_t *, size_t *len) {
         *len = 10;
-        return 0;
+        return TeslaBLEStatus::OK;
       },
       [&](bool success) {
         callback2_called = true;
@@ -384,7 +384,7 @@ TEST_F(VehicleTest, MultipleDisconnectsOnlyCallbackOnce) {
       UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test",
       [](Client *, uint8_t *, size_t *len) {
         *len = 10;
-        return 0;
+        return TeslaBLEStatus::OK;
       },
       [&](bool) { callback_count++; });
 
@@ -402,16 +402,16 @@ TEST_F(VehicleTest, MultipleDisconnectsOnlyCallbackOnce) {
 
 TEST(CommandStructTest, DefaultRequiresWakeIsTrue) {
   Command cmd(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Test Command", [](Client *, uint8_t *, size_t *) { return 0; },
-      nullptr);
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Test Command",
+      [](Client *, uint8_t *, size_t *) { return TeslaBLEStatus::OK; }, nullptr);
 
   EXPECT_TRUE(cmd.requires_wake) << "Commands should default to requiring wake for safety";
 }
 
 TEST(CommandStructTest, RequiresWakeCanBeSetFalse) {
   Command cmd(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Test Poll", [](Client *, uint8_t *, size_t *) { return 0; },
-      nullptr, false);
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Test Poll",
+      [](Client *, uint8_t *, size_t *) { return TeslaBLEStatus::OK; }, nullptr, false);
 
   EXPECT_FALSE(cmd.requires_wake);
 }
@@ -424,7 +424,7 @@ TEST(CommandStructTest, RequiresWakeCanBeSetFalse) {
 // Friend test helper to access protected members for regression tests
 class VehicleTestHelper : public Vehicle {
  public:
-  using Vehicle::get_expected_message_length;
+  using Vehicle::get_expected_message_length_;
   using Vehicle::rx_buffer_;
 
   VehicleTestHelper(std::shared_ptr<BleAdapter> b, std::shared_ptr<StorageAdapter> s) : Vehicle(b, s) {}
@@ -443,5 +443,5 @@ TEST(VehicleInternalTest, ExpectedLengthIncludesHeader) {
   v.set_buffer(data);
 
   // Total expected length should be payload (10) + header (2) = 12
-  EXPECT_EQ(v.get_expected_message_length(), 12);
+  EXPECT_EQ(v.get_expected_message_length_(), 12);
 }

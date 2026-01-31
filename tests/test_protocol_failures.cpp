@@ -25,10 +25,10 @@ TEST(ProtocolFailureTest, PrivateKeyPemParsing) {
   CryptoContext crypto;
 
   // This should work but currently fails with -0x3d00
-  int result = crypto.load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                       strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+  auto result = crypto.load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
 
-  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Failed to load PEM private key from protocol spec";
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Failed to load PEM private key from protocol spec";
   EXPECT_TRUE(crypto.is_private_key_initialized()) << "Private key should be initialized after loading";
 }
 
@@ -52,14 +52,14 @@ TEST(ProtocolFailureTest, EcdhKeyAgreement) {
                                   0x69, 0x6f, 0x90, 0x9c, 0xff, 0x89, 0xea, 0x9a};
 
   // Load the exact private key from protocol spec
-  int result = crypto.load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                       strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
-  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "Failed to load private key";
+  auto result = crypto.load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to load private key";
 
   // Perform ECDH - this should use the loaded private key, not generate ephemeral keys
   uint8_t derived_key[16];
   result = crypto.perform_tesla_ecdh(VEHICLE_PUBLIC_KEY, sizeof(VEHICLE_PUBLIC_KEY), derived_key);
-  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "ECDH should succeed";
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "ECDH should succeed";
 
   // Verify we get the exact shared secret from the protocol specification
   EXPECT_EQ(memcmp(derived_key, EXPECTED_K, 16), 0)
@@ -87,15 +87,15 @@ TEST(ProtocolFailureTest, SessionInfoAuthentication) {
   CryptoContext crypto;
 
   // Load private key
-  int result = crypto.load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                       strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
-  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Should load private key for session info authentication";
+  auto result = crypto.load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Should load private key for session info authentication";
 
   // Derive SESSION_INFO_KEY = HMAC-SHA256(K, "session info") using CryptoContext
   uint8_t session_info_key[32];
-  int key_ret =
+  TeslaBLEStatus key_ret =
       CryptoUtils::derive_session_info_key(SHARED_K, sizeof(SHARED_K), session_info_key, sizeof(session_info_key));
-  ASSERT_EQ(key_ret, TeslaBLE_Status_E_OK) << "derive_session_info_key failed";
+  ASSERT_EQ(key_ret, TeslaBLEStatus::OK) << "derive_session_info_key failed";
   EXPECT_EQ(memcmp(session_info_key, EXPECTED_SESSION_INFO_KEY, 32), 0)
       << "SESSION_INFO_KEY does not match protocol test vector";
 }
@@ -163,13 +163,13 @@ TEST(ProtocolFailureTest, ClientStrictValidation) {
   Client client;
 
   // Test invalid private key loading (null buffer)
-  int result = client.load_private_key(nullptr, 100);
-  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "Should reject null private key buffer";
+  auto result = client.load_private_key(nullptr, 100);
+  EXPECT_NE(result, TeslaBLEStatus::OK) << "Should reject null private key buffer";
 
   // Test invalid private key loading (zero size)
   const uint8_t dummy_key[10] = {0};
   result = client.load_private_key(dummy_key, 0);
-  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "Should reject zero-size private key";
+  EXPECT_NE(result, TeslaBLEStatus::OK) << "Should reject zero-size private key";
 
   // Test that building messages without loaded keys fails
   pb_byte_t output_buffer[1000];
@@ -179,7 +179,7 @@ TEST(ProtocolFailureTest, ClientStrictValidation) {
                                                      &output_length);
 
   // This should fail if no private key is loaded, but might succeed due to lenient validation
-  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "Should reject session request without private key";
+  EXPECT_NE(result, TeslaBLEStatus::OK) << "Should reject session request without private key";
 }
 
 /**
@@ -191,9 +191,10 @@ TEST(ProtocolFailureTest, CounterAntiReplay) {
   // Test using Peer class which manages session state
   std::shared_ptr<CryptoContext> crypto = std::make_shared<CryptoContext>();
   // Load the client private key so ECDH and session setup can succeed
-  int key_result = crypto->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                            strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
-  ASSERT_EQ(key_result, TeslaBLE_Status_E_OK) << "Failed to load client private key for session test";
+  TeslaBLEStatus key_result =
+      crypto->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                               strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+  ASSERT_EQ(key_result, TeslaBLEStatus::OK) << "Failed to load client private key for session test";
 
   Peer peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, crypto, TestConstants::TEST_VIN);
 
@@ -210,8 +211,8 @@ TEST(ProtocolFailureTest, CounterAntiReplay) {
   memcpy(session_info.publicKey.bytes, TestConstants::EXPECTED_VEHICLE_PUBLIC_KEY, 65);
   session_info.publicKey.size = 65;
 
-  int result = peer.update_session(&session_info);
-  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "Could not initialize session for counter test";
+  auto result = peer.update_session(&session_info);
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Could not initialize session for counter test";
 
   // Test counter increment (should work)
   uint32_t initial_counter = peer.get_counter();
@@ -222,8 +223,8 @@ TEST(ProtocolFailureTest, CounterAntiReplay) {
   // Test anti-replay protection: updating with a lower counter should fail
   Signatures_SessionInfo replay_info = session_info;
   replay_info.counter = 5;  // Lower than current (should be rejected)
-  int replay_result = peer.update_session(&replay_info);
-  EXPECT_NE(replay_result, TeslaBLE_Status_E_OK) << "Should reject session update with lower counter (anti-replay)";
+  TeslaBLEStatus replay_result = peer.update_session(&replay_info);
+  EXPECT_NE(replay_result, TeslaBLEStatus::OK) << "Should reject session update with lower counter (anti-replay)";
 }
 
 /**
@@ -246,10 +247,10 @@ TEST(ProtocolFailureTest, AesGcmProtocolCompliance) {
   CryptoContext crypto;
 
   // Test that we can at least initialize crypto context
-  int result = crypto.load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                       strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+  auto result = crypto.load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
 
-  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Should load private key for AES-GCM testing";
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Should load private key for AES-GCM testing";
 
 // Implement protocol-compliant AES-GCM encryption using mbedtls
 #include <mbedtls/gcm.h>

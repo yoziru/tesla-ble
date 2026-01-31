@@ -41,10 +41,10 @@ class SessionManagementTest : public ::testing::Test {
     client->set_vin(TestConstants::TEST_VIN);
 
     // Load private key for testing
-    int status =
+    auto status =
         client->load_private_key(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
                                  strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
-    ASSERT_EQ(status, 0) << "Failed to load private key for testing";
+    ASSERT_EQ(status, TeslaBLEStatus::OK) << "Failed to load private key for testing";
   }
 
   void TearDown() override { client.reset(); }
@@ -76,41 +76,42 @@ TEST_F(SessionManagementTest, GetMultiplePeersReturnsSameInstance) {
 TEST_F(SessionManagementTest, InitializeVCSECSession) {
   // Parse the VCSEC message
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-  int parse_result = client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
-  ASSERT_EQ(parse_result, 0) << "Failed to parse VCSEC message";
+  auto parse_result =
+      client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
+  ASSERT_EQ(parse_result, TeslaBLEStatus::OK) << "Failed to parse VCSEC message";
 
   // Parse session info
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  int session_parse_result = client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
-  ASSERT_EQ(session_parse_result, 0) << "Failed to parse session info";
+  auto session_parse_result = client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
+  ASSERT_EQ(session_parse_result, TeslaBLEStatus::OK) << "Failed to parse session info";
 
   // Get peer and update session
   auto vcsec_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
   ASSERT_NE(vcsec_peer, nullptr) << "VCSEC peer should not be null";
 
-  int update_result = vcsec_peer->update_session(&session_info);
-  EXPECT_EQ(update_result, 0) << "Updating VCSEC session should succeed";
+  auto update_result = vcsec_peer->update_session(&session_info);
+  EXPECT_EQ(update_result, TeslaBLEStatus::OK) << "Updating VCSEC session should succeed";
   EXPECT_TRUE(vcsec_peer->is_initialized()) << "VCSEC peer should be initialized after update";
 }
 
 TEST_F(SessionManagementTest, InitializeInfotainmentSession) {
   // Parse the Infotainment message
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-  int parse_result =
+  auto parse_result =
       client->parse_universal_message(MOCK_INFOTAINMENT_MESSAGE, sizeof(MOCK_INFOTAINMENT_MESSAGE), &received_message);
-  ASSERT_EQ(parse_result, 0) << "Failed to parse Infotainment message";
+  ASSERT_EQ(parse_result, TeslaBLEStatus::OK) << "Failed to parse Infotainment message";
 
   // Parse session info
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  int session_parse_result = client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
-  ASSERT_EQ(session_parse_result, 0) << "Failed to parse session info";
+  auto session_parse_result = client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
+  ASSERT_EQ(session_parse_result, TeslaBLEStatus::OK) << "Failed to parse session info";
 
   // Get peer and update session
   auto infotainment_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
   ASSERT_NE(infotainment_peer, nullptr) << "Infotainment peer should not be null";
 
-  int update_result = infotainment_peer->update_session(&session_info);
-  EXPECT_EQ(update_result, 0) << "Updating Infotainment session should succeed";
+  auto update_result = infotainment_peer->update_session(&session_info);
+  EXPECT_EQ(update_result, TeslaBLEStatus::OK) << "Updating Infotainment session should succeed";
   EXPECT_TRUE(infotainment_peer->is_initialized()) << "Infotainment peer should be initialized after update";
 }
 
@@ -154,8 +155,8 @@ TEST_F(SessionManagementTest, UpdateSessionWithNullSessionInfo) {
   auto vcsec_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
   ASSERT_NE(vcsec_peer, nullptr) << "VCSEC peer should not be null";
 
-  int update_result = vcsec_peer->update_session(nullptr);
-  EXPECT_NE(update_result, 0) << "Updating session with null session info should fail";
+  auto update_result = vcsec_peer->update_session(nullptr);
+  EXPECT_NE(update_result, TeslaBLEStatus::OK) << "Updating session with null session info should fail";
   EXPECT_FALSE(vcsec_peer->is_initialized()) << "Peer should not be initialized after failed update";
 }
 
@@ -170,12 +171,12 @@ TEST_F(SessionManagementTest, MultipleSessionUpdates) {
   auto vcsec_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
 
   // First update
-  int first_update = vcsec_peer->update_session(&session_info);
-  EXPECT_EQ(first_update, 0) << "First session update should succeed";
+  auto first_update = vcsec_peer->update_session(&session_info);
+  EXPECT_EQ(first_update, TeslaBLEStatus::OK) << "First session update should succeed";
   EXPECT_TRUE(vcsec_peer->is_initialized()) << "Peer should be initialized after first update";
 
   // Second update with same session info should also work
-  int second_update = vcsec_peer->update_session(&session_info);
-  EXPECT_EQ(second_update, 0) << "Second session update should succeed";
+  auto second_update = vcsec_peer->update_session(&session_info);
+  EXPECT_EQ(second_update, TeslaBLEStatus::OK) << "Second session update should succeed";
   EXPECT_TRUE(vcsec_peer->is_initialized()) << "Peer should remain initialized after second update";
 }

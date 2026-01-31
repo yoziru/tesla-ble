@@ -54,8 +54,8 @@ TEST_F(ProtocolAuthenticationTest, AuthenticationStateTransitions) {
   memcpy(session_info.publicKey.bytes, TestConstants::EXPECTED_VEHICLE_PUBLIC_KEY, 65);
   session_info.publicKey.size = 65;
 
-  int result = peer.update_session(&session_info);
-  ASSERT_EQ(result, 0) << "Failed to update session";
+  auto result = peer.update_session(&session_info);
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to update session";
 
   // Verify authenticated state
   EXPECT_TRUE(peer.is_valid()) << "Session should be valid after successful authentication";
@@ -69,23 +69,23 @@ TEST_F(ProtocolAuthenticationTest, MetadataSerializationEdgeCases) {
   uint8_t ad_buffer[512];
   size_t ad_length;
 
-  int result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                        TestConstants::LONG_VIN, 4000, ad_buffer, &ad_length);
-  ASSERT_EQ(result, 0) << "Failed to construct AD buffer with long VIN";
+  auto result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+                                         TestConstants::LONG_VIN, 4000, ad_buffer, &ad_length);
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to construct AD buffer with long VIN";
 
   // Test with maximum counter value
   peer.set_counter(UINT32_MAX - 1);
 
   result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
                                     TestConstants::LONG_VIN, 5000, ad_buffer, &ad_length);
-  ASSERT_EQ(result, 0) << "Failed to construct AD buffer with max counter";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to construct AD buffer with max counter";
 
   // Test with flags set
   result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
                                     TestConstants::LONG_VIN, 6000, ad_buffer, &ad_length,
                                     0x01  // FLAG_ENCRYPT_RESPONSE
   );
-  ASSERT_EQ(result, 0) << "Failed to construct AD buffer with flags";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to construct AD buffer with flags";
 
   // Verify flags appear in buffer when non-zero
   bool found_flags = false;
@@ -197,8 +197,8 @@ TEST_F(ProtocolAuthenticationTest, SessionStateValidation) {
   memcpy(session_info.publicKey.bytes, TestConstants::EXPECTED_VEHICLE_PUBLIC_KEY, 65);
   session_info.publicKey.size = 65;
 
-  int result = peer.update_session(&session_info);
-  ASSERT_EQ(result, 0) << "Session update should succeed";
+  auto result = peer.update_session(&session_info);
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Session update should succeed";
 
   // After valid session update, should be initialized
   EXPECT_TRUE(peer.is_initialized()) << "Peer should be initialized after session update";
@@ -221,23 +221,22 @@ TEST_F(ProtocolAuthenticationTest, ErrorConditions) {
   Signatures_SessionInfo minimal_session = Signatures_SessionInfo_init_default;
   // Leave most fields uninitialized (zero)
 
-  int result = peer.update_session(&minimal_session);
-  EXPECT_EQ(result, 0) << "Should handle minimal session info gracefully";
+  auto result = peer.update_session(&minimal_session);
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Should handle minimal session info gracefully";
 
-  // Test AD buffer construction without full session (should work with defaults)
+  // AD buffer construction should work even with basic initialization
   uint8_t ad_buffer[256];
   size_t ad_length;
-
   result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
                                     TestConstants::TEST_VIN, 1000, ad_buffer, &ad_length);
-  EXPECT_EQ(result, 0) << "AD buffer construction should work with default session values";
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "AD buffer construction should work with default session values";
 
   // Test null pointer handling
   size_t dummy_length;
   result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
                                     nullptr,  // null VIN
                                     1000, ad_buffer, &dummy_length);
-  EXPECT_NE(result, 0) << "Null VIN should be rejected";
+  EXPECT_NE(result, TeslaBLEStatus::OK) << "Null VIN should be rejected";
 
   // Test buffer size handling (implementation should handle gracefully)
   uint8_t small_buffer[10];
@@ -245,7 +244,8 @@ TEST_F(ProtocolAuthenticationTest, ErrorConditions) {
                                     TestConstants::TEST_VIN, 1000, small_buffer, &dummy_length);
   // Note: Implementation may handle small buffers gracefully by truncating or providing partial data
   // This is acceptable defensive behavior for a robust client library
-  EXPECT_TRUE(result == 0 || result < 0) << "Buffer size constraints should be handled gracefully";
+  EXPECT_TRUE(result == TeslaBLEStatus::OK || result != TeslaBLEStatus::OK)
+      << "Buffer size constraints should be handled gracefully";
 }
 
 // Test 8: Protocol Version Compatibility
@@ -257,15 +257,15 @@ TEST_F(ProtocolAuthenticationTest, ProtocolCompatibility) {
   size_t ad_length1, ad_length2;
 
   // Test AES-GCM
-  int result1 = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                         TestConstants::TEST_VIN, 1000, ad_buffer1, &ad_length1);
+  auto result1 = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+                                          TestConstants::TEST_VIN, 1000, ad_buffer1, &ad_length1);
 
   // Test HMAC
-  int result2 = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_HMAC_PERSONALIZED,
-                                         TestConstants::TEST_VIN, 1000, ad_buffer2, &ad_length2);
+  auto result2 = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_HMAC_PERSONALIZED,
+                                          TestConstants::TEST_VIN, 1000, ad_buffer2, &ad_length2);
 
-  EXPECT_EQ(result1, 0) << "AES-GCM AD buffer construction should succeed";
-  EXPECT_EQ(result2, 0) << "HMAC AD buffer construction should succeed";
+  EXPECT_EQ(result1, TeslaBLEStatus::OK) << "AES-GCM AD buffer construction should succeed";
+  EXPECT_EQ(result2, TeslaBLEStatus::OK) << "HMAC AD buffer construction should succeed";
 
   // Buffers should be different (different signature types)
   EXPECT_NE(memcmp(ad_buffer1, ad_buffer2, std::min(ad_length1, ad_length2)), 0)

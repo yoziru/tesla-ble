@@ -50,10 +50,10 @@ class MessageBuildingTest : public ::testing::Test {
     client->set_vin(MOCK_VIN);
 
     // Load private key for message building
-    int status =
+    TeslaBLEStatus status =
         client->load_private_key(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
                                  strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
-    ASSERT_EQ(status, 0) << "Failed to load private key for testing";
+    ASSERT_EQ(status, TeslaBLEStatus::OK) << "Failed to load private key for testing";
 
     // Set connection ID
     pb_byte_t connection_id[16] = {0x93, 0x4f, 0x10, 0x69, 0x1d, 0xed, 0xa8, 0x26,
@@ -70,44 +70,44 @@ class MessageBuildingTest : public ::testing::Test {
   void initializeVCSECSession() {
     // Parse the VCSEC message to get session info
     UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-    int parse_result =
+    auto parse_result =
         client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
-    ASSERT_EQ(parse_result, 0) << "Failed to parse VCSEC message";
+    ASSERT_EQ(parse_result, TeslaBLEStatus::OK) << "Failed to parse VCSEC message";
 
     // Parse session info
     Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-    int session_parse_result =
+    auto session_parse_result =
         client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
-    ASSERT_EQ(session_parse_result, 0) << "Failed to parse session info";
+    ASSERT_EQ(session_parse_result, TeslaBLEStatus::OK) << "Failed to parse session info";
 
     // Get peer and update session
     auto vcsec_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
     ASSERT_NE(vcsec_peer, nullptr) << "VCSEC peer should not be null";
 
-    int update_result = vcsec_peer->update_session(&session_info);
-    ASSERT_EQ(update_result, 0) << "Updating VCSEC session should succeed";
+    auto update_result = vcsec_peer->update_session(&session_info);
+    ASSERT_EQ(update_result, TeslaBLEStatus::OK) << "Updating VCSEC session should succeed";
     ASSERT_TRUE(vcsec_peer->is_initialized()) << "VCSEC peer should be initialized after update";
   }
 
   void initializeInfotainmentSession() {
     // Parse the Infotainment message to get session info
     UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-    int parse_result = client->parse_universal_message(MOCK_INFOTAINMENT_MESSAGE, sizeof(MOCK_INFOTAINMENT_MESSAGE),
-                                                       &received_message);
-    ASSERT_EQ(parse_result, 0) << "Failed to parse Infotainment message";
+    auto parse_result = client->parse_universal_message(MOCK_INFOTAINMENT_MESSAGE, sizeof(MOCK_INFOTAINMENT_MESSAGE),
+                                                        &received_message);
+    ASSERT_EQ(parse_result, TeslaBLEStatus::OK) << "Failed to parse Infotainment message";
 
     // Parse session info
     Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-    int session_parse_result =
+    auto session_parse_result =
         client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
-    ASSERT_EQ(session_parse_result, 0) << "Failed to parse session info";
+    ASSERT_EQ(session_parse_result, TeslaBLEStatus::OK) << "Failed to parse session info";
 
     // Get peer and update session
     auto infotainment_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
     ASSERT_NE(infotainment_peer, nullptr) << "Infotainment peer should not be null";
 
-    int update_result = infotainment_peer->update_session(&session_info);
-    ASSERT_EQ(update_result, 0) << "Updating Infotainment session should succeed";
+    auto update_result = infotainment_peer->update_session(&session_info);
+    ASSERT_EQ(update_result, TeslaBLEStatus::OK) << "Updating Infotainment session should succeed";
     ASSERT_TRUE(infotainment_peer->is_initialized()) << "Infotainment peer should be initialized after update";
   }
 
@@ -120,11 +120,11 @@ TEST_F(MessageBuildingTest, BuildWhiteListMessage) {
   unsigned char whitelist_message_buffer[VCSEC_ToVCSECMessage_size];
   size_t whitelist_message_length;
 
-  int result =
+  auto result =
       client->build_white_list_message(Keys_Role_ROLE_CHARGING_MANAGER, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY,
                                        whitelist_message_buffer, &whitelist_message_length);
 
-  EXPECT_EQ(result, 0) << "Building whitelist message should succeed";
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Building whitelist message should succeed";
   EXPECT_GT(whitelist_message_length, 0) << "Whitelist message should have non-zero length";
   EXPECT_LE(whitelist_message_length, sizeof(whitelist_message_buffer)) << "Message should fit in buffer";
 }
@@ -133,10 +133,10 @@ TEST_F(MessageBuildingTest, BuildVCSECActionMessage) {
   unsigned char action_message_buffer[UniversalMessage_RoutableMessage_size];
   size_t action_message_buffer_length = 0;
 
-  int result = client->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, action_message_buffer,
-                                                  &action_message_buffer_length);
+  auto result = client->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, action_message_buffer,
+                                                   &action_message_buffer_length);
 
-  EXPECT_EQ(result, 0) << "Building VCSEC action message should succeed";
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Building VCSEC action message should succeed";
   EXPECT_GT(action_message_buffer_length, 0) << "Action message should have non-zero length";
   EXPECT_LE(action_message_buffer_length, sizeof(action_message_buffer)) << "Message should fit in buffer";
 }
@@ -145,10 +145,10 @@ TEST_F(MessageBuildingTest, BuildVCSECInformationRequestMessage) {
   pb_byte_t info_request_buffer[UniversalMessage_RoutableMessage_size];
   size_t info_request_length = 0;
 
-  int result = client->build_vcsec_information_request_message(
+  auto result = client->build_vcsec_information_request_message(
       VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS, info_request_buffer, &info_request_length);
 
-  EXPECT_EQ(result, 0) << "Building VCSEC information request should succeed";
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Building VCSEC information request should succeed";
   EXPECT_GT(info_request_length, 0) << "Information request should have non-zero length";
   EXPECT_LE(info_request_length, sizeof(info_request_buffer)) << "Message should fit in buffer";
 }
@@ -161,9 +161,9 @@ TEST_F(MessageBuildingTest, BuildVCSECClosureMessage) {
   closure_request.frontDriverDoor = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN;
   closure_request.rearTrunk = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE;
 
-  int result = client->build_vcsec_closure_message(&closure_request, closure_message_buffer, &closure_message_length);
+  auto result = client->build_vcsec_closure_message(&closure_request, closure_message_buffer, &closure_message_length);
 
-  EXPECT_EQ(result, 0) << "Building closure message should succeed";
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Building closure message should succeed";
   EXPECT_GT(closure_message_length, 0) << "Closure message should have non-zero length";
   EXPECT_LE(closure_message_length, sizeof(closure_message_buffer)) << "Message should fit in buffer";
 }
@@ -177,9 +177,9 @@ TEST_F(MessageBuildingTest, BuildVCSECClosureMessageMultipleDoors) {
   closure_request.rearDriverDoor = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE;
   closure_request.rearTrunk = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN;
 
-  int result = client->build_vcsec_closure_message(&closure_request, closure_message_buffer, &closure_message_length);
+  auto result = client->build_vcsec_closure_message(&closure_request, closure_message_buffer, &closure_message_length);
 
-  EXPECT_EQ(result, 0) << "Building closure message with multiple doors should succeed";
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Building closure message with multiple doors should succeed";
   EXPECT_GT(closure_message_length, 0) << "Closure message should have non-zero length";
   EXPECT_LE(closure_message_length, sizeof(closure_message_buffer)) << "Message should fit in buffer";
 }
@@ -190,14 +190,14 @@ TEST_F(MessageBuildingTest, BuildMessagesWithInvalidParameters) {
 
   // Test with null buffer
   int32_t amps = 12;
-  int result1 = client->build_car_server_vehicle_action_message(
+  auto result = client->build_car_server_vehicle_action_message(
       nullptr, &length, CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
-  EXPECT_NE(result1, 0) << "Building message with null buffer should fail";
+  EXPECT_NE(result, TeslaBLEStatus::OK) << "Building message with null buffer should fail";
 
   // Test with null length pointer
-  int result2 = client->build_car_server_vehicle_action_message(
-      buffer, nullptr, CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
-  EXPECT_NE(result2, 0) << "Building message with null length pointer should fail";
+  result = client->build_car_server_vehicle_action_message(buffer, nullptr,
+                                                           CarServer_VehicleAction_setChargingAmpsAction_tag, &amps);
+  EXPECT_NE(result, TeslaBLEStatus::OK) << "Building message with null length pointer should fail";
 }
 
 // Individual tests for each vehicle data type - automatically generated from protobuf definition
@@ -257,9 +257,9 @@ TEST_F(VehicleDataTest, VehicleDataCoverageReport) {
     pb_byte_t buffer[UniversalMessage_RoutableMessage_size]; \
     size_t length = 0; \
 \
-    int result = \
+    auto result = \
         client->build_car_server_get_vehicle_data_message(buffer, &length, CarServer_GetVehicleData_##name##_tag); \
-    EXPECT_EQ(result, 0) << "Building get vehicle data message for " #name " should succeed"; \
+    EXPECT_EQ(result, TeslaBLEStatus::OK) << "Building get vehicle data message for " #name " should succeed"; \
     EXPECT_GT(length, 0) << "Get vehicle data message should have non-zero length for " #name; \
     EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer for " #name; \
   }
@@ -273,8 +273,8 @@ CarServer_GetVehicleData_FIELDLIST(GENERATE_VEHICLE_DATA_TEST, unused)
   size_t length = 0;
 
   // Test with invalid vehicle data type
-  int result = client->build_car_server_get_vehicle_data_message(buffer, &length, 999);
-  EXPECT_NE(result, 0) << "Building get vehicle data message with invalid type should fail";
+  auto result = client->build_car_server_get_vehicle_data_message(buffer, &length, 999);
+  EXPECT_NE(result, TeslaBLEStatus::OK) << "Building get vehicle data message with invalid type should fail";
 }
 
 // Helper function to get all vehicle action tags - shared across multiple tests
@@ -328,8 +328,9 @@ TEST_P(VehicleActionSimpleTest, BuildSimpleVehicleActionMessage) {
 
   auto [action_name, tag] = GetParam();
 
-  int result = client->build_car_server_vehicle_action_message(buffer, &length, tag, nullptr);
-  EXPECT_EQ(result, 0) << "Building simple vehicle action message " << action_name << " (" << tag << ") should succeed";
+  auto result = client->build_car_server_vehicle_action_message(buffer, &length, tag, nullptr);
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Building simple vehicle action message " << action_name << " (" << tag
+                                        << ") should succeed";
   EXPECT_GT(length, 0) << "Vehicle action message should have non-zero length for " << action_name;
   EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer for " << action_name;
 }
@@ -368,9 +369,9 @@ TEST_P(VehicleActionBooleanTest, BuildBooleanVehicleActionMessage) {
 
   auto [action_name, tag, test_value] = GetParam();
 
-  int result = client->build_car_server_vehicle_action_message(buffer, &length, tag, &test_value);
-  EXPECT_EQ(result, 0) << "Building boolean vehicle action message " << action_name << " (" << tag << ") with value "
-                       << test_value << " should succeed";
+  auto result = client->build_car_server_vehicle_action_message(buffer, &length, tag, &test_value);
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Building boolean vehicle action message " << action_name << " (" << tag
+                                        << ") with value " << test_value << " should succeed";
   EXPECT_GT(length, 0) << "Vehicle action message should have non-zero length for " << action_name;
   EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer for " << action_name;
 }
@@ -399,9 +400,9 @@ TEST_P(VehicleActionNumericTest, BuildNumericVehicleActionMessage) {
 
   auto [action_name, tag, test_value] = GetParam();
 
-  int result = client->build_car_server_vehicle_action_message(buffer, &length, tag, &test_value);
-  EXPECT_EQ(result, 0) << "Building numeric vehicle action message " << action_name << " (" << tag << ") with value "
-                       << test_value << " should succeed";
+  auto result = client->build_car_server_vehicle_action_message(buffer, &length, tag, &test_value);
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Building numeric vehicle action message " << action_name << " (" << tag
+                                        << ") with value " << test_value << " should succeed";
   EXPECT_GT(length, 0) << "Vehicle action message should have non-zero length for " << action_name;
   EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer for " << action_name;
 }
@@ -450,8 +451,8 @@ TEST_F(MessageBuildingTest, SetCabinOverheatProtection_On) {
   pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
   size_t length = 0;
 
-  int result = client->set_cabin_overheat_protection(buffer, &length, true, false);
-  EXPECT_EQ(result, 0) << "Setting cabin overheat protection ON should succeed";
+  auto result = client->set_cabin_overheat_protection(buffer, &length, true, false);
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Setting cabin overheat protection ON should succeed";
   EXPECT_GT(length, 0) << "Message should have non-zero length";
   EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer";
 }
@@ -460,8 +461,8 @@ TEST_F(MessageBuildingTest, SetCabinOverheatProtection_Off) {
   pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
   size_t length = 0;
 
-  int result = client->set_cabin_overheat_protection(buffer, &length, false, false);
-  EXPECT_EQ(result, 0) << "Setting cabin overheat protection OFF should succeed";
+  auto result = client->set_cabin_overheat_protection(buffer, &length, false, false);
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Setting cabin overheat protection OFF should succeed";
   EXPECT_GT(length, 0) << "Message should have non-zero length";
 }
 
@@ -469,8 +470,8 @@ TEST_F(MessageBuildingTest, SetCabinOverheatProtection_FanOnly) {
   pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
   size_t length = 0;
 
-  int result = client->set_cabin_overheat_protection(buffer, &length, true, true);
-  EXPECT_EQ(result, 0) << "Setting cabin overheat protection fan_only should succeed";
+  auto result = client->set_cabin_overheat_protection(buffer, &length, true, true);
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Setting cabin overheat protection fan_only should succeed";
   EXPECT_GT(length, 0) << "Message should have non-zero length";
 }
 
@@ -479,8 +480,8 @@ TEST_F(MessageBuildingTest, ScheduleSoftwareUpdate) {
   size_t length = 0;
 
   int32_t offset_sec = 3600;  // 1 hour from now
-  int result = client->schedule_software_update(buffer, &length, offset_sec);
-  EXPECT_EQ(result, 0) << "Scheduling software update should succeed";
+  auto result = client->schedule_software_update(buffer, &length, offset_sec);
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Scheduling software update should succeed";
   EXPECT_GT(length, 0) << "Message should have non-zero length";
   EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer";
 }
@@ -490,8 +491,8 @@ TEST_F(MessageBuildingTest, ScheduleSoftwareUpdate_Delay) {
   size_t length = 0;
 
   int32_t offset_sec = 86400;  // 24 hours from now
-  int result = client->schedule_software_update(buffer, &length, offset_sec);
-  EXPECT_EQ(result, 0) << "Scheduling software update with 24h delay should succeed";
+  auto result = client->schedule_software_update(buffer, &length, offset_sec);
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Scheduling software update with 24h delay should succeed";
   EXPECT_GT(length, 0) << "Message should have non-zero length";
 }
 
@@ -499,8 +500,8 @@ TEST_F(MessageBuildingTest, CancelSoftwareUpdate) {
   pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
   size_t length = 0;
 
-  int result = client->cancel_software_update(buffer, &length);
-  EXPECT_EQ(result, 0) << "Canceling software update should succeed";
+  auto result = client->cancel_software_update(buffer, &length);
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Canceling software update should succeed";
   EXPECT_GT(length, 0) << "Message should have non-zero length";
   EXPECT_LE(length, sizeof(buffer)) << "Message should fit in buffer";
 }
@@ -510,9 +511,9 @@ TEST_F(MessageBuildingTest, BuildScheduleSoftwareUpdateViaBuilder) {
   size_t length = 0;
 
   int32_t offset_sec = 7200;  // 2 hours
-  int result = client->build_car_server_vehicle_action_message(
+  auto result = client->build_car_server_vehicle_action_message(
       buffer, &length, CarServer_VehicleAction_vehicleControlScheduleSoftwareUpdateAction_tag, &offset_sec);
-  EXPECT_EQ(result, 0) << "Building schedule software update via builder should succeed";
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Building schedule software update via builder should succeed";
   EXPECT_GT(length, 0) << "Message should have non-zero length";
 }
 
@@ -524,8 +525,8 @@ TEST_F(MessageBuildingTest, BuildSetCabinOverheatProtectionViaBuilder) {
   cop_action.on = true;
   cop_action.fan_only = false;
 
-  int result = client->build_car_server_vehicle_action_message(
+  auto result = client->build_car_server_vehicle_action_message(
       buffer, &length, CarServer_VehicleAction_setCabinOverheatProtectionAction_tag, &cop_action);
-  EXPECT_EQ(result, 0) << "Building set cabin overheat protection via builder should succeed";
+  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Building set cabin overheat protection via builder should succeed";
   EXPECT_GT(length, 0) << "Message should have non-zero length";
 }

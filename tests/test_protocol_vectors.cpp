@@ -50,21 +50,21 @@ class ProtocolVectorsTest : public ::testing::Test {
 // Test 1: Key Agreement with Protocol Test Vectors
 TEST_F(ProtocolVectorsTest, EcdkeyAgreementTestVectors) {
   // Load client private key
-  int status = client->load_private_key(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
-  ASSERT_EQ(status, 0) << "Failed to load client private key";
+  auto status = client->load_private_key(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                         strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+  ASSERT_EQ(status, TeslaBLEStatus::OK) << "Failed to load client private key";
 
   // Test ECDH key agreement using the protocol test vectors
   CryptoContext crypto;
   status = crypto.load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
                                    strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1  // +1 for null terminator
   );
-  ASSERT_EQ(status, 0) << "Failed to load private key into crypto context";
+  ASSERT_EQ(status, TeslaBLEStatus::OK) << "Failed to load private key into crypto context";
 
   // Perform ECDH with vehicle's public key
   uint8_t derived_session_key[16];
   status = crypto.perform_tesla_ecdh(TestConstants::EXPECTED_VEHICLE_PUBLIC_KEY, 65, derived_session_key);
-  ASSERT_EQ(status, 0) << "ECDH key agreement failed";
+  ASSERT_EQ(status, TeslaBLEStatus::OK) << "ECDH key agreement failed";
 
   // Verify the derived key matches the expected key from protocol spec
   EXPECT_EQ(bytesToHex(derived_session_key, 16), bytesToHex(TestConstants::EXPECTED_SESSION_KEY, 16))
@@ -107,7 +107,7 @@ TEST_F(ProtocolVectorsTest, MetadataSerializationVectors) {
   // Test VIN serialization (this would be part of larger metadata construction)
   // Note: This tests the internal TLV encoding functions if they're accessible
   // Otherwise we test the higher-level AD buffer construction
-  int result =
+  auto result =
       peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, TestConstants::TEST_VIN,
                                2655,  // expires_at
                                buffer, &buffer_length,
@@ -117,7 +117,7 @@ TEST_F(ProtocolVectorsTest, MetadataSerializationVectors) {
                                0         // fault
       );
 
-  ASSERT_EQ(result, 0) << "Failed to construct AD buffer";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to construct AD buffer";
 
   // Verify VIN appears correctly in the buffer
   bool found_vin = false;
@@ -228,9 +228,9 @@ TEST_F(ProtocolVectorsTest, RequestHashConstruction) {
   uint8_t vcsec_hash[17];
   size_t vcsec_hash_length;
 
-  int result = vcsec_peer.construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, test_tag,
-                                                 16, vcsec_hash, &vcsec_hash_length);
-  ASSERT_EQ(result, 0) << "Failed to construct VCSEC request hash";
+  auto result = vcsec_peer.construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+                                                  test_tag, 16, vcsec_hash, &vcsec_hash_length);
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to construct VCSEC request hash";
   EXPECT_EQ(vcsec_hash_length, 17) << "VCSEC request hash should be 17 bytes";
   EXPECT_EQ(vcsec_hash[0], Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED)
       << "First byte should be signature type";
@@ -242,7 +242,7 @@ TEST_F(ProtocolVectorsTest, RequestHashConstruction) {
 
   result = info_peer.construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, test_tag, 16,
                                             info_hash, &info_hash_length);
-  ASSERT_EQ(result, 0) << "Failed to construct Infotainment request hash";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to construct Infotainment request hash";
   EXPECT_EQ(info_hash_length, 17) << "Infotainment AES-GCM request hash should be 17 bytes";
 
   // Test HMAC request hash for Infotainment (should be 33 bytes)
@@ -251,7 +251,7 @@ TEST_F(ProtocolVectorsTest, RequestHashConstruction) {
 
   result = info_peer.construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_HMAC_PERSONALIZED, hmac_tag, 32,
                                             info_hash, &info_hash_length);
-  ASSERT_EQ(result, 0) << "Failed to construct Infotainment HMAC request hash";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to construct Infotainment HMAC request hash";
   EXPECT_EQ(info_hash_length, 33) << "Infotainment HMAC request hash should be 33 bytes";
 }
 
@@ -262,11 +262,11 @@ TEST_F(ProtocolVectorsTest, CounterAntiReplay) {
   auto crypto_context = std::make_shared<CryptoContext>();
 
   // Load the private key into the crypto context for ECDH operations
-  int result =
+  auto result =
       crypto_context->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
                                        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1  // +1 for null terminator
       );
-  ASSERT_EQ(result, 0) << "Failed to load private key into crypto context";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to load private key into crypto context";
 
   // Verify the private key is loaded correctly
   ASSERT_TRUE(crypto_context->is_private_key_initialized()) << "Private key should be initialized after loading";
@@ -293,7 +293,7 @@ TEST_F(ProtocolVectorsTest, CounterAntiReplay) {
   session_info.publicKey.size = 65;
 
   result = peer.update_session(&session_info);
-  ASSERT_EQ(result, 0) << "Failed to update session";
+  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to update session";
 
   // Test that counter can be read and incremented
   uint32_t initial_counter = peer.get_counter();

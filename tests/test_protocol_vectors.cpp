@@ -25,7 +25,7 @@ class ProtocolVectorsTest : public ::testing::Test {
  protected:
   void SetUp() override {
     client = std::make_unique<Client>();
-    client->setVIN(TestConstants::TEST_VIN);
+    client->set_vin(TestConstants::TEST_VIN);
   }
 
   std::unique_ptr<Client> client;
@@ -50,20 +50,20 @@ class ProtocolVectorsTest : public ::testing::Test {
 // Test 1: Key Agreement with Protocol Test Vectors
 TEST_F(ProtocolVectorsTest, EcdkeyAgreementTestVectors) {
   // Load client private key
-  int status = client->loadPrivateKey(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                      strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+  int status = client->load_private_key(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
   ASSERT_EQ(status, 0) << "Failed to load client private key";
 
   // Test ECDH key agreement using the protocol test vectors
   CryptoContext crypto;
-  status = crypto.loadPrivateKey(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                 strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1  // +1 for null terminator
+  status = crypto.load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                   strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1  // +1 for null terminator
   );
   ASSERT_EQ(status, 0) << "Failed to load private key into crypto context";
 
   // Perform ECDH with vehicle's public key
   uint8_t derived_session_key[16];
-  status = crypto.performTeslaEcdh(TestConstants::EXPECTED_VEHICLE_PUBLIC_KEY, 65, derived_session_key);
+  status = crypto.perform_tesla_ecdh(TestConstants::EXPECTED_VEHICLE_PUBLIC_KEY, 65, derived_session_key);
   ASSERT_EQ(status, 0) << "ECDH key agreement failed";
 
   // Verify the derived key matches the expected key from protocol spec
@@ -108,13 +108,13 @@ TEST_F(ProtocolVectorsTest, MetadataSerializationVectors) {
   // Note: This tests the internal TLV encoding functions if they're accessible
   // Otherwise we test the higher-level AD buffer construction
   int result =
-      peer.constructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, TestConstants::TEST_VIN,
-                             2655,  // expires_at
-                             buffer, &buffer_length,
-                             0,        // flags
-                             nullptr,  // request_hash
-                             0,        // request_hash_length
-                             0         // fault
+      peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, TestConstants::TEST_VIN,
+                               2655,  // expires_at
+                               buffer, &buffer_length,
+                               0,        // flags
+                               nullptr,  // request_hash
+                               0,        // request_hash_length
+                               0         // fault
       );
 
   ASSERT_EQ(result, 0) << "Failed to construct AD buffer";
@@ -228,8 +228,8 @@ TEST_F(ProtocolVectorsTest, RequestHashConstruction) {
   uint8_t vcsec_hash[17];
   size_t vcsec_hash_length;
 
-  int result = vcsec_peer.constructRequestHash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, test_tag,
-                                               16, vcsec_hash, &vcsec_hash_length);
+  int result = vcsec_peer.construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, test_tag,
+                                                 16, vcsec_hash, &vcsec_hash_length);
   ASSERT_EQ(result, 0) << "Failed to construct VCSEC request hash";
   EXPECT_EQ(vcsec_hash_length, 17) << "VCSEC request hash should be 17 bytes";
   EXPECT_EQ(vcsec_hash[0], Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED)
@@ -240,8 +240,8 @@ TEST_F(ProtocolVectorsTest, RequestHashConstruction) {
   uint8_t info_hash[33];
   size_t info_hash_length;
 
-  result = info_peer.constructRequestHash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, test_tag, 16,
-                                          info_hash, &info_hash_length);
+  result = info_peer.construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, test_tag, 16,
+                                            info_hash, &info_hash_length);
   ASSERT_EQ(result, 0) << "Failed to construct Infotainment request hash";
   EXPECT_EQ(info_hash_length, 17) << "Infotainment AES-GCM request hash should be 17 bytes";
 
@@ -249,8 +249,8 @@ TEST_F(ProtocolVectorsTest, RequestHashConstruction) {
   uint8_t hmac_tag[32];
   memset(hmac_tag, 0x42, sizeof(hmac_tag));
 
-  result = info_peer.constructRequestHash(Signatures_SignatureType_SIGNATURE_TYPE_HMAC_PERSONALIZED, hmac_tag, 32,
-                                          info_hash, &info_hash_length);
+  result = info_peer.construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_HMAC_PERSONALIZED, hmac_tag, 32,
+                                            info_hash, &info_hash_length);
   ASSERT_EQ(result, 0) << "Failed to construct Infotainment HMAC request hash";
   EXPECT_EQ(info_hash_length, 33) << "Infotainment HMAC request hash should be 33 bytes";
 }
@@ -263,21 +263,21 @@ TEST_F(ProtocolVectorsTest, CounterAntiReplay) {
 
   // Load the private key into the crypto context for ECDH operations
   int result =
-      crypto_context->loadPrivateKey(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                     strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1  // +1 for null terminator
+      crypto_context->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                       strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1  // +1 for null terminator
       );
   ASSERT_EQ(result, 0) << "Failed to load private key into crypto context";
 
   // Verify the private key is loaded correctly
-  ASSERT_TRUE(crypto_context->isPrivateKeyInitialized()) << "Private key should be initialized after loading";
+  ASSERT_TRUE(crypto_context->is_private_key_initialized()) << "Private key should be initialized after loading";
 
   Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context, TestConstants::TEST_VIN);
 
   // Check that the peer has the same crypto context with loaded key
-  ASSERT_TRUE(peer.isPrivateKeyInitialized()) << "Peer should have initialized private key";
+  ASSERT_TRUE(peer.is_private_key_initialized()) << "Peer should have initialized private key";
 
   // Double-check that the crypto context still has the key before updateSession
-  ASSERT_TRUE(crypto_context->isPrivateKeyInitialized())
+  ASSERT_TRUE(crypto_context->is_private_key_initialized())
       << "CryptoContext should still have initialized private key before updateSession";
 
   // Initialize with mock session info
@@ -292,25 +292,25 @@ TEST_F(ProtocolVectorsTest, CounterAntiReplay) {
   memcpy(session_info.publicKey.bytes, TestConstants::EXPECTED_VEHICLE_PUBLIC_KEY, 65);
   session_info.publicKey.size = 65;
 
-  result = peer.updateSession(&session_info);
+  result = peer.update_session(&session_info);
   ASSERT_EQ(result, 0) << "Failed to update session";
 
   // Test that counter can be read and incremented
-  uint32_t initial_counter = peer.getCounter();
+  uint32_t initial_counter = peer.get_counter();
   EXPECT_EQ(initial_counter, 100) << "Counter should be initialized to 100";
 
-  peer.incrementCounter();
-  uint32_t next_counter = peer.getCounter();
+  peer.increment_counter();
+  uint32_t next_counter = peer.get_counter();
   EXPECT_EQ(next_counter, initial_counter + 1) << "Counter should increment";
 
   // Test counter validation for responses
-  bool valid1 = peer.validateResponseCounter(150, 1);  // first response for request 1
+  bool valid1 = peer.validate_response_counter(150, 1);  // first response for request 1
   EXPECT_TRUE(valid1) << "First response counter should be valid";
 
-  bool valid2 = peer.validateResponseCounter(150, 1);  // same counter for same request
+  bool valid2 = peer.validate_response_counter(150, 1);  // same counter for same request
   EXPECT_FALSE(valid2) << "Duplicate response counter should be invalid";
 
-  bool valid3 = peer.validateResponseCounter(151, 1);  // different counter for same request
+  bool valid3 = peer.validate_response_counter(151, 1);  // different counter for same request
   EXPECT_TRUE(valid3) << "Different response counter should be valid";
 }
 

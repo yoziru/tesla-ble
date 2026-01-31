@@ -5,7 +5,7 @@
 
 namespace TeslaBLE {
 // add helper functions to convert error codes to strings
-const char *TeslaBLE_Status_to_string(int status) {
+const char *teslable_status_to_string(int status) {
   TeslaBLE_Status_E status_enum = static_cast<TeslaBLE_Status_E>(status);
   switch (status_enum) {
 #define TESLA_BLE_ERROR_DEF(name, value, string) \

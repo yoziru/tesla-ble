@@ -35,23 +35,23 @@ namespace TeslaBLE {
 Peer::Peer(UniversalMessage_Domain domain, std::shared_ptr<CryptoContext> crypto_context, std::string vin)
     : domain_(domain), vin_(std::move(vin)), crypto_context_(std::move(std::move(crypto_context))) {}
 
-bool Peer::isInitialized() const {
+bool Peer::is_initialized() const {
   if (crypto_context_ == nullptr) {
     LOG_ERROR("Crypto context is null");
     return false;
   }
 
-  if (!isPrivateKeyInitialized()) {
+  if (!is_private_key_initialized()) {
     LOG_ERROR("Private key is not initialized");
     return false;
   }
 
-  if (!isValid()) {
+  if (!is_valid()) {
     LOG_ERROR("Session is not valid");
     return false;
   }
 
-  if (!hasValidEpoch()) {
+  if (!has_valid_epoch()) {
     LOG_ERROR("Peer has invalid epoch");
     return false;
   }
@@ -59,9 +59,11 @@ bool Peer::isInitialized() const {
   return true;
 }
 
-bool Peer::isPrivateKeyInitialized() const { return crypto_context_ && crypto_context_->isPrivateKeyInitialized(); }
+bool Peer::is_private_key_initialized() const {
+  return crypto_context_ && crypto_context_->is_private_key_initialized();
+}
 
-bool Peer::hasValidEpoch() const {
+bool Peer::has_valid_epoch() const {
   // make sure epoch is not all zeros
   for (unsigned char i : epoch_) {
     if (i != 0) {
@@ -72,11 +74,11 @@ bool Peer::hasValidEpoch() const {
   return false;
 }
 
-void Peer::setCounter(uint32_t counter) { counter_ = counter; }
+void Peer::set_counter(uint32_t counter) { counter_ = counter; }
 
-void Peer::incrementCounter() { counter_++; }
+void Peer::increment_counter() { counter_++; }
 
-int Peer::setEpoch(const pb_byte_t *epoch) {
+int Peer::set_epoch(const pb_byte_t *epoch) {
   if (epoch == nullptr) {
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
@@ -84,28 +86,28 @@ int Peer::setEpoch(const pb_byte_t *epoch) {
   return TeslaBLE_Status_E_OK;
 }
 
-uint32_t Peer::getCounter() const { return counter_; }
+uint32_t Peer::get_counter() const { return counter_; }
 
-uint32_t Peer::generateExpiresAt(int seconds) const {
+uint32_t Peer::generate_expires_at(int seconds) const {
   uint32_t expires_at =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() + std::chrono::seconds(seconds)) -
       time_zero_;
   return expires_at;
 }
 
-void Peer::generateNonce(pb_byte_t *nonce) const {
+void Peer::generate_nonce(pb_byte_t *nonce) const {
   if (nonce == nullptr || crypto_context_ == nullptr) {
     LOG_ERROR("Invalid nonce buffer or crypto context");
     return;
   }
 
-  int result = crypto_context_->generateRandomBytes(nonce, NONCE_SIZE_BYTES);
+  int result = crypto_context_->generate_random_bytes(nonce, NONCE_SIZE_BYTES);
   if (result != TeslaBLE_Status_E_OK) {
     LOG_ERROR("Failed to generate nonce: %d", result);
   }
 }
 
-int Peer::loadTeslaKey(const uint8_t *public_key_buffer, size_t public_key_size) {
+int Peer::load_tesla_key(const uint8_t *public_key_buffer, size_t public_key_size) {
   if (public_key_buffer == nullptr || public_key_size == 0) {
     LOG_ERROR("Invalid public key buffer");
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
@@ -133,7 +135,7 @@ int Peer::loadTeslaKey(const uint8_t *public_key_buffer, size_t public_key_size)
 
   // Use CryptoContext's Tesla ECDH method instead of duplicating crypto initialization
   LOG_DEBUG("Performing Tesla ECDH using CryptoContext");
-  int ret = crypto_context_->performTeslaEcdh(public_key_buffer, public_key_size, shared_secret_sha1_.data());
+  int ret = crypto_context_->perform_tesla_ecdh(public_key_buffer, public_key_size, shared_secret_sha1_.data());
   if (ret != TeslaBLE_Status_E_OK) {
     LOG_ERROR("Failed to perform Tesla ECDH: %d", ret);
     return ret;
@@ -151,7 +153,7 @@ int Peer::loadTeslaKey(const uint8_t *public_key_buffer, size_t public_key_size)
   return TeslaBLE_Status_E_OK;
 }
 
-int Peer::updateSession(Signatures_SessionInfo *session_info) {
+int Peer::update_session(Signatures_SessionInfo *session_info) {
   LOG_DEBUG("Updating session..");
   if (session_info == nullptr) {
     LOG_ERROR("Session info is null");
@@ -171,21 +173,21 @@ int Peer::updateSession(Signatures_SessionInfo *session_info) {
     return TeslaBLE_Status_E_ERROR_COUNTER_REPLAY;
   }
 
-  int status = setEpoch(session_info->epoch);
+  int status = set_epoch(session_info->epoch);
   if (status != TeslaBLE_Status_E_OK) {
     LOG_ERROR("Failed to set epoch");
     return status;
   }
 
-  setCounter(session_info->counter);
+  set_counter(session_info->counter);
 
   uint32_t generated_at = std::time(nullptr);
   uint32_t time_zero = generated_at - session_info->clock_time;
-  setTimeZero(time_zero);
+  set_time_zero(time_zero);
 
   // Load Tesla's public key if provided
   if (session_info->publicKey.size > 0) {
-    status = loadTeslaKey(session_info->publicKey.bytes, session_info->publicKey.size);
+    status = load_tesla_key(session_info->publicKey.bytes, session_info->publicKey.size);
     if (status != TeslaBLE_Status_E_OK) {
       LOG_ERROR("Failed to load Tesla public key from session info");
       return status;
@@ -198,7 +200,7 @@ int Peer::updateSession(Signatures_SessionInfo *session_info) {
   return TeslaBLE_Status_E_OK;
 }
 
-int Peer::forceUpdateSession(Signatures_SessionInfo *session_info) {
+int Peer::force_update_session(Signatures_SessionInfo *session_info) {
   LOG_INFO("Force updating session (bypassing anti-replay protection)...");
   if (session_info == nullptr) {
     LOG_ERROR("Session info is null");
@@ -209,23 +211,23 @@ int Peer::forceUpdateSession(Signatures_SessionInfo *session_info) {
   is_valid_ = false;
 
   // Force set the epoch (this resets the counter validation baseline)
-  int status = setEpoch(session_info->epoch);
+  int status = set_epoch(session_info->epoch);
   if (status != TeslaBLE_Status_E_OK) {
     LOG_ERROR("Failed to set epoch during force update");
     return status;
   }
 
   // Force set counter directly (no anti-replay check)
-  setCounter(session_info->counter);
+  set_counter(session_info->counter);
 
   // Update time zero
   uint32_t generated_at = std::time(nullptr);
   uint32_t time_zero = generated_at - session_info->clock_time;
-  setTimeZero(time_zero);
+  set_time_zero(time_zero);
 
   // Load Tesla's public key if provided
   if (session_info->publicKey.size > 0) {
-    status = loadTeslaKey(session_info->publicKey.bytes, session_info->publicKey.size);
+    status = load_tesla_key(session_info->publicKey.bytes, session_info->publicKey.size);
     if (status != TeslaBLE_Status_E_OK) {
       LOG_ERROR("Failed to load Tesla public key during force update");
       return status;
@@ -241,9 +243,9 @@ int Peer::forceUpdateSession(Signatures_SessionInfo *session_info) {
   return TeslaBLE_Status_E_OK;
 }
 
-int Peer::constructADBuffer(Signatures_SignatureType signature_type, const char *vin, uint32_t expires_at,
-                            pb_byte_t *output_buffer, size_t *output_length, uint32_t flags,
-                            const pb_byte_t *request_hash, size_t request_hash_length, uint32_t fault) const {
+int Peer::construct_ad_buffer(Signatures_SignatureType signature_type, const char *vin, uint32_t expires_at,
+                              pb_byte_t *output_buffer, size_t *output_length, uint32_t flags,
+                              const pb_byte_t *request_hash, size_t request_hash_length, uint32_t fault) const {
   if (output_buffer == nullptr || output_length == nullptr || vin == nullptr) {
     LOG_ERROR("Invalid parameters for AD buffer construction");
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
@@ -342,8 +344,8 @@ int Peer::constructADBuffer(Signatures_SignatureType signature_type, const char 
   return TeslaBLE_Status_E_OK;
 }
 
-int Peer::constructRequestHash(Signatures_SignatureType auth_type, const pb_byte_t *auth_tag, size_t auth_tag_length,
-                               pb_byte_t *request_hash, size_t *request_hash_length) const {
+int Peer::construct_request_hash(Signatures_SignatureType auth_type, const pb_byte_t *auth_tag, size_t auth_tag_length,
+                                 pb_byte_t *request_hash, size_t *request_hash_length) const {
   if (auth_tag == nullptr || request_hash == nullptr || request_hash_length == nullptr) {
     LOG_ERROR("Invalid parameters for request hash construction");
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
@@ -372,10 +374,10 @@ int Peer::constructRequestHash(Signatures_SignatureType auth_type, const pb_byte
   return TeslaBLE_Status_E_OK;
 }
 
-int Peer::decryptResponse(const pb_byte_t *input_buffer, size_t input_length, const pb_byte_t *nonce, pb_byte_t *tag,
-                          const pb_byte_t *request_hash, size_t request_hash_length, uint32_t flags, uint32_t fault,
-                          pb_byte_t *output_buffer, size_t output_buffer_length, size_t *output_length) const {
-  if (!isPrivateKeyInitialized()) {
+int Peer::decrypt_response(const pb_byte_t *input_buffer, size_t input_length, const pb_byte_t *nonce, pb_byte_t *tag,
+                           const pb_byte_t *request_hash, size_t request_hash_length, uint32_t flags, uint32_t fault,
+                           pb_byte_t *output_buffer, size_t output_buffer_length, size_t *output_length) const {
+  if (!is_private_key_initialized()) {
     LOG_ERROR("[DecryptResponse] Private key not initialized");
     return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
   }
@@ -393,9 +395,9 @@ int Peer::decryptResponse(const pb_byte_t *input_buffer, size_t input_length, co
   // Construct AD buffer for response
   pb_byte_t ad_buffer[256];
   size_t ad_length;
-  return_code = constructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE, vin_.c_str(),
-                                  0,  // expires_at not used for responses
-                                  ad_buffer, &ad_length, flags, request_hash, request_hash_length, fault);
+  return_code = construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE, vin_.c_str(),
+                                    0,  // expires_at not used for responses
+                                    ad_buffer, &ad_length, flags, request_hash, request_hash_length, fault);
 
   if (return_code != 0) {
     LOG_ERROR("[DecryptResponse] Failed to construct AD buffer");
@@ -445,7 +447,7 @@ int Peer::decryptResponse(const pb_byte_t *input_buffer, size_t input_length, co
 int Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t *output_buffer,
                   size_t output_buffer_length, size_t *output_length, pb_byte_t *signature_buffer, pb_byte_t *ad_buffer,
                   size_t ad_buffer_length, pb_byte_t nonce[NONCE_SIZE_BYTES]) const {
-  if (!isPrivateKeyInitialized()) {
+  if (!is_private_key_initialized()) {
     LOG_ERROR("[Encrypt] Private key is not initialized");
     return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
   }
@@ -468,7 +470,7 @@ int Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t
   }
 
   // Generate a new nonce for each encryption
-  generateNonce(nonce);
+  generate_nonce(nonce);
   size_t nonce_size = 12;
 
   return_code = mbedtls_gcm_starts(&aes_context, MBEDTLS_GCM_ENCRYPT, nonce, nonce_size);
@@ -536,7 +538,7 @@ int Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t
   return TeslaBLE_Status_E_OK;
 }
 
-bool Peer::validateResponseCounter(uint32_t counter, uint32_t request_id) {
+bool Peer::validate_response_counter(uint32_t counter, uint32_t request_id) {
   std::scoped_lock guard(counter_mutex_);
 
   // Check if we've seen this counter for this request before

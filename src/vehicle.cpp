@@ -27,7 +27,7 @@ Vehicle::Vehicle(std::shared_ptr<BleAdapter> ble, std::shared_ptr<StorageAdapter
   // 1. Load private key
   std::vector<uint8_t> key_buffer;
   if (storage_adapter_->load("private_key", key_buffer)) {
-    if (client_->loadPrivateKey(key_buffer.data(), key_buffer.size()) == 0) {
+    if (client_->load_private_key(key_buffer.data(), key_buffer.size()) == 0) {
       LOG_INFO("Loaded private key from storage");
     } else {
       LOG_ERROR("Failed to load private key from storage");
@@ -45,7 +45,7 @@ Vehicle::Vehicle(std::shared_ptr<BleAdapter> ble, std::shared_ptr<StorageAdapter
 
 void Vehicle::set_vin(const std::string &vin) {
   if (client_) {
-    client_->setVIN(vin);
+    client_->set_vin(vin);
   }
 }
 
@@ -224,7 +224,8 @@ void Vehicle::initiate_vcsec_auth(const std::shared_ptr<Command> &command) {
     // Build Session Info Request
     uint8_t buffer[256];
     size_t len = 256;
-    if (client_->buildSessionInfoRequestMessage(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, buffer, &len) == 0) {
+    if (client_->build_session_info_request_message(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, buffer, &len) ==
+        0) {
       std::vector<uint8_t> data(buffer, buffer + len);
       if (ble_adapter_->write(data)) {
         command->state = CommandState::WAITING_FOR_VCSEC_AUTH_RESPONSE;
@@ -271,7 +272,7 @@ void Vehicle::initiate_infotainment_auth(const std::shared_ptr<Command> &command
   } else {
     uint8_t buffer[256];
     size_t len = 256;
-    if (client_->buildSessionInfoRequestMessage(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, buffer, &len) == 0) {
+    if (client_->build_session_info_request_message(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, buffer, &len) == 0) {
       std::vector<uint8_t> data(buffer, buffer + len);
       if (ble_adapter_->write(data)) {
         command->state = CommandState::WAITING_FOR_INFOTAINMENT_AUTH_RESPONSE;
@@ -291,7 +292,7 @@ void Vehicle::initiate_wake_sequence(const std::shared_ptr<Command> &command) {
   // Send Wake command (RKE Action)
   uint8_t buffer[256];
   size_t len = 256;
-  if (client_->buildVCSECActionMessage(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, buffer, &len) == 0) {
+  if (client_->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, buffer, &len) == 0) {
     std::vector<uint8_t> data(buffer, buffer + len);
     if (ble_adapter_->write(data)) {
       command->state = CommandState::WAITING_FOR_WAKE_RESPONSE;
@@ -386,8 +387,8 @@ void Vehicle::mark_command_completed(const std::shared_ptr<Command> &command) {
 }
 
 bool Vehicle::is_domain_authenticated(UniversalMessage_Domain domain) {
-  auto *peer = client_->getPeer(domain);
-  return peer && peer->isValid();
+  auto *peer = client_->get_peer(domain);
+  return peer && peer->is_valid();
 }
 
 void Vehicle::on_rx_data(const std::vector<uint8_t> &data) {
@@ -431,7 +432,7 @@ void Vehicle::process_complete_message() {
 
   // Parse
   UniversalMessage_RoutableMessage msg = UniversalMessage_RoutableMessage_init_default;
-  if (client_->parseUniversalMessage(msg_data.data(), msg_data.size(), &msg) == 0) {
+  if (client_->parse_universal_message(msg_data.data(), msg_data.size(), &msg) == 0) {
     LOG_DEBUG("Successfully parsed universal message");
     log_routable_message(TESLA_LOG_TAG, &msg);
     handle_message(msg);
@@ -469,10 +470,10 @@ void Vehicle::handle_message(const UniversalMessage_RoutableMessage &msg) {
 
       if (session_error) {
         // Invalidate the session for this domain
-        auto *peer = client_->getPeer(domain);
+        auto *peer = client_->get_peer(domain);
         if (peer) {
           LOG_INFO("Invalidating session for %s due to session error, will re-authenticate", domain_to_string(domain));
-          peer->setIsValid(false);
+          peer->set_is_valid(false);
 
           // Mark the domain as unauthenticated so next command will re-auth
           if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) {
@@ -537,7 +538,7 @@ void Vehicle::handle_session_info_message(const UniversalMessage_RoutableMessage
   }
 
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  int result = client_->parsePayloadSessionInfo(
+  int result = client_->parse_payload_session_info(
       const_cast<UniversalMessage_RoutableMessage_session_info_t *>(&msg.payload.session_info), &session_info);
 
   if (result != 0) {
@@ -555,9 +556,9 @@ void Vehicle::handle_session_info_message(const UniversalMessage_RoutableMessage
     return;
   }
 
-  auto *peer = client_->getPeer(domain);
+  auto *peer = client_->get_peer(domain);
   if (peer) {
-    int update_result = peer->updateSession(&session_info);
+    int update_result = peer->update_session(&session_info);
     if (update_result == 0) {
       LOG_INFO("Session updated for %s", domain_to_string(domain));
 
@@ -575,7 +576,7 @@ void Vehicle::handle_session_info_message(const UniversalMessage_RoutableMessage
       LOG_INFO("Counter anti-replay detected for %s, force updating with vehicle's authoritative session",
                domain_to_string(domain));
 
-      if (peer->forceUpdateSession(&session_info) == 0) {
+      if (peer->force_update_session(&session_info) == 0) {
         LOG_INFO("Session force-updated for %s", domain_to_string(domain));
 
         // Persist the new session
@@ -601,9 +602,9 @@ void Vehicle::handle_vcsec_message(const UniversalMessage_RoutableMessage &msg) 
   LOG_DEBUG("Processing VCSEC message");
   VCSEC_FromVCSECMessage vcsec_msg = VCSEC_FromVCSECMessage_init_default;
   int result =
-      client_->parseFromVCSECMessage(const_cast<UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *>(
-                                         &msg.payload.protobuf_message_as_bytes),
-                                     &vcsec_msg);
+      client_->parse_from_vcsec_message(const_cast<UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *>(
+                                            &msg.payload.protobuf_message_as_bytes),
+                                        &vcsec_msg);
 
   if (result != 0) {
     LOG_ERROR("Failed to parse VCSEC message: %d", result);
@@ -692,7 +693,7 @@ void Vehicle::handle_carserver_message(const UniversalMessage_RoutableMessage &m
   }
 
   CarServer_Response response = CarServer_Response_init_default;
-  int result = client_->parsePayloadCarServerResponse(
+  int result = client_->parse_payload_car_server_response(
       const_cast<UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *>(
           &msg.payload.protobuf_message_as_bytes),
       const_cast<Signatures_SignatureData *>(sig_data), msg.which_sub_sigData, fault, &response);
@@ -798,7 +799,7 @@ void Vehicle::load_session_from_storage(UniversalMessage_Domain domain) {
 
   // Parse the session info
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  int result = client_->parsePayloadSessionInfo(&session_info_buffer, &session_info);
+  int result = client_->parse_payload_session_info(&session_info_buffer, &session_info);
   if (result != 0) {
     LOG_ERROR("Failed to parse stored session info for %s: %d", domain_to_string(domain), result);
     return;
@@ -811,10 +812,10 @@ void Vehicle::load_session_from_storage(UniversalMessage_Domain domain) {
   }
 
   // Update the peer with the loaded session
-  auto *peer = client_->getPeer(domain);
+  auto *peer = client_->get_peer(domain);
   if (peer) {
     // Use forceUpdateSession since we're loading from storage (no anti-replay check needed)
-    if (peer->forceUpdateSession(&session_info) == 0) {
+    if (peer->force_update_session(&session_info) == 0) {
       LOG_INFO("Loaded session from storage for %s (counter: %u)", domain_to_string(domain), session_info.counter);
     } else {
       LOG_ERROR("Failed to apply stored session for %s", domain_to_string(domain));
@@ -824,14 +825,14 @@ void Vehicle::load_session_from_storage(UniversalMessage_Domain domain) {
 
 void Vehicle::wake() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Wake", [](Client *client, uint8_t *buff, size_t *len) {
-    return client->buildVCSECActionMessage(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, buff, len);
+    return client->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, buff, len);
   });
 }
 
 void Vehicle::vcsec_poll() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "VCSEC Poll",
                [](Client *client, uint8_t *buff, size_t *len) {
-                 return client->buildVCSECInformationRequestMessage(
+                 return client->build_vcsec_information_request_message(
                      VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS, buff, len);
                });
 }
@@ -849,7 +850,8 @@ void Vehicle::charge_state_poll(bool force_wake) {
   send_command(
       UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Charge State Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
-        return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getChargeState_tag);
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
       },
       nullptr, force_wake);
 }
@@ -858,7 +860,8 @@ void Vehicle::climate_state_poll(bool force_wake) {
   send_command(
       UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Climate State Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
-        return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getClimateState_tag);
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getClimateState_tag);
       },
       nullptr, force_wake);
 }
@@ -867,7 +870,7 @@ void Vehicle::drive_state_poll(bool force_wake) {
   send_command(
       UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Drive State Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
-        return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getDriveState_tag);
+        return client->build_car_server_get_vehicle_data_message(buff, len, CarServer_GetVehicleData_getDriveState_tag);
       },
       nullptr, force_wake);
 }
@@ -876,7 +879,8 @@ void Vehicle::closures_state_poll(bool force_wake) {
   send_command(
       UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Closures State Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
-        return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getClosuresState_tag);
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getClosuresState_tag);
       },
       nullptr, force_wake);
 }
@@ -885,8 +889,8 @@ void Vehicle::tire_pressure_poll(bool force_wake) {
   send_command(
       UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Tire Pressure Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
-        return client->buildCarServerGetVehicleDataMessage(buff, len,
-                                                           CarServer_GetVehicleData_getTirePressureState_tag);
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getTirePressureState_tag);
       },
       nullptr, force_wake);
 }
@@ -895,7 +899,7 @@ void Vehicle::set_charging_state(bool enable) {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, enable ? "Start Charging" : "Stop Charging",
                [enable](Client *client, uint8_t *buff, size_t *len) {
                  int32_t action = enable ? 1 : 0;
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_chargingStartStopAction_tag, &action);
                });
 }
@@ -904,7 +908,7 @@ void Vehicle::set_charging_amps(int amps) {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Set Charging Amps",
                [amps](Client *client, uint8_t *buff, size_t *len) {
                  int32_t val = amps;
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_setChargingAmpsAction_tag, &val);
                });
 }
@@ -913,7 +917,7 @@ void Vehicle::set_charging_limit(int limit) {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Set Charging Limit",
                [limit](Client *client, uint8_t *buff, size_t *len) {
                  int32_t val = limit;
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_chargingSetLimitAction_tag, &val);
                });
 }
@@ -921,7 +925,7 @@ void Vehicle::set_charging_limit(int limit) {
 void Vehicle::unlock_charge_port() {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Unlock Charge Port",
                [](Client *client, uint8_t *buff, size_t *len) {
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_chargePortDoorOpen_tag, nullptr);
                });
 }
@@ -932,14 +936,14 @@ void Vehicle::unlock_charge_port() {
 
 void Vehicle::lock() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Lock", [](Client *client, uint8_t *buff, size_t *len) {
-    return client->buildVCSECActionMessage(VCSEC_RKEAction_E_RKE_ACTION_LOCK, buff, len);
+    return client->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_LOCK, buff, len);
   });
 }
 
 void Vehicle::unlock() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Unlock",
                [](Client *client, uint8_t *buff, size_t *len) {
-                 return client->buildVCSECActionMessage(VCSEC_RKEAction_E_RKE_ACTION_UNLOCK, buff, len);
+                 return client->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_UNLOCK, buff, len);
                });
 }
 
@@ -948,7 +952,7 @@ void Vehicle::open_trunk() {
                [](Client *client, uint8_t *buff, size_t *len) {
                  VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
                  request.rearTrunk = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN;
-                 return client->buildVCSECClosureMessage(&request, buff, len);
+                 return client->build_vcsec_closure_message(&request, buff, len);
                });
 }
 
@@ -957,7 +961,7 @@ void Vehicle::close_trunk() {
                [](Client *client, uint8_t *buff, size_t *len) {
                  VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
                  request.rearTrunk = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE;
-                 return client->buildVCSECClosureMessage(&request, buff, len);
+                 return client->build_vcsec_closure_message(&request, buff, len);
                });
 }
 
@@ -966,7 +970,7 @@ void Vehicle::open_frunk() {
                [](Client *client, uint8_t *buff, size_t *len) {
                  VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
                  request.frontTrunk = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN;
-                 return client->buildVCSECClosureMessage(&request, buff, len);
+                 return client->build_vcsec_closure_message(&request, buff, len);
                });
 }
 
@@ -975,7 +979,7 @@ void Vehicle::open_charge_port() {
                [](Client *client, uint8_t *buff, size_t *len) {
                  VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
                  request.chargePort = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN;
-                 return client->buildVCSECClosureMessage(&request, buff, len);
+                 return client->build_vcsec_closure_message(&request, buff, len);
                });
 }
 
@@ -984,7 +988,7 @@ void Vehicle::close_charge_port() {
                [](Client *client, uint8_t *buff, size_t *len) {
                  VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
                  request.chargePort = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE;
-                 return client->buildVCSECClosureMessage(&request, buff, len);
+                 return client->build_vcsec_closure_message(&request, buff, len);
                });
 }
 
@@ -993,7 +997,7 @@ void Vehicle::unlatch_driver_door() {
                [](Client *client, uint8_t *buff, size_t *len) {
                  VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
                  request.frontDriverDoor = VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN;
-                 return client->buildVCSECClosureMessage(&request, buff, len);
+                 return client->build_vcsec_closure_message(&request, buff, len);
                });
 }
 
@@ -1005,8 +1009,8 @@ void Vehicle::set_climate(bool enable) {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, enable ? "Climate On" : "Climate Off",
                [enable](Client *client, uint8_t *buff, size_t *len) {
                  bool val = enable;
-                 return client->buildCarServerVehicleActionMessage(buff, len,
-                                                                   CarServer_VehicleAction_hvacAutoAction_tag, &val);
+                 return client->build_car_server_vehicle_action_message(
+                     buff, len, CarServer_VehicleAction_hvacAutoAction_tag, &val);
                });
 }
 
@@ -1014,7 +1018,7 @@ void Vehicle::set_climate_temp(float temp_celsius) {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Set Climate Temperature",
                [temp_celsius](Client *client, uint8_t *buff, size_t *len) {
                  float temp = temp_celsius;
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_hvacTemperatureAdjustmentAction_tag, &temp);
                });
 }
@@ -1025,7 +1029,7 @@ void Vehicle::set_climate_keeper(int mode) {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, std::string("Climate Keeper ") + name,
                [mode](Client *client, uint8_t *buff, size_t *len) {
                  int m = mode;
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_hvacClimateKeeperAction_tag, &m);
                });
 }
@@ -1034,7 +1038,7 @@ void Vehicle::set_bioweapon_mode(bool enable) {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, enable ? "Bioweapon Mode On" : "Bioweapon Mode Off",
                [enable](Client *client, uint8_t *buff, size_t *len) {
                  bool val = enable;
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_hvacBioweaponModeAction_tag, &val);
                });
 }
@@ -1043,7 +1047,7 @@ void Vehicle::set_preconditioning_max(bool enable) {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, enable ? "Defrost On" : "Defrost Off",
                [enable](Client *client, uint8_t *buff, size_t *len) {
                  bool val = enable;
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_hvacSetPreconditioningMaxAction_tag, &val);
                });
 }
@@ -1053,7 +1057,7 @@ void Vehicle::set_steering_wheel_heat(bool enable) {
                enable ? "Steering Wheel Heat On" : "Steering Wheel Heat Off",
                [enable](Client *client, uint8_t *buff, size_t *len) {
                  bool val = enable;
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag, &val);
                });
 }
@@ -1065,7 +1069,7 @@ void Vehicle::set_steering_wheel_heat(bool enable) {
 void Vehicle::flash_lights() {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Flash Lights",
                [](Client *client, uint8_t *buff, size_t *len) {
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_vehicleControlFlashLightsAction_tag, nullptr);
                });
 }
@@ -1073,7 +1077,7 @@ void Vehicle::flash_lights() {
 void Vehicle::honk_horn() {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Honk Horn",
                [](Client *client, uint8_t *buff, size_t *len) {
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_vehicleControlHonkHornAction_tag, nullptr);
                });
 }
@@ -1082,7 +1086,7 @@ void Vehicle::set_sentry_mode(bool enable) {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, enable ? "Sentry Mode On" : "Sentry Mode Off",
                [enable](Client *client, uint8_t *buff, size_t *len) {
                  bool val = enable;
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, &val);
                });
 }
@@ -1091,7 +1095,7 @@ void Vehicle::vent_windows() {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Vent Windows",
                [](Client *client, uint8_t *buff, size_t *len) {
                  int32_t action = 0;  // 0 = vent
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_vehicleControlWindowAction_tag, &action);
                });
 }
@@ -1100,7 +1104,7 @@ void Vehicle::close_windows() {
   send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Close Windows",
                [](Client *client, uint8_t *buff, size_t *len) {
                  int32_t action = 1;  // 1 = close
-                 return client->buildCarServerVehicleActionMessage(
+                 return client->build_car_server_vehicle_action_message(
                      buff, len, CarServer_VehicleAction_vehicleControlWindowAction_tag, &action);
                });
 }
@@ -1110,7 +1114,7 @@ void Vehicle::authenticate_key_request() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Key Auth Request",
                [](Client *client, uint8_t *buf, size_t *len) {
                  // Just triggering auth logic if needed, usually we just send whitelist query or ephemeral key exchange
-                 return client->buildVCSECInformationRequestMessage(
+                 return client->build_vcsec_information_request_message(
                      VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS, buf, len);
                });
 }
@@ -1119,26 +1123,26 @@ void Vehicle::pair(Keys_Role role) {
   LOG_INFO("Initiating pairing sequence...");
 
   // Ensure we have a key first
-  if (client_->createPrivateKey() != 0) {
+  if (client_->create_private_key() != 0) {
     LOG_WARNING("Could not check/create private key, proceeding anyway");
   }
 
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Whitelist Add Key",
                [role](Client *client, uint8_t *buf, size_t *len) {
-                 return client->buildWhiteListMessage(role, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_NFC_CARD, buf, len);
+                 return client->build_white_list_message(role, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_NFC_CARD, buf, len);
                });
 }
 
 void Vehicle::regenerate_key() {
   LOG_INFO("Regenerating private key...");
-  if (client_->createPrivateKey() == 0) {
+  if (client_->create_private_key() == 0) {
     // Get and save new key
     constexpr size_t max_key_size = 133;  // 2 * 66 + 1 (MBEDTLS_ECP_MAX_PT_LEN for P-521)
     uint8_t key_buf[max_key_size];
     size_t key_len = 0;
     size_t buf_len = sizeof(key_buf);
 
-    if (client_->getPrivateKey(key_buf, buf_len, &key_len) == 0) {
+    if (client_->get_private_key(key_buf, buf_len, &key_len) == 0) {
       std::vector<uint8_t> key_vec(key_buf, key_buf + key_len);
       if (storage_adapter_->save("private_key", key_vec)) {
         LOG_INFO("New private key saved to storage");

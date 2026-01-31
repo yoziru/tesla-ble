@@ -38,11 +38,12 @@ class MessageParsingTest : public ::testing::Test {
  protected:
   void SetUp() override {
     client = std::make_unique<TeslaBLE::Client>();
-    client->setVIN(TestConstants::TEST_VIN);
+    client->set_vin(TestConstants::TEST_VIN);
 
     // Load private key for testing
-    int status = client->loadPrivateKey(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                        strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+    int status =
+        client->load_private_key(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                 strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
     ASSERT_EQ(status, 0) << "Failed to load private key for testing";
   }
 
@@ -54,7 +55,7 @@ class MessageParsingTest : public ::testing::Test {
 TEST_F(MessageParsingTest, ParseValidVCSECUniversalMessage) {
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
 
-  int result = client->parseUniversalMessage(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
+  int result = client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
 
   EXPECT_EQ(result, 0) << "Parsing valid VCSEC universal message should succeed";
 
@@ -67,7 +68,7 @@ TEST_F(MessageParsingTest, ParseValidInfotainmentUniversalMessage) {
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
 
   int result =
-      client->parseUniversalMessage(MOCK_INFOTAINMENT_MESSAGE, sizeof(MOCK_INFOTAINMENT_MESSAGE), &received_message);
+      client->parse_universal_message(MOCK_INFOTAINMENT_MESSAGE, sizeof(MOCK_INFOTAINMENT_MESSAGE), &received_message);
 
   EXPECT_EQ(result, 0) << "Parsing valid Infotainment universal message should succeed";
 
@@ -81,7 +82,7 @@ TEST_F(MessageParsingTest, ParseInvalidUniversalMessage) {
 
   // Test with invalid data
   pb_byte_t invalid_data[] = {0x00, 0x01, 0x02, 0x03};
-  int result = client->parseUniversalMessage(invalid_data, sizeof(invalid_data), &received_message);
+  int result = client->parse_universal_message(invalid_data, sizeof(invalid_data), &received_message);
 
   EXPECT_NE(result, 0) << "Parsing invalid universal message should fail";
 }
@@ -89,19 +90,19 @@ TEST_F(MessageParsingTest, ParseInvalidUniversalMessage) {
 TEST_F(MessageParsingTest, ParseEmptyUniversalMessage) {
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
 
-  int result = client->parseUniversalMessage(nullptr, 0, &received_message);
+  int result = client->parse_universal_message(nullptr, 0, &received_message);
   EXPECT_NE(result, 0) << "Parsing empty/null universal message should fail";
 }
 
 TEST_F(MessageParsingTest, ParseSessionInfoFromVCSECMessage) {
   // First parse the universal message
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-  int parse_result = client->parseUniversalMessage(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
+  int parse_result = client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
   ASSERT_EQ(parse_result, 0) << "Failed to parse universal message";
 
   // Now parse the session info
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  int session_result = client->parsePayloadSessionInfo(&received_message.payload.session_info, &session_info);
+  int session_result = client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
 
   EXPECT_EQ(session_result, 0) << "Parsing session info from VCSEC message should succeed";
 
@@ -114,12 +115,12 @@ TEST_F(MessageParsingTest, ParseSessionInfoFromInfotainmentMessage) {
   // First parse the universal message
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
   int parse_result =
-      client->parseUniversalMessage(MOCK_INFOTAINMENT_MESSAGE, sizeof(MOCK_INFOTAINMENT_MESSAGE), &received_message);
+      client->parse_universal_message(MOCK_INFOTAINMENT_MESSAGE, sizeof(MOCK_INFOTAINMENT_MESSAGE), &received_message);
   ASSERT_EQ(parse_result, 0) << "Failed to parse universal message";
 
   // Now parse the session info
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  int session_result = client->parsePayloadSessionInfo(&received_message.payload.session_info, &session_info);
+  int session_result = client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
 
   EXPECT_EQ(session_result, 0) << "Parsing session info from Infotainment message should succeed";
 
@@ -129,7 +130,7 @@ TEST_F(MessageParsingTest, ParseSessionInfoFromInfotainmentMessage) {
 }
 
 TEST_F(MessageParsingTest, ParseMessageWithNullOutput) {
-  int result = client->parseUniversalMessage(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), nullptr);
+  int result = client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), nullptr);
 
   EXPECT_NE(result, 0) << "Parsing message with null output should fail";
 }
@@ -137,11 +138,11 @@ TEST_F(MessageParsingTest, ParseMessageWithNullOutput) {
 TEST_F(MessageParsingTest, ParseSessionInfoWithNullOutput) {
   // First parse a valid universal message
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-  int parse_result = client->parseUniversalMessage(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
+  int parse_result = client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
   ASSERT_EQ(parse_result, 0) << "Failed to parse universal message";
 
   // Try to parse session info with null output
-  int session_result = client->parsePayloadSessionInfo(&received_message.payload.session_info, nullptr);
+  int session_result = client->parse_payload_session_info(&received_message.payload.session_info, nullptr);
 
   EXPECT_NE(session_result, 0) << "Parsing session info with null output should fail";
 }
@@ -162,10 +163,10 @@ TEST_F(MessageParsingTest, ParsePayloadCarServerResponsePlaintext) {
   CarServer_Response parsed_response = CarServer_Response_init_default;
   Signatures_SignatureData signature_data = Signatures_SignatureData_init_default;
 
-  int result =
-      client->parsePayloadCarServerResponse(&input_buffer, &signature_data,
-                                            0,  // which_sub_sigData = 0 means plaintext
-                                            UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE, &parsed_response);
+  int result = client->parse_payload_car_server_response(&input_buffer, &signature_data,
+                                                         0,  // which_sub_sigData = 0 means plaintext
+                                                         UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE,
+                                                         &parsed_response);
 
   EXPECT_EQ(result, 0) << "Parsing plaintext CarServer response should succeed";
   EXPECT_TRUE(parsed_response.has_actionStatus) << "Parsed response should have action status";
@@ -183,10 +184,10 @@ TEST_F(MessageParsingTest, ParsePayloadCarServerResponseInvalidData) {
   CarServer_Response parsed_response = CarServer_Response_init_default;
   Signatures_SignatureData signature_data = Signatures_SignatureData_init_default;
 
-  int result =
-      client->parsePayloadCarServerResponse(&input_buffer, &signature_data,
-                                            0,  // plaintext
-                                            UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE, &parsed_response);
+  int result = client->parse_payload_car_server_response(&input_buffer, &signature_data,
+                                                         0,  // plaintext
+                                                         UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE,
+                                                         &parsed_response);
 
   EXPECT_NE(result, 0) << "Parsing invalid CarServer response data should fail";
 }
@@ -201,7 +202,7 @@ TEST_F(MessageParsingTest, ParsePayloadCarServerResponseEdgeCases) {
   invalid_buffer.size = sizeof(invalid_data);
   memcpy(invalid_buffer.bytes, invalid_data, sizeof(invalid_data));
 
-  int result = client->parsePayloadCarServerResponse(
+  int result = client->parse_payload_car_server_response(
       &invalid_buffer, &signature_data, 0, UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE, &parsed_response);
   EXPECT_NE(result, 0) << "Parsing with invalid protobuf data should fail";
 
@@ -211,7 +212,7 @@ TEST_F(MessageParsingTest, ParsePayloadCarServerResponseEdgeCases) {
   truncated_buffer.size = sizeof(truncated_data);
   memcpy(truncated_buffer.bytes, truncated_data, sizeof(truncated_data));
 
-  int result2 = client->parsePayloadCarServerResponse(
+  int result2 = client->parse_payload_car_server_response(
       &truncated_buffer, &signature_data, 0, UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE, &parsed_response);
   EXPECT_NE(result2, 0) << "Parsing with truncated data should fail";
 }

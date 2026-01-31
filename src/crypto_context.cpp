@@ -82,7 +82,7 @@ int CryptoContext::initialize() {
   return TeslaBLE_Status_E_OK;
 }
 
-int CryptoContext::createPrivateKey() {
+int CryptoContext::create_private_key() {
   if (!initialized_) {
     int result = initialize();
     if (result != TeslaBLE_Status_E_OK) {
@@ -112,7 +112,7 @@ int CryptoContext::createPrivateKey() {
   return TeslaBLE_Status_E_OK;
 }
 
-int CryptoContext::loadPrivateKey(const uint8_t *private_key_buffer, size_t key_size) {
+int CryptoContext::load_private_key(const uint8_t *private_key_buffer, size_t key_size) {
   if (!private_key_buffer || key_size == 0) {
     LOG_ERROR("Invalid private key buffer");
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
@@ -159,12 +159,12 @@ int CryptoContext::loadPrivateKey(const uint8_t *private_key_buffer, size_t key_
   return TeslaBLE_Status_E_OK;
 }
 
-int CryptoContext::getPrivateKey(pb_byte_t *output_buffer, size_t buffer_length, size_t *output_length) {
+int CryptoContext::get_private_key(pb_byte_t *output_buffer, size_t buffer_length, size_t *output_length) {
   if (!output_buffer || !output_length) {
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  if (!isPrivateKeyInitialized()) {
+  if (!is_private_key_initialized()) {
     LOG_ERROR("Private key not initialized");
     return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
   }
@@ -180,12 +180,12 @@ int CryptoContext::getPrivateKey(pb_byte_t *output_buffer, size_t buffer_length,
   return TeslaBLE_Status_E_OK;
 }
 
-int CryptoContext::generatePublicKey(pb_byte_t *output_buffer, size_t *output_length) {
+int CryptoContext::generate_public_key(pb_byte_t *output_buffer, size_t *output_length) {
   if (!output_buffer || !output_length) {
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  if (!isPrivateKeyInitialized()) {
+  if (!is_private_key_initialized()) {
     LOG_ERROR("Private key not initialized");
     return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
   }
@@ -222,13 +222,13 @@ int CryptoContext::generatePublicKey(pb_byte_t *output_buffer, size_t *output_le
   return TeslaBLE_Status_E_OK;
 }
 
-int CryptoContext::generateKeyId(const pb_byte_t *public_key, size_t key_size, pb_byte_t *key_id) {
+int CryptoContext::generate_key_id(const pb_byte_t *public_key, size_t key_size, pb_byte_t *key_id) {
   if (!public_key || !key_id || key_size == 0) {
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
   std::array<pb_byte_t, 20> hash_buffer{};
-  int result = CryptoUtils::sha1Hash(public_key, key_size, hash_buffer.data());
+  int result = CryptoUtils::sha1_hash(public_key, key_size, hash_buffer.data());
   if (result != TeslaBLE_Status_E_OK) {
     return result;
   }
@@ -238,7 +238,7 @@ int CryptoContext::generateKeyId(const pb_byte_t *public_key, size_t key_size, p
   return TeslaBLE_Status_E_OK;
 }
 
-int CryptoContext::performTeslaEcdh(const uint8_t *tesla_public_key, size_t tesla_key_size, uint8_t *session_key) {
+int CryptoContext::perform_tesla_ecdh(const uint8_t *tesla_public_key, size_t tesla_key_size, uint8_t *session_key) {
   if (!tesla_public_key || !session_key || tesla_key_size != 65) {
     LOG_ERROR("Invalid parameters for Tesla ECDH");
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
@@ -256,7 +256,7 @@ int CryptoContext::performTeslaEcdh(const uint8_t *tesla_public_key, size_t tesl
     }
   }
 
-  if (!isPrivateKeyInitialized()) {
+  if (!is_private_key_initialized()) {
     LOG_ERROR("Private key not initialized for ECDH");
     return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
   }
@@ -354,7 +354,7 @@ int CryptoContext::performTeslaEcdh(const uint8_t *tesla_public_key, size_t tesl
   return ret;
 }
 
-int CryptoContext::generateRandomBytes(uint8_t *output, size_t length) {
+int CryptoContext::generate_random_bytes(uint8_t *output, size_t length) {
   if (!output || length == 0) {
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
@@ -375,12 +375,12 @@ int CryptoContext::generateRandomBytes(uint8_t *output, size_t length) {
   return TeslaBLE_Status_E_OK;
 }
 
-bool CryptoContext::isPrivateKeyInitialized() const {
+bool CryptoContext::is_private_key_initialized() const {
   return private_key_context_ && mbedtls_pk_can_do(private_key_context_.get(), MBEDTLS_PK_ECKEY);
 }
 
 // CryptoUtils implementation
-int CryptoUtils::generateRandomBytes(pb_byte_t *output, size_t length, mbedtls_ctr_drbg_context *drbg_context) {
+int CryptoUtils::generate_random_bytes(pb_byte_t *output, size_t length, mbedtls_ctr_drbg_context *drbg_context) {
   if (!output || !drbg_context || length == 0) {
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
@@ -394,7 +394,7 @@ int CryptoUtils::generateRandomBytes(pb_byte_t *output, size_t length, mbedtls_c
   return TeslaBLE_Status_E_OK;
 }
 
-int CryptoUtils::sha1Hash(const pb_byte_t *input, size_t input_length, pb_byte_t *output) {
+int CryptoUtils::sha1_hash(const pb_byte_t *input, size_t input_length, pb_byte_t *output) {
   if (!input || !output || input_length == 0) {
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
@@ -408,7 +408,7 @@ int CryptoUtils::sha1Hash(const pb_byte_t *input, size_t input_length, pb_byte_t
   return TeslaBLE_Status_E_OK;
 }
 
-bool CryptoUtils::secureMemoryCompare(const pb_byte_t *a, const pb_byte_t *b, size_t length) {
+bool CryptoUtils::secure_memory_compare(const pb_byte_t *a, const pb_byte_t *b, size_t length) {
   if (!a || !b || length == 0) {
     return false;
   }
@@ -421,15 +421,15 @@ bool CryptoUtils::secureMemoryCompare(const pb_byte_t *a, const pb_byte_t *b, si
   return result == 0;
 }
 
-void CryptoUtils::clearSensitiveMemory(void *memory, size_t length) {
+void CryptoUtils::clear_sensitive_memory(void *memory, size_t length) {
   if (memory && length > 0) {
     mbedtls_platform_zeroize(memory, length);
   }
 }
 
 // Derive SESSION_INFO_KEY = HMAC-SHA256(K, "session info")
-int CryptoUtils::deriveSessionInfoKey(const uint8_t *shared_key, size_t shared_key_len, uint8_t *out_key,
-                                      size_t out_key_len) {
+int CryptoUtils::derive_session_info_key(const uint8_t *shared_key, size_t shared_key_len, uint8_t *out_key,
+                                         size_t out_key_len) {
   // out_key must be at least 32 bytes (SHA256 output)
   if (!shared_key || shared_key_len == 0 || !out_key || out_key_len < 32) {
     if (out_key && out_key_len > 0) {

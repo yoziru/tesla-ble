@@ -45,30 +45,30 @@ class Peer {
   Peer &operator=(Peer &&) = delete;
 
   // State queries
-  bool isInitialized() const;
-  bool hasValidEpoch() const;
-  bool isValid() const { return is_valid_; }
-  bool isPrivateKeyInitialized() const;
+  bool is_initialized() const;
+  bool has_valid_epoch() const;
+  bool is_valid() const { return is_valid_; }
+  bool is_private_key_initialized() const;
 
   // Getters
-  uint32_t getTimeZero() const { return time_zero_; }
-  uint32_t getCounter() const;
-  const pb_byte_t *getEpoch() const { return epoch_.data(); }
-  UniversalMessage_Domain getDomain() const { return domain_; }
+  uint32_t get_time_zero() const { return time_zero_; }
+  uint32_t get_counter() const;
+  const pb_byte_t *get_epoch() const { return epoch_.data(); }
+  UniversalMessage_Domain get_domain() const { return domain_; }
 
   // Setters
-  void setCounter(uint32_t counter);
-  void incrementCounter();
-  int setEpoch(const pb_byte_t *epoch);
-  void setIsValid(bool is_valid) { is_valid_ = is_valid; }
-  void setTimeZero(uint32_t time_zero) { time_zero_ = time_zero; }
-  void setVIN(const std::string &vin) { vin_ = vin; }
+  void set_counter(uint32_t counter);
+  void increment_counter();
+  int set_epoch(const pb_byte_t *epoch);
+  void set_is_valid(bool is_valid) { is_valid_ = is_valid; }
+  void set_time_zero(uint32_t time_zero) { time_zero_ = time_zero; }
+  void set_vin(const std::string &vin) { vin_ = vin; }
 
   // Session operations
-  uint32_t generateExpiresAt(int seconds) const;
-  void generateNonce(pb_byte_t *nonce) const;
-  int loadTeslaKey(const uint8_t *public_key_buffer, size_t public_key_size);
-  int updateSession(Signatures_SessionInfo *session_info);
+  uint32_t generate_expires_at(int seconds) const;
+  void generate_nonce(pb_byte_t *nonce) const;
+  int load_tesla_key(const uint8_t *public_key_buffer, size_t public_key_size);
+  int update_session(Signatures_SessionInfo *session_info);
 
   /**
    * @brief Force update session, bypassing counter anti-replay protection
@@ -79,27 +79,27 @@ class Peer {
    * @param session_info The session info to apply
    * @return Status code (0 for success)
    */
-  int forceUpdateSession(Signatures_SessionInfo *session_info);
+  int force_update_session(Signatures_SessionInfo *session_info);
 
   // Cryptographic operations
-  int constructADBuffer(Signatures_SignatureType signature_type, const char *VIN, uint32_t expires_at,
-                        pb_byte_t *output_buffer, size_t *output_length, uint32_t flags = 0,
-                        const pb_byte_t *request_hash = nullptr, size_t request_hash_length = 0,
-                        uint32_t fault = 0) const;
+  int construct_ad_buffer(Signatures_SignatureType signature_type, const char *vin, uint32_t expires_at,
+                          pb_byte_t *output_buffer, size_t *output_length, uint32_t flags = 0,
+                          const pb_byte_t *request_hash = nullptr, size_t request_hash_length = 0,
+                          uint32_t fault = 0) const;
 
   int encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t *output_buffer,
               size_t output_buffer_length, size_t *output_length, pb_byte_t *signature_buffer, pb_byte_t *ad_buffer,
               size_t ad_buffer_length, pb_byte_t nonce[NONCE_SIZE_BYTES]) const;
 
   // Response handling
-  int constructRequestHash(Signatures_SignatureType auth_type, const pb_byte_t *auth_tag, size_t auth_tag_length,
-                           pb_byte_t *request_hash, size_t *request_hash_length) const;
+  int construct_request_hash(Signatures_SignatureType auth_type, const pb_byte_t *auth_tag, size_t auth_tag_length,
+                             pb_byte_t *request_hash, size_t *request_hash_length) const;
 
-  int decryptResponse(const pb_byte_t *input_buffer, size_t input_length, const pb_byte_t *nonce, pb_byte_t *tag,
-                      const pb_byte_t *request_hash, size_t request_hash_length, uint32_t flags, uint32_t fault,
-                      pb_byte_t *output_buffer, size_t output_buffer_length, size_t *output_length) const;
+  int decrypt_response(const pb_byte_t *input_buffer, size_t input_length, const pb_byte_t *nonce, pb_byte_t *tag,
+                       const pb_byte_t *request_hash, size_t request_hash_length, uint32_t flags, uint32_t fault,
+                       pb_byte_t *output_buffer, size_t output_buffer_length, size_t *output_length) const;
 
-  bool validateResponseCounter(uint32_t counter, uint32_t request_id);
+  bool validate_response_counter(uint32_t counter, uint32_t request_id);
 
  private:
   // Domain and identification

@@ -105,7 +105,8 @@ TEST_F(VehicleTest, InfotainmentPollSkippedWhenAsleepByDefault) {
   vehicle_->send_command(
       UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Optional Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
-        return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getChargeState_tag);
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
       },
       [&](bool success) {
         poll_callback_called = true;
@@ -150,7 +151,7 @@ TEST_F(VehicleTest, CommandCallbackIsInvokedOnSuccess) {
   vehicle_->send_command(
       UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command",
       [](Client *client, uint8_t *buff, size_t *len) {
-        return client->buildVCSECActionMessage(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, buff, len);
+        return client->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, buff, len);
       },
       [&](bool success) {
         callback_called = true;
@@ -268,7 +269,8 @@ TEST_F(VehicleTest, InfotainmentPollWithoutForceWakeSkipsWhenAsleep) {
   vehicle_->send_command(
       UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Infotainment Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
-        return client->buildCarServerGetVehicleDataMessage(buff, len, CarServer_GetVehicleData_getChargeState_tag);
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
       },
       [&](bool success) {
         callback_called = true;

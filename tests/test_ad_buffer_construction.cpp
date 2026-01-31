@@ -30,11 +30,11 @@ class ADBufferConstructionTest : public ::testing::Test {
     infotainment_peer = std::make_unique<Peer>(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context, test_vin);
 
     // Initialize peers with test data
-    vcsec_peer->setEpoch(test_epoch.data());
-    vcsec_peer->setCounter(test_counter);
+    vcsec_peer->set_epoch(test_epoch.data());
+    vcsec_peer->set_counter(test_counter);
 
-    infotainment_peer->setEpoch(test_epoch.data());
-    infotainment_peer->setCounter(test_counter);
+    infotainment_peer->set_epoch(test_epoch.data());
+    infotainment_peer->set_counter(test_counter);
   }
 
   std::shared_ptr<CryptoContext> crypto_context;
@@ -51,10 +51,10 @@ TEST_F(ADBufferConstructionTest, RequestMetadataFormat) {
   uint32_t expires_at = 2655;
 
   // Test request format
-  int result = vcsec_peer->constructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                             test_vin.c_str(), expires_at, ad_buffer, &ad_length,
-                                             0,  // flags = 0 for request
-                                             nullptr, 0);
+  int result = vcsec_peer->construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+                                               test_vin.c_str(), expires_at, ad_buffer, &ad_length,
+                                               0,  // flags = 0 for request
+                                               nullptr, 0);
 
   ASSERT_EQ(result, TeslaBLE_Status_E_OK);
   ASSERT_GT(ad_length, 0);
@@ -107,11 +107,11 @@ TEST_F(ADBufferConstructionTest, ResponseMetadataFormat) {
   uint8_t request_hash[32] = {0x11, 0x22, 0x33, 0x44};  // Sample hash
 
   // Test response format
-  int result = vcsec_peer->constructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE, test_vin.c_str(),
-                                             expires_at, ad_buffer, &ad_length,
-                                             0,  // flags
-                                             request_hash, sizeof(request_hash),
-                                             42  // fault code
+  int result = vcsec_peer->construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE,
+                                               test_vin.c_str(), expires_at, ad_buffer, &ad_length,
+                                               0,  // flags
+                                               request_hash, sizeof(request_hash),
+                                               42  // fault code
   );
 
   ASSERT_EQ(result, TeslaBLE_Status_E_OK);
@@ -170,16 +170,17 @@ TEST_F(ADBufferConstructionTest, FlagsConditionalInclusion) {
   uint32_t expires_at = 2655;
 
   // Test with flags = 0 (should NOT be included for requests)
-  int result1 = vcsec_peer->constructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                              test_vin.c_str(), expires_at, ad_buffer_no_flags, &ad_length_no_flags,
-                                              0,  // flags = 0
-                                              nullptr, 0);
+  int result1 = vcsec_peer->construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+                                                test_vin.c_str(), expires_at, ad_buffer_no_flags, &ad_length_no_flags,
+                                                0,  // flags = 0
+                                                nullptr, 0);
 
   // Test with flags = 1 (should be included)
-  int result2 = vcsec_peer->constructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                              test_vin.c_str(), expires_at, ad_buffer_with_flags, &ad_length_with_flags,
-                                              1,  // flags = 1
-                                              nullptr, 0);
+  int result2 =
+      vcsec_peer->construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, test_vin.c_str(),
+                                      expires_at, ad_buffer_with_flags, &ad_length_with_flags,
+                                      1,  // flags = 1
+                                      nullptr, 0);
 
   ASSERT_EQ(result1, TeslaBLE_Status_E_OK);
   ASSERT_EQ(result2, TeslaBLE_Status_E_OK);
@@ -227,10 +228,10 @@ TEST_F(ADBufferConstructionTest, ResponseAlwaysIncludesFlags) {
   uint8_t request_hash[32] = {0};
 
   // Test response format - flags should always be included even if 0
-  int result = vcsec_peer->constructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE, test_vin.c_str(),
-                                             expires_at, ad_buffer, &ad_length,
-                                             0,  // flags = 0, but should still be included for responses
-                                             request_hash, sizeof(request_hash));
+  int result = vcsec_peer->construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE,
+                                               test_vin.c_str(), expires_at, ad_buffer, &ad_length,
+                                               0,  // flags = 0, but should still be included for responses
+                                               request_hash, sizeof(request_hash));
 
   ASSERT_EQ(result, TeslaBLE_Status_E_OK);
 
@@ -251,12 +252,13 @@ TEST_F(ADBufferConstructionTest, DifferentDomainsProduceDifferentBuffers) {
   size_t vcsec_length, infotainment_length;
   uint32_t expires_at = 2655;
 
-  int result1 = vcsec_peer->constructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                              test_vin.c_str(), expires_at, vcsec_buffer, &vcsec_length, 0, nullptr, 0);
+  int result1 =
+      vcsec_peer->construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, test_vin.c_str(),
+                                      expires_at, vcsec_buffer, &vcsec_length, 0, nullptr, 0);
 
-  int result2 = infotainment_peer->constructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                                     test_vin.c_str(), expires_at, infotainment_buffer,
-                                                     &infotainment_length, 0, nullptr, 0);
+  int result2 = infotainment_peer->construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+                                                       test_vin.c_str(), expires_at, infotainment_buffer,
+                                                       &infotainment_length, 0, nullptr, 0);
 
   ASSERT_EQ(result1, TeslaBLE_Status_E_OK);
   ASSERT_EQ(result2, TeslaBLE_Status_E_OK);
@@ -270,8 +272,8 @@ TEST_F(ADBufferConstructionTest, TerminalByteAlwaysPresent) {
   size_t ad_length;
   uint32_t expires_at = 2655;
 
-  int result = vcsec_peer->constructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                             test_vin.c_str(), expires_at, ad_buffer, &ad_length, 0, nullptr, 0);
+  int result = vcsec_peer->construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+                                               test_vin.c_str(), expires_at, ad_buffer, &ad_length, 0, nullptr, 0);
 
   ASSERT_EQ(result, TeslaBLE_Status_E_OK);
   ASSERT_GT(ad_length, 0);
@@ -285,18 +287,18 @@ TEST_F(ADBufferConstructionTest, InvalidParametersReturnError) {
   size_t ad_length;
 
   // Test null output buffer
-  int result1 = vcsec_peer->constructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                              test_vin.c_str(), 2655, nullptr, &ad_length);
+  int result1 = vcsec_peer->construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+                                                test_vin.c_str(), 2655, nullptr, &ad_length);
   EXPECT_EQ(result1, TeslaBLE_Status_E_ERROR_INVALID_PARAMS);
 
   // Test null output length
-  int result2 = vcsec_peer->constructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                              test_vin.c_str(), 2655, ad_buffer, nullptr);
+  int result2 = vcsec_peer->construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+                                                test_vin.c_str(), 2655, ad_buffer, nullptr);
   EXPECT_EQ(result2, TeslaBLE_Status_E_ERROR_INVALID_PARAMS);
 
   // Test null VIN
-  int result3 = vcsec_peer->constructADBuffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, nullptr,
-                                              2655, ad_buffer, &ad_length);
+  int result3 = vcsec_peer->construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, nullptr,
+                                                2655, ad_buffer, &ad_length);
   EXPECT_EQ(result3, TeslaBLE_Status_E_ERROR_INVALID_PARAMS);
 }
 
@@ -311,12 +313,12 @@ TEST_F(ADBufferConstructionTest, RequestHashDomainDifferences) {
   size_t vcsec_hash_length, infotainment_hash_length;
 
   // Test VCSEC domain (should truncate to 17 bytes: 1 + 16)
-  int result1 = vcsec_peer->constructRequestHash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED, long_tag,
-                                                 32, vcsec_hash, &vcsec_hash_length);
+  int result1 = vcsec_peer->construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+                                                   long_tag, 32, vcsec_hash, &vcsec_hash_length);
 
   // Test INFOTAINMENT domain (should use full 33 bytes: 1 + 32)
-  int result2 = infotainment_peer->constructRequestHash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                                        long_tag, 32, infotainment_hash, &infotainment_hash_length);
+  int result2 = infotainment_peer->construct_request_hash(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+                                                          long_tag, 32, infotainment_hash, &infotainment_hash_length);
 
   EXPECT_EQ(result1, 0);
   EXPECT_EQ(result2, 0);

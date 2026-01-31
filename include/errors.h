@@ -28,7 +28,7 @@ typedef enum _TeslaBLE_Status_E { TESLA_BLE_ERROR_CODES } TeslaBLE_Status_E;
 
 #ifdef __cplusplus
 // Add helper functions to convert error codes to strings
-const char *TeslaBLE_Status_to_string(int status);
+const char *teslable_status_to_string(int status);
 
 // Helper function to get all error codes and their string representations for testing
 std::map<TeslaBLE_Status_E, std::string> getAllErrorCodesAndStrings();

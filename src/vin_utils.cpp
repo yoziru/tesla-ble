@@ -12,7 +12,7 @@
 
 namespace TeslaBLE {
 
-std::string getVINAdvertisementName(const char *vin) {
+std::string get_vin_advertisement_name(const char *vin) {
   if (vin == nullptr || strlen(vin) != 17) {
     return "";
   }
@@ -39,9 +39,9 @@ std::string getVINAdvertisementName(const char *vin) {
   return std::string(result);
 }
 
-std::string getVINAdvertisementName(const std::string &vin) { return getVINAdvertisementName(vin.c_str()); }
+std::string get_vin_advertisement_name(const std::string &vin) { return get_vin_advertisement_name(vin.c_str()); }
 
-bool isTeslaVehicleName(const char *name) {
+bool is_tesla_vehicle_name(const char *name) {
   if (name == nullptr) {
     return false;
   }
@@ -65,21 +65,21 @@ bool isTeslaVehicleName(const char *name) {
   return true;
 }
 
-bool isTeslaVehicleName(const std::string &name) { return isTeslaVehicleName(name.c_str()); }
+bool is_tesla_vehicle_name(const std::string &name) { return is_tesla_vehicle_name(name.c_str()); }
 
-bool matchesVIN(const char *device_name, const char *vin) {
+bool matches_vin(const char *device_name, const char *vin) {
   if (device_name == nullptr || vin == nullptr) {
     return false;
   }
-  std::string expected_name = getVINAdvertisementName(vin);
+  std::string expected_name = get_vin_advertisement_name(vin);
   if (expected_name.empty()) {
     return false;
   }
   return expected_name == device_name;
 }
 
-bool matchesVIN(const std::string &device_name, const std::string &vin) {
-  return matchesVIN(device_name.c_str(), vin.c_str());
+bool matches_vin(const std::string &device_name, const std::string &vin) {
+  return matches_vin(device_name.c_str(), vin.c_str());
 }
 
 }  // namespace TeslaBLE

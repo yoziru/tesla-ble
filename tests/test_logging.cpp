@@ -32,12 +32,12 @@ class LoggingTest : public ::testing::Test {
 
   void SetUp() override {
     captured_logs_.clear();
-    original_callback_ = g_log_callback;
-    g_log_callback = test_log_callback;
+    original_callback_ = get_log_callback();
+    set_log_callback(test_log_callback);
   }
 
   void TearDown() override {
-    g_log_callback = original_callback_;
+    set_log_callback(original_callback_);
     captured_logs_.clear();
   }
 
@@ -105,13 +105,13 @@ TEST_F(LoggingTest, NullTagHandling) {
 
 TEST_F(LoggingTest, NoCallbackFallback) {
   // Temporarily remove callback to test fallback
-  g_log_callback = nullptr;
+  set_log_callback(nullptr);
 
   // This should not crash - it will use the fallback implementation
   EXPECT_NO_THROW(LOG_INFO("Fallback test"));
 
   // Restore callback
-  g_log_callback = test_log_callback;
+  set_log_callback(test_log_callback);
 }
 
 TEST_F(LoggingTest, FormatHexUtility) {

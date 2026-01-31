@@ -117,13 +117,13 @@ namespace TestUtils {
  */
 inline std::unique_ptr<Client> createTestClient() {
   auto client = std::make_unique<Client>();
-  client->setVIN(TEST_VIN);
-  int status = client->loadPrivateKey(reinterpret_cast<const unsigned char *>(CLIENT_PRIVATE_KEY_PEM),
-                                      strlen(CLIENT_PRIVATE_KEY_PEM) + 1);
+  client->set_vin(TEST_VIN);
+  int status = client->load_private_key(reinterpret_cast<const unsigned char *>(CLIENT_PRIVATE_KEY_PEM),
+                                        strlen(CLIENT_PRIVATE_KEY_PEM) + 1);
   if (status != 0) {
     return nullptr;
   }
-  client->setConnectionID(TEST_CONNECTION_ID);
+  client->set_connection_id(TEST_CONNECTION_ID);
   return client;
 }
 

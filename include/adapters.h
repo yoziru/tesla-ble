@@ -1,9 +1,10 @@
 #pragma once
 
-#include <string>
 #include <vector>
 #include <cstdint>
+#include <string>
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables) - False positive on namespace
 namespace TeslaBLE {
 
 /**
@@ -77,3 +78,4 @@ class StorageAdapter {
 };
 
 }  // namespace TeslaBLE
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)

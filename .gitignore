@@ -8,6 +8,9 @@ test.py
 keys/
 .cache
 build-test/
+.clangd
+
+
 
 ### C++ ###
 # Prerequisites
@@ -189,6 +192,8 @@ fabric.properties
 !.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/*.code-snippets
+
+.zed/*
 
 # Local History for Visual Studio Code
 .history/

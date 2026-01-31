@@ -25,12 +25,12 @@ void log_internal(LogLevel level, const char *tag, int line, const char *format,
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 #define LOG_ERROR(format, ...) \
-  TeslaBLE::log_internal(TeslaBLE::LogLevel::ERROR, TESLA_LOG_TAG, __LINE__, format, ##__VA_ARGS__)
+  TeslaBLE::log_internal(TeslaBLE::LogLevel::ERROR, TESLA_LOG_TAG, __LINE__, format __VA_OPT__(, ) __VA_ARGS__)
 #define LOG_WARNING(format, ...) \
-  TeslaBLE::log_internal(TeslaBLE::LogLevel::WARN, TESLA_LOG_TAG, __LINE__, format, ##__VA_ARGS__)
+  TeslaBLE::log_internal(TeslaBLE::LogLevel::WARN, TESLA_LOG_TAG, __LINE__, format __VA_OPT__(, ) __VA_ARGS__)
 #define LOG_INFO(format, ...) \
-  TeslaBLE::log_internal(TeslaBLE::LogLevel::INFO, TESLA_LOG_TAG, __LINE__, format, ##__VA_ARGS__)
+  TeslaBLE::log_internal(TeslaBLE::LogLevel::INFO, TESLA_LOG_TAG, __LINE__, format __VA_OPT__(, ) __VA_ARGS__)
 #define LOG_DEBUG(format, ...) \
-  TeslaBLE::log_internal(TeslaBLE::LogLevel::DEBUG, TESLA_LOG_TAG, __LINE__, format, ##__VA_ARGS__)
+  TeslaBLE::log_internal(TeslaBLE::LogLevel::DEBUG, TESLA_LOG_TAG, __LINE__, format __VA_OPT__(, ) __VA_ARGS__)
 #define LOG_VERBOSE(format, ...) \
-  TeslaBLE::log_internal(TeslaBLE::LogLevel::VERBOSE, TESLA_LOG_TAG, __LINE__, format, ##__VA_ARGS__)
+  TeslaBLE::log_internal(TeslaBLE::LogLevel::VERBOSE, TESLA_LOG_TAG, __LINE__, format __VA_OPT__(, ) __VA_ARGS__)

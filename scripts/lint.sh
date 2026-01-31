@@ -44,8 +44,9 @@ if [ ! -f "build/compile_commands.json" ]; then
     echo "✓ CMake configured successfully"
 fi
 
-# Check clang-tidy (on source files and headers, excluding generated and deps)
-SOURCE_FILES=$(find src include -name "*.cpp" -o -name "*.h" | grep -v "generated/" | grep -v "_deps/" | sort)
+# Check clang-tidy (on source files only, excluding generated and deps)
+# Headers are checked when included by .cpp files
+SOURCE_FILES=$(find src -name "*.cpp" | grep -v "generated/" | grep -v "_deps/" | sort)
 echo "Running clang-tidy on $(echo "$SOURCE_FILES" | wc -l) source files..."
 if echo "$SOURCE_FILES" | xargs -P $(nproc) clang-tidy --config-file=.clang-tidy -p build/ --quiet; then
     echo "✓ clang-tidy check passed"

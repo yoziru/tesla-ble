@@ -3,8 +3,6 @@
 #include <vehicle.h>
 #include "mocks/mock_adapters.h"
 #include "test_constants.h"
-#include <thread>
-#include <chrono>
 
 using namespace TeslaBLE;
 

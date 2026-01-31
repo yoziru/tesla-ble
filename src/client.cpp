@@ -20,7 +20,6 @@
 #include "keys.pb.h"
 #include "universal_message.pb.h"
 #include "vcsec.pb.h"
-#include "vehicle.pb.h"
 
 #include <pb_decode.h>
 #include <pb_encode.h>

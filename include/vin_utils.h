@@ -7,7 +7,6 @@
 #define TESLABLE_VIN_UTILS_H
 
 #include <string>
-#include <cstdint>
 
 namespace TeslaBLE {
 

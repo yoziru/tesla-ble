@@ -4,7 +4,6 @@
 #include <universal_message.pb.h>
 #include <cstring>
 #include <vector>
-#include <map>
 #include "test_constants.h"
 
 using namespace TeslaBLE;

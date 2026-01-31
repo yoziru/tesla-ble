@@ -2,11 +2,10 @@
 #include <vector>
 #include <memory>
 #include <cstring>
-#include <iomanip>
-#include <iostream>
 
 #include "peer.h"
 #include "crypto_context.h"
+#include "errors.h"
 #include "signatures.pb.h"
 #include "universal_message.pb.h"
 

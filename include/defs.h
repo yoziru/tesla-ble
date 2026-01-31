@@ -5,7 +5,6 @@
 #endif
 
 #include <cstdarg>
-#include "adapters.h"
 
 #ifdef ESP_PLATFORM
 #include <esp_log.h>

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "defs.h"
+#include "errors.h"
 #include "tb_logging.h"
 #include "tb_utils.h"
 

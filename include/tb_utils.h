@@ -2,7 +2,6 @@
 
 #include <string>
 #include "pb.h"
-#include <vector>
 
 namespace TeslaBLE {
 std::string format_hex(const uint8_t *data, size_t length);

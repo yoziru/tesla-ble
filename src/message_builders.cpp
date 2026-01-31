@@ -1,10 +1,7 @@
 #include "message_builders.h"
-
 #include "defs.h"
-#include "tb_utils.h"
-
 #include "car_server.pb.h"
-#include "universal_message.pb.h"
+#include "errors.h"
 
 namespace TeslaBLE {
 

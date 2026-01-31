@@ -5,8 +5,6 @@
 #include "universal_message.pb.h"
 #include "vcsec.pb.h"
 #include "errors.pb.h"
-#include <string>
-#include <cstdint>
 
 namespace TeslaBLE {
 

@@ -5,13 +5,11 @@
 #include <array>
 
 #include "crypto_context.h"
-#include "message_builders.h"
 #include "peer.h"
 #include "car_server.pb.h"
 #include "universal_message.pb.h"
 #include "vcsec.pb.h"
 #include "keys.pb.h"
-#include "errors.h"
 
 namespace TeslaBLE {
 /**

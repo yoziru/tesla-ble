@@ -12,8 +12,6 @@
 
 #include "signatures.pb.h"
 #include "universal_message.pb.h"
-#include "defs.h"
-#include "errors.h"
 #include "crypto_context.h"
 
 namespace TeslaBLE {

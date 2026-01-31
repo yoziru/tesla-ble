@@ -9,7 +9,6 @@
  */
 
 #include <gtest/gtest.h>
-#include "client.h"
 #include "peer.h"
 #include "errors.h"
 #include "test_constants.h"

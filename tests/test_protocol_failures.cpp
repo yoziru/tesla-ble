@@ -10,10 +10,9 @@
 #include <gtest/gtest.h>
 #include "crypto_context.h"
 #include "client.h"
+#include "errors.h"
 #include "peer.h"
-#include "defs.h"
 #include "test_constants.h"
-#include <array>
 
 using namespace TeslaBLE;
 

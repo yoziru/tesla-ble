@@ -1,13 +1,11 @@
 #pragma once
 
 #include <memory>
-#include <array>
 #include "mbedtls/pk.h"
 #include "mbedtls/ecdh.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/entropy.h"
 #include "pb.h"
-#include "errors.h"
 
 namespace TeslaBLE {
 /**

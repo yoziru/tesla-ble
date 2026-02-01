@@ -73,13 +73,11 @@ jobs:
 
       - name: Check clang-format
         if: matrix.check == 'format'
-        run: |
-          find src include tests examples -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror --style=file
+        run: ./scripts/clang-format.sh --check
 
       - name: Run clang-tidy
         if: matrix.check == 'tidy'
-        run: |
-          find src include -name "*.cpp" -o -name "*.h" | grep -v "generated/" | grep -v "_deps/" | xargs -P $(nproc) clang-tidy --config-file=.clang-tidy -p ${{ steps.strings.outputs.build-output-dir }} --quiet
+        run: ./scripts/clang-tidy.sh --check
 
       - name: Build Library
         if: matrix.check == 'test'

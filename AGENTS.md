@@ -8,14 +8,11 @@ cd build && ctest -j 2>&1 | grep -E "(FAILED.*\]|^[0-9]+% tests|expected equalit
 
 ## Lint and Format Commands
 ```bash
-# Run all linting and formatting checks
-./scripts/lint.sh
-
-# Format code with clang-format
-find src include tests examples -name "*.cpp" -o -name "*.h" | xargs clang-format -i
-
-# Run clang-tidy on source files
-find src -name "*.cpp" | xargs clang-tidy
+# Run individual tools
+./scripts/clang-format.sh --check    # Check formatting (CI mode)
+./scripts/clang-format.sh            # Fix formatting issues
+./scripts/clang-tidy.sh --check      # Check code (CI mode) - includes project headers
+./scripts/clang-tidy.sh --fix        # Apply automatic fixes
 ```
 
 ## Architecture

@@ -13,6 +13,8 @@ concurrency:
 
 env:
   BUILD_TYPE: Release
+  # NOTE: When updating CLANG_VERSION, also update the matrix packages below
+  CLANG_VERSION: 21
 
 jobs:
   checks:
@@ -24,26 +26,58 @@ jobs:
         include:
           - check: format
             check-name: Format Check
-            packages: clang-format clang
+            packages: clang-format-21
+            needs_symlink: true
           - check: tidy
             check-name: Tidy Check
-            packages: protobuf-compiler build-essential clang clang-tidy cmake
+            packages: clang-tidy-21 protobuf-compiler build-essential cmake ccache
+            needs_symlink: true
           - check: test
             check-name: Build and Test
-            packages: protobuf-compiler build-essential cmake
+            packages: protobuf-compiler build-essential cmake ccache
+          - check: examples
+            check-name: Build Examples
+            packages: protobuf-compiler build-essential cmake ccache
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Cache apt dependencies
+      - name: Cache LLVM repository setup
+        if: matrix.check == 'format' || matrix.check == 'tidy'
+        id: cache-llvm-repo
+        uses: actions/cache@v4
+        with:
+          path: /etc/apt/sources.list.d/llvm.list
+          key: llvm-repo-noble-${{ env.CLANG_VERSION }}-${{ hashFiles('.github/workflows/cmake.yml') }}
+
+      - name: Add LLVM repository
+        if: (matrix.check == 'format' || matrix.check == 'tidy') && steps.cache-llvm-repo.outputs.cache-hit != 'true'
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-${{ env.CLANG_VERSION }} main" | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update
+
+      - name: Install apt dependencies (with cache)
         uses: awalsh128/cache-apt-pkgs-action@v1.6.0
         with:
           packages: ${{ matrix.packages }}
-          version: 1.0
+          version: 1.1
+
+      - name: Symlink clang-format
+        if: matrix.check == 'format'
+        run: |
+          ln -sf /usr/bin/clang-format-${{ env.CLANG_VERSION }} /usr/local/bin/clang-format
+          clang-format --version
+
+      - name: Install clang tools (uncached for correct symlinks)
+        if: matrix.check == 'tidy'
+        run: |
+          ln -sf /usr/bin/clang-tidy-${{ env.CLANG_VERSION }} /usr/local/bin/clang-tidy
+          clang-tidy --version
 
       - name: Install python dependencies
-        if: matrix.check == 'test'
+        if: matrix.check == 'test' || matrix.check == 'examples'
         run: python3 -m pip install protobuf grpcio-tools
 
       - name: Setup ccache
@@ -89,7 +123,7 @@ jobs:
         run: ctest --build-config ${{ env.BUILD_TYPE }} --output-on-failure --verbose
 
       - name: Build and run example
-        if: matrix.check == 'test'
+        if: matrix.check == 'examples'
         run: |
           mkdir -p build-example && cd build-example
           cmake ../examples/simple -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache

@@ -40,6 +40,7 @@ set(TEST_FILES
     test_protocol_vectors.cpp
     test_session_management.cpp
     test_session_recovery.cpp
+    test_sliding_window.cpp
     test_tb_utils.cpp
     test_vin_utils.cpp
     test_vehicle.cpp

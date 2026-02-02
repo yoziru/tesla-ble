@@ -14,6 +14,7 @@ set(TESLABLE_SRCS
     "src/vehicle.cpp"
     "src/vin_utils.cpp"
     "src/logging_bridge.cpp"
+    "src/message_processor.cpp"
 )
 
 # Protobuf generated source files

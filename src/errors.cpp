@@ -29,6 +29,10 @@ const char *teslable_status_to_string(TeslaBLEStatus status) {
       return "ERROR_CRYPTO";
     case TeslaBLEStatus::ERROR_COUNTER_REPLAY:
       return "ERROR_COUNTER_REPLAY";
+    case TeslaBLEStatus::ERROR_SESSION_NOT_VALID:
+      return "ERROR_SESSION_NOT_VALID";
+    case TeslaBLEStatus::ERROR_NEEDS_REAUTH:
+      return "ERROR_NEEDS_REAUTH";
     default:
       return "ERROR_UNKNOWN";
   }
@@ -48,6 +52,8 @@ std::map<TeslaBLEStatus, std::string> get_all_error_codes_and_strings() {
   error_map[TeslaBLEStatus::ERROR_INVALID_PARAMS] = "ERROR_INVALID_PARAMS";
   error_map[TeslaBLEStatus::ERROR_CRYPTO] = "ERROR_CRYPTO";
   error_map[TeslaBLEStatus::ERROR_COUNTER_REPLAY] = "ERROR_COUNTER_REPLAY";
+  error_map[TeslaBLEStatus::ERROR_SESSION_NOT_VALID] = "ERROR_SESSION_NOT_VALID";
+  error_map[TeslaBLEStatus::ERROR_NEEDS_REAUTH] = "ERROR_NEEDS_REAUTH";
   return error_map;
 }
 }  // namespace TeslaBLE

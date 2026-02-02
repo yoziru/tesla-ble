@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <client.h>
 #include <errors.h>
+#include <command_error.h>
 #include <universal_message.pb.h>
 #include <cstring>
 #include <vector>
@@ -178,4 +179,42 @@ TEST_F(ErrorHandlingTest, EdgeCaseFunctionCalls) {
   auto result4 = client->build_universal_message_with_payload(
       empty_payload, 0, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, output_buffer, &output_length);
   EXPECT_NE(result4, TeslaBLEStatus::OK) << "Building universal message with empty payload should fail";
+}
+
+TEST_F(ErrorHandlingTest, BuilderPatternCreatesValidErrors) {
+  // Test the builder pattern for creating errors
+  auto error1 = CommandError::create()
+                    .with_message("Test error")
+                    .with_severity(CommandError::Severity::TEMPORARY)
+                    .with_outcome(CommandError::Outcome::MAY_HAVE_SUCCEEDED)
+                    .build();
+
+  EXPECT_EQ(error1->message(), "Test error");
+  EXPECT_TRUE(error1->is_temporary());
+  EXPECT_TRUE(error1->may_have_succeeded());
+
+  // Test builder with chained methods
+  auto error2 =
+      CommandError::create().with_message("Authentication failed").is_temporary(true).may_have_succeeded(false).build();
+  EXPECT_EQ(error2->message(), "Authentication failed");
+  EXPECT_TRUE(error2->is_temporary());
+  EXPECT_FALSE(error2->may_have_succeeded());
+
+  // Test builder with default values
+  auto error3 = CommandError::create().with_message("Default error").build();
+  EXPECT_EQ(error3->message(), "Default error");
+  EXPECT_TRUE(error3->is_temporary());         // Default severity
+  EXPECT_FALSE(error3->may_have_succeeded());  // Default outcome
+
+  // Test that builder creates equivalent errors to factory methods
+  auto factory_error = CommandError::timeout("Command");
+  auto builder_error = CommandError::create()
+                           .with_message("Command timeout")
+                           .with_severity(CommandError::Severity::TEMPORARY)
+                           .with_outcome(CommandError::Outcome::DEFINITELY_FAILED)
+                           .build();
+
+  EXPECT_EQ(factory_error->message(), builder_error->message());
+  EXPECT_EQ(factory_error->severity(), builder_error->severity());
+  EXPECT_EQ(factory_error->outcome(), builder_error->outcome());
 }

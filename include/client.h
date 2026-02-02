@@ -5,13 +5,12 @@
 #include <array>
 
 #include "crypto_context.h"
-#include "message_builders.h"
 #include "peer.h"
+#include "errors.h"
 #include "car_server.pb.h"
 #include "universal_message.pb.h"
 #include "vcsec.pb.h"
 #include "keys.pb.h"
-#include "errors.h"
 
 namespace TeslaBLE {
 /**
@@ -42,40 +41,45 @@ class Client {
   Client &operator=(Client &&) = default;
 
   // Configuration methods
-  void setVIN(const std::string &vin);
-  void setConnectionID(const pb_byte_t *connection_id);
+  void set_vin(const std::string &vin);
+  void set_connection_id(const pb_byte_t *connection_id);
 
   // Key management
-  int createPrivateKey();
-  int loadPrivateKey(const uint8_t *private_key_buffer, size_t private_key_length);
-  int getPrivateKey(pb_byte_t *output_buffer, size_t output_buffer_length, size_t *output_length);
-  int getPublicKey(pb_byte_t *output_buffer, size_t *output_buffer_length);
+  TeslaBLEStatus create_private_key();
+  TeslaBLEStatus load_private_key(const uint8_t *private_key_buffer, size_t private_key_length);
+  TeslaBLEStatus get_private_key(pb_byte_t *output_buffer, size_t output_buffer_length, size_t *output_length);
+  TeslaBLEStatus get_public_key(pb_byte_t *output_buffer, size_t *output_buffer_length);
 
   // Message building
-  int buildWhiteListMessage(Keys_Role role, VCSEC_KeyFormFactor form_factor, pb_byte_t *output_buffer,
-                            size_t *output_length);
+  TeslaBLEStatus build_white_list_message(Keys_Role role, VCSEC_KeyFormFactor form_factor, pb_byte_t *output_buffer,
+                                          size_t *output_length);
 
-  int buildSessionInfoRequestMessage(UniversalMessage_Domain domain, pb_byte_t *output_buffer, size_t *output_length);
+  TeslaBLEStatus build_session_info_request_message(UniversalMessage_Domain domain, pb_byte_t *output_buffer,
+                                                    size_t *output_length);
 
-  int buildKeySummary(pb_byte_t *output_buffer, size_t *output_length);
+  TeslaBLEStatus build_key_summary(pb_byte_t *output_buffer, size_t *output_length);
 
-  int buildUnsignedMessagePayload(VCSEC_UnsignedMessage *message, pb_byte_t *output_buffer, size_t *output_length,
-                                  bool encrypt_payload = false);
+  TeslaBLEStatus build_unsigned_message_payload(VCSEC_UnsignedMessage *message, pb_byte_t *output_buffer,
+                                                size_t *output_length, bool encrypt_payload = false);
 
-  int buildCarServerActionPayload(CarServer_Action *action, pb_byte_t *output_buffer, size_t *output_length);
+  TeslaBLEStatus build_car_server_action_payload(CarServer_Action *action, pb_byte_t *output_buffer,
+                                                 size_t *output_length);
 
-  int buildUniversalMessageWithPayload(pb_byte_t *payload, size_t payload_length, UniversalMessage_Domain domain,
-                                       pb_byte_t *output_buffer, size_t *output_length, bool encrypt_payload = false);
+  TeslaBLEStatus build_universal_message_with_payload(pb_byte_t *payload, size_t payload_length,
+                                                      UniversalMessage_Domain domain, pb_byte_t *output_buffer,
+                                                      size_t *output_length, bool encrypt_payload = false);
 
-  int buildVCSECInformationRequestMessage(VCSEC_InformationRequestType request_type, pb_byte_t *output_buffer,
-                                          size_t *output_length, uint32_t key_slot = 0);
+  TeslaBLEStatus build_vcsec_information_request_message(VCSEC_InformationRequestType request_type,
+                                                         pb_byte_t *output_buffer, size_t *output_length,
+                                                         uint32_t key_slot = 0);
 
-  int buildVCSECActionMessage(const VCSEC_RKEAction_E action, pb_byte_t *output_buffer, size_t *output_length);
+  TeslaBLEStatus build_vcsec_action_message(VCSEC_RKEAction_E action, pb_byte_t *output_buffer, size_t *output_length);
 
-  int buildVCSECClosureMessage(const VCSEC_ClosureMoveRequest *closure_request, pb_byte_t *output_buffer,
-                               size_t *output_length);
+  TeslaBLEStatus build_vcsec_closure_message(const VCSEC_ClosureMoveRequest *closure_request, pb_byte_t *output_buffer,
+                                             size_t *output_length);
 
-  int buildCarServerGetVehicleDataMessage(pb_byte_t *output_buffer, size_t *output_length, int32_t which_vehicle_data);
+  TeslaBLEStatus build_car_server_get_vehicle_data_message(pb_byte_t *output_buffer, size_t *output_length,
+                                                           int32_t which_vehicle_data);
 
   /**
    * @brief Build a vehicle action message using the new factory pattern
@@ -85,46 +89,50 @@ class Client {
    * @param action_data Optional data for the action (can be nullptr for simple actions)
    * @return Error code (0 on success)
    */
-  int buildCarServerVehicleActionMessage(pb_byte_t *output_buffer, size_t *output_length, int32_t which_vehicle_action,
-                                         const void *action_data = nullptr);
+  TeslaBLEStatus build_car_server_vehicle_action_message(pb_byte_t *output_buffer, size_t *output_length,
+                                                         int32_t which_vehicle_action,
+                                                         const void *action_data = nullptr);
 
-  int setCabinOverheatProtection(pb_byte_t *output_buffer, size_t *output_length, bool on, bool fan_only = false);
+  TeslaBLEStatus set_cabin_overheat_protection(pb_byte_t *output_buffer, size_t *output_length, bool on,
+                                               bool fan_only = false);
 
-  int scheduleSoftwareUpdate(pb_byte_t *output_buffer, size_t *output_length, int32_t offset_sec);
+  TeslaBLEStatus schedule_software_update(pb_byte_t *output_buffer, size_t *output_length, int32_t offset_sec);
 
-  int cancelSoftwareUpdate(pb_byte_t *output_buffer, size_t *output_length);
+  TeslaBLEStatus cancel_software_update(pb_byte_t *output_buffer, size_t *output_length);
 
   // Session management (public for testing)
-  Peer *getPeer(UniversalMessage_Domain domain);
-  const Peer *getPeer(UniversalMessage_Domain domain) const;
+  Peer *get_peer(UniversalMessage_Domain domain);
+  const Peer *get_peer(UniversalMessage_Domain domain) const;
 
   // Message parsing (public for testing)
-  int parseFromVCSECMessage(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
-                            VCSEC_FromVCSECMessage *output);
+  TeslaBLEStatus parse_from_vcsec_message(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+                                          VCSEC_FromVCSECMessage *output);
 
-  int parseUniversalMessage(pb_byte_t *input_buffer, size_t input_size, UniversalMessage_RoutableMessage *output);
+  TeslaBLEStatus parse_universal_message(pb_byte_t *input_buffer, size_t input_size,
+                                         UniversalMessage_RoutableMessage *output);
 
-  int parseUniversalMessageBLE(pb_byte_t *input_buffer, size_t input_buffer_length,
-                               UniversalMessage_RoutableMessage *output);
+  TeslaBLEStatus parse_universal_message_ble(pb_byte_t *input_buffer, size_t input_buffer_length,
+                                             UniversalMessage_RoutableMessage *output);
 
-  int parseVCSECInformationRequest(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
-                                   VCSEC_InformationRequest *output);
+  TeslaBLEStatus parse_vcsec_information_request(
+      UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer, VCSEC_InformationRequest *output);
 
-  int parsePayloadSessionInfo(UniversalMessage_RoutableMessage_session_info_t *input_buffer,
-                              Signatures_SessionInfo *output);
+  TeslaBLEStatus parse_payload_session_info(UniversalMessage_RoutableMessage_session_info_t *input_buffer,
+                                            Signatures_SessionInfo *output);
 
-  int parsePayloadUnsignedMessage(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
-                                  VCSEC_UnsignedMessage *output);
-  int parsePayloadCarServerResponse(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
-                                    Signatures_SignatureData *signature_data, pb_size_t which_sub_sig_data,
-                                    UniversalMessage_MessageFault_E signed_message_fault, CarServer_Response *output);
+  TeslaBLEStatus parse_payload_unsigned_message(
+      UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer, VCSEC_UnsignedMessage *output);
+  TeslaBLEStatus parse_payload_car_server_response(
+      UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+      Signatures_SignatureData *signature_data, pb_size_t which_sub_sig_data,
+      UniversalMessage_MessageFault_E signed_message_fault, CarServer_Response *output);
 
  private:
   // Legacy implementation - to be phased out
-  int buildCarServerVehicleActionMessageLegacy(pb_byte_t *output_buffer, size_t *output_length,
-                                               int32_t which_vehicle_action, const void *action_data = nullptr);
+  int build_car_server_vehicle_action_message_legacy_(pb_byte_t *output_buffer, size_t *output_length,
+                                                      int32_t which_vehicle_action, const void *action_data = nullptr);
 
- private:
+  // Core components
   // Core components
   CryptoContext crypto_context_;
   std::unique_ptr<Peer> session_vcsec_;
@@ -136,6 +144,7 @@ class Client {
 
   // Key data
   std::array<pb_byte_t, 4> public_key_id_{};
+  // NOLINTNEXTLINE(readability-math-missing-parentheses) - third-party macro
   std::array<pb_byte_t, MBEDTLS_ECP_MAX_PT_LEN> public_key_{};
   size_t public_key_size_ = 0;
 
@@ -146,14 +155,14 @@ class Client {
   size_t last_request_hash_length_ = 0;
 
   // Helper methods
-  static void prependLength(const pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t *output_buffer,
-                            size_t *output_buffer_length);
+  static void prepend_length(const pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t *output_buffer,
+                             size_t *output_buffer_length);
 
-  int generatePublicKeyData();
-  int generateKeyId();
+  TeslaBLEStatus generate_public_key_data_();
+  TeslaBLEStatus generate_key_id_();
 
   // Initialize peer sessions
-  void initializePeers();
+  void initialize_peers_();
 };
 
 }  // namespace TeslaBLE

@@ -1,13 +1,12 @@
 #pragma once
 
 #include <memory>
-#include <array>
+#include "errors.h"
 #include "mbedtls/pk.h"
 #include "mbedtls/ecdh.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/entropy.h"
 #include "pb.h"
-#include "errors.h"
 
 namespace TeslaBLE {
 /**
@@ -33,13 +32,13 @@ class CryptoContext {
    * @brief Initialize the crypto context with entropy
    * @return Error code (0 on success)
    */
-  int initialize();
+  TeslaBLEStatus initialize();
 
   /**
    * @brief Create a new private key
    * @return Error code (0 on success)
    */
-  int createPrivateKey();
+  TeslaBLEStatus create_private_key();
 
   /**
    * @brief Load a private key from buffer
@@ -47,7 +46,7 @@ class CryptoContext {
    * @param key_size Size of the key buffer
    * @return Error code (0 on success)
    */
-  int loadPrivateKey(const uint8_t *private_key_buffer, size_t key_size);
+  TeslaBLEStatus load_private_key(const uint8_t *private_key_buffer, size_t key_size);
 
   /**
    * @brief Get the private key in PEM format
@@ -56,7 +55,7 @@ class CryptoContext {
    * @param output_length Actual length written
    * @return Error code (0 on success)
    */
-  int getPrivateKey(pb_byte_t *output_buffer, size_t buffer_length, size_t *output_length);
+  TeslaBLEStatus get_private_key(pb_byte_t *output_buffer, size_t buffer_length, size_t *output_length);
 
   /**
    * @brief Generate public key from private key
@@ -64,7 +63,7 @@ class CryptoContext {
    * @param output_length Size of the output buffer
    * @return Error code (0 on success)
    */
-  int generatePublicKey(pb_byte_t *output_buffer, size_t *output_length);
+  TeslaBLEStatus generate_public_key(pb_byte_t *output_buffer, size_t *output_length);
 
   /**
    * @brief Generate a 4-byte key ID from public key
@@ -73,35 +72,35 @@ class CryptoContext {
    * @param key_id Output buffer for the 4-byte key ID
    * @return Error code (0 on success)
    */
-  int generateKeyId(const pb_byte_t *public_key, size_t key_size, pb_byte_t *key_id);
+  TeslaBLEStatus generate_key_id(const pb_byte_t *public_key, size_t key_size, pb_byte_t *key_id);
 
   /**
    * @brief Perform Tesla ECDH key exchange and derive session key
    * @param tesla_public_key Tesla's 65-byte uncompressed public key
    * @param tesla_key_size Size of Tesla's public key (must be 65)
    * @param session_key Output buffer for 16-byte session key
-   * @return TeslaBLE_Status_E_OK on success, error code otherwise
+   * @return TeslaBLEStatus::OK on success, error code otherwise
    */
-  int performTeslaEcdh(const uint8_t *tesla_public_key, size_t tesla_key_size, uint8_t *session_key);
+  TeslaBLEStatus perform_tesla_ecdh(const uint8_t *tesla_public_key, size_t tesla_key_size, uint8_t *session_key);
 
   /**
    * @brief Generate random bytes using this context's DRBG
    * @param output Output buffer for random bytes
    * @param length Number of bytes to generate
-   * @return TeslaBLE_Status_E_OK on success, error code otherwise
+   * @return TeslaBLEStatus::OK on success, error code otherwise
    */
-  int generateRandomBytes(uint8_t *output, size_t length);
+  TeslaBLEStatus generate_random_bytes(uint8_t *output, size_t length);
 
   /**
    * @brief Check if the private key is initialized
    * @return true if initialized, false otherwise
    */
-  bool isPrivateKeyInitialized() const;
+  bool is_private_key_initialized() const;
 
   // Getters for contexts (needed by Peer class)
-  std::shared_ptr<mbedtls_pk_context> getPrivateKeyContext() const { return private_key_context_; }
-  std::shared_ptr<mbedtls_ecdh_context> getEcdhContext() const { return ecdh_context_; }
-  std::shared_ptr<mbedtls_ctr_drbg_context> getDrbgContext() const { return drbg_context_; }
+  std::shared_ptr<mbedtls_pk_context> get_private_key_context() const { return private_key_context_; }
+  std::shared_ptr<mbedtls_ecdh_context> get_ecdh_context() const { return ecdh_context_; }
+  std::shared_ptr<mbedtls_ctr_drbg_context> get_drbg_context() const { return drbg_context_; }
 
  private:
   std::shared_ptr<mbedtls_pk_context> private_key_context_;
@@ -111,7 +110,7 @@ class CryptoContext {
 
   bool initialized_ = false;
 
-  void cleanup();
+  void cleanup_();
 };
 
 /**
@@ -126,7 +125,7 @@ class CryptoUtils {
    * @param drbg_context Random number generator context
    * @return Error code (0 on success)
    */
-  static int generateRandomBytes(pb_byte_t *output, size_t length, mbedtls_ctr_drbg_context *drbg_context);
+  static TeslaBLEStatus generate_random_bytes(pb_byte_t *output, size_t length, mbedtls_ctr_drbg_context *drbg_context);
 
   /**
    * @brief Calculate SHA1 hash
@@ -135,7 +134,7 @@ class CryptoUtils {
    * @param output Output buffer (must be at least 20 bytes)
    * @return Error code (0 on success)
    */
-  static int sha1Hash(const pb_byte_t *input, size_t input_length, pb_byte_t *output);
+  static TeslaBLEStatus sha1_hash(const pb_byte_t *input, size_t input_length, pb_byte_t *output);
 
   /**
    * @brief Secure memory comparison
@@ -144,14 +143,14 @@ class CryptoUtils {
    * @param length Length to compare
    * @return true if equal, false otherwise
    */
-  static bool secureMemoryCompare(const pb_byte_t *a, const pb_byte_t *b, size_t length);
+  static bool secure_memory_compare(const pb_byte_t *a, const pb_byte_t *b, size_t length);
 
   /**
    * @brief Clear sensitive memory
    * @param memory Memory to clear
    * @param length Length to clear
    */
-  static void clearSensitiveMemory(void *memory, size_t length);
+  static void clear_sensitive_memory(void *memory, size_t length);
 
   /**
    * @brief Derive SESSION_INFO_KEY = HMAC-SHA256(K, "session info")
@@ -159,10 +158,10 @@ class CryptoUtils {
    * @param shared_key_len Length of the shared key (should be 16)
    * @param out_key Output buffer for the derived key (must be at least 32 bytes)
    * @param out_key_len Length of the output buffer
-   * @return TeslaBLE_Status_E_OK on success, error code otherwise
+   * @return TeslaBLEStatus::OK on success, error code otherwise
    */
-  static int deriveSessionInfoKey(const uint8_t *shared_key, size_t shared_key_len, uint8_t *out_key,
-                                  size_t out_key_len);
+  static TeslaBLEStatus derive_session_info_key(const uint8_t *shared_key, size_t shared_key_len, uint8_t *out_key,
+                                                size_t out_key_len);
 };
 
 }  // namespace TeslaBLE

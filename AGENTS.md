@@ -8,14 +8,11 @@ cd build && ctest -j 2>&1 | grep -E "(FAILED.*\]|^[0-9]+% tests|expected equalit
 
 ## Lint and Format Commands
 ```bash
-# Run all linting and formatting checks
-./scripts/lint.sh
-
-# Format code with clang-format
-find src include tests examples -name "*.cpp" -o -name "*.h" | xargs clang-format -i
-
-# Run clang-tidy on source files
-find src -name "*.cpp" | xargs clang-tidy
+# Run individual tools
+./scripts/clang-format.sh --check    # Check formatting (CI mode)
+./scripts/clang-format.sh            # Fix formatting issues
+./scripts/clang-tidy.sh --check      # Check code (CI mode) - includes project headers
+./scripts/clang-tidy.sh --fix        # Apply automatic fixes
 ```
 
 ## Architecture
@@ -28,7 +25,13 @@ find src -name "*.cpp" | xargs clang-tidy
 
 ## Code Style
 - **Namespace**: `TeslaBLE`
-- **Naming**: `PascalCase` classes, `snake_case` functions, `_` suffix for members (`crypto_context_`)
+- **Naming**: 
+  - `PascalCase` classes/structs
+  - `snake_case` functions
+  - `_` suffix for members (`crypto_context_`)
+  - `_` suffix for private/protected methods (`cleanup_`, `initialize_peers_`)
+  - `UPPER_CASE` for static constants
+- **Types**: Use `pb_byte_t`, `pb_size_t` for protobuf; `std::array`, `std::unique_ptr`
 - **Types**: Use `pb_byte_t`, `pb_size_t` for protobuf; `std::array`, `std::unique_ptr`
 - **Error Handling**: Return `TeslaBLE_Status_E` enum (0=OK); use `LOG_ERROR`/`LOG_DEBUG` macros
 - **Formatting**: No comments unless requested; 4-space indent; braces on same line

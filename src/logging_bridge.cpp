@@ -7,9 +7,14 @@
 
 namespace TeslaBLE {
 
-LogCallback g_log_callback = nullptr;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+static LogCallback &log_callback_instance() {
+  static LogCallback callback = nullptr;
+  return callback;
+}
 
-void setLogCallback(LogCallback callback) { g_log_callback = callback; }
+void set_log_callback(LogCallback callback) { log_callback_instance() = callback; }
+
+LogCallback get_log_callback() { return log_callback_instance(); }
 
 void log_internal(LogLevel level, const char *tag, int line, const char *format, ...) {
   if (tag == nullptr)
@@ -20,8 +25,8 @@ void log_internal(LogLevel level, const char *tag, int line, const char *format,
   va_list args;
   va_start(args, format);
 
-  if (g_log_callback != nullptr) {
-    g_log_callback(level, tag, line, format, args);
+  if (log_callback_instance() != nullptr) {
+    log_callback_instance()(level, tag, line, format, args);
   } else {
 #ifdef ESP_PLATFORM
     esp_log_level_t esp_level;

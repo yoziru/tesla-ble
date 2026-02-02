@@ -1,7 +1,7 @@
 #include <client.h>
 #include <cstdio>
 #include <cstring>
-#include <inttypes.h>
+#include <cinttypes>
 #include <pb_decode.h>
 #include <pb_encode.h>
 #include <signatures.pb.h>
@@ -11,6 +11,7 @@
 #include <sstream>
 #include <iomanip>
 
+#include "defs.h"
 #include "errors.h"
 #include "tb_utils.h"
 #include "log.cpp"
@@ -34,21 +35,21 @@ std::string bytes_to_hex_string(const pb_byte_t *bytes, size_t length) {
 
 int main() {
   TeslaBLE::Client client = TeslaBLE::Client{};
-  client.setVIN(MOCK_VIN);
+  client.set_vin(MOCK_VIN);
   /*
    * this loads an existing private key and generates the public key
    */
   LOG_INFO("Loading private key");
-  int status = client.loadPrivateKey(MOCK_PRIVATE_KEY, sizeof MOCK_PRIVATE_KEY);
+  TeslaBLE::TeslaBLEStatus status = client.load_private_key(MOCK_PRIVATE_KEY, sizeof MOCK_PRIVATE_KEY);
   // int status = client.createPrivateKey();
-  if (status != 0) {
+  if (status != TeslaBLE::TeslaBLEStatus::OK) {
     LOG_ERROR("Failed create private key");
   }
 
   unsigned char private_key_buffer[sizeof MOCK_PRIVATE_KEY + 1];
   size_t private_key_length;
-  status = client.getPrivateKey(private_key_buffer, sizeof(private_key_buffer), &private_key_length);
-  if (status != 0) {
+  status = client.get_private_key(private_key_buffer, sizeof(private_key_buffer), &private_key_length);
+  if (status != TeslaBLE::TeslaBLEStatus::OK) {
     LOG_ERROR("Failed to get private key");
   }
   LOG_DEBUG("Private key length: %d", private_key_length);
@@ -59,12 +60,13 @@ int main() {
   // support for wake command added to CHARGING_MANAGER_ROLE in 2024.20.x (not sure?)
   // https://github.com/teslamotors/vehicle-command/issues/232#issuecomment-2181503570
   LOG_INFO("Building whitelist message for CHARGING MANAGER");
-  int return_code =
-      client.buildWhiteListMessage(Keys_Role_ROLE_CHARGING_MANAGER, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY,
-                                   whitelist_message_buffer, &whitelist_message_length);
+  TeslaBLE::TeslaBLEStatus return_code =
+      client.build_white_list_message(Keys_Role_ROLE_CHARGING_MANAGER, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY,
+                                      whitelist_message_buffer, &whitelist_message_length);
 
-  if (return_code != 0) {
-    LOG_ERROR("Failed to build whitelist message: %s", TeslaBLE::TeslaBLE_Status_to_string(return_code));
+  if (return_code != TeslaBLE::TeslaBLEStatus::OK) {
+    LOG_ERROR("Failed to build whitelist message: %s",
+              TeslaBLE::teslable_status_to_string(static_cast<TeslaBLE::TeslaBLEStatus>(return_code)));
     return -1;
   }
   LOG_DEBUG("Whitelist message length: %d", whitelist_message_length);
@@ -88,32 +90,33 @@ int main() {
   // parse received universal message
   UniversalMessage_RoutableMessage received_message_vcsec = UniversalMessage_RoutableMessage_init_default;
   return_code =
-      client.parseUniversalMessage(received_bytes_vcsec, sizeof(received_bytes_vcsec), &received_message_vcsec);
-  if (return_code != 0) {
-    LOG_ERROR("Failed to parse received message VSSE: %s", TeslaBLE::TeslaBLE_Status_to_string(return_code));
+      client.parse_universal_message(received_bytes_vcsec, sizeof(received_bytes_vcsec), &received_message_vcsec);
+  if (return_code != TeslaBLE::TeslaBLEStatus::OK) {
+    LOG_ERROR("Failed to parse received message VSSE: %s",
+              TeslaBLE::teslable_status_to_string(static_cast<TeslaBLE::TeslaBLEStatus>(return_code)));
     return -1;
   }
   log_routable_message(&received_message_vcsec);
 
   Signatures_SessionInfo session_info_vcsec = Signatures_SessionInfo_init_default;
-  return_code = client.parsePayloadSessionInfo(&received_message_vcsec.payload.session_info, &session_info_vcsec);
-  if (return_code != 0) {
+  return_code = client.parse_payload_session_info(&received_message_vcsec.payload.session_info, &session_info_vcsec);
+  if (return_code != TeslaBLE::TeslaBLEStatus::OK) {
     LOG_ERROR("Failed to parse session info VSSEC");
     return -1;
   }
   log_session_info(&session_info_vcsec);
 
   UniversalMessage_Domain domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
-  auto session = client.getPeer(domain);
+  auto session = client.get_peer(domain);
 
-  return_code = session->updateSession(&session_info_vcsec);
-  if (return_code != 0) {
+  return_code = session->update_session(&session_info_vcsec);
+  if (return_code != TeslaBLE::TeslaBLEStatus::OK) {
     LOG_ERROR("Failed to update session VSSEC");
     return -1;
   }
 
-  LOG_INFO("Session initialized: %s", session->isInitialized() ? "true" : "false");
-  if (!session->isInitialized()) {
+  LOG_INFO("Session initialized: %s", session->is_initialized() ? "true" : "false");
+  if (!session->is_initialized()) {
     LOG_ERROR("Session not initialized");
     return 1;
   }
@@ -122,16 +125,16 @@ int main() {
             bytes_to_hex_string(session_info_vcsec.publicKey.bytes, session_info_vcsec.publicKey.size).c_str());
 
   LOG_DEBUG("Parsed VCSEC session info response");
-  LOG_DEBUG("Received new counter from the car: %" PRIu32, session->getCounter());
-  LOG_INFO("Epoch: %s", bytes_to_hex_string(session->getEpoch(), 16).c_str());
+  LOG_DEBUG("Received new counter from the car: %" PRIu32, session->get_counter());
+  LOG_INFO("Epoch: %s", bytes_to_hex_string(session->get_epoch(), 16).c_str());
 
   // build wake command
   LOG_INFO("Building wake command");
   unsigned char action_message_buffer[UniversalMessage_RoutableMessage_size];
   size_t action_message_buffer_length = 0;
-  return_code = client.buildVCSECActionMessage(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, action_message_buffer,
-                                               &action_message_buffer_length);
-  if (return_code != 0) {
+  return_code = client.build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, action_message_buffer,
+                                                  &action_message_buffer_length);
+  if (return_code != TeslaBLE::TeslaBLEStatus::OK) {
     LOG_ERROR("Failed to build action message ");
     return -1;
   }
@@ -143,9 +146,9 @@ int main() {
   pb_byte_t info_request_status_buffer[UniversalMessage_RoutableMessage_size];
   size_t info_request_status_length = 0;
   return_code =
-      client.buildVCSECInformationRequestMessage(VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS,
-                                                 info_request_status_buffer, &info_request_status_length);
-  if (return_code != 0) {
+      client.build_vcsec_information_request_message(VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS,
+                                                     info_request_status_buffer, &info_request_status_length);
+  if (return_code != TeslaBLE::TeslaBLEStatus::OK) {
     LOG_ERROR("Failed to build action message ");
     return -1;
   }
@@ -170,9 +173,9 @@ int main() {
   // parse received universal message
   LOG_INFO("Parsing received message INFOTAINMENT");
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-  return_code =
-      client.parseUniversalMessage(received_bytes_infotainment, sizeof(received_bytes_infotainment), &received_message);
-  if (return_code != 0) {
+  return_code = client.parse_universal_message(received_bytes_infotainment, sizeof(received_bytes_infotainment),
+                                               &received_message);
+  if (return_code != TeslaBLE::TeslaBLEStatus::OK) {
     LOG_ERROR("Failed to parse received message INFOTAINMENT");
     return -1;
   }
@@ -180,22 +183,22 @@ int main() {
 
   LOG_INFO("Parsing session info INFOTAINMENT");
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  return_code = client.parsePayloadSessionInfo(&received_message.payload.session_info, &session_info);
-  if (return_code != 0) {
+  return_code = client.parse_payload_session_info(&received_message.payload.session_info, &session_info);
+  if (return_code != TeslaBLE::TeslaBLEStatus::OK) {
     printf("Failed to parse session info INFOTAINMENT");
     return -1;
   }
   log_session_info(&session_info);
 
-  session = client.getPeer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
-  return_code = session->updateSession(&session_info);
-  if (return_code != 0) {
+  session = client.get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+  return_code = session->update_session(&session_info);
+  if (return_code != TeslaBLE::TeslaBLEStatus::OK) {
     LOG_ERROR("Failed to update session INFOTAINMENT");
     return -1;
   }
 
-  LOG_INFO("Session initialized: %s", session->isInitialized() ? "true" : "false");
-  if (!session->isInitialized()) {
+  LOG_INFO("Session initialized: %s", session->is_initialized() ? "true" : "false");
+  if (!session->is_initialized()) {
     LOG_ERROR("Session not initialized");
     return 1;
   }
@@ -203,24 +206,24 @@ int main() {
   LOG_DEBUG("Parsed INFOTAINMENT session info response");
   LOG_DEBUG("Received new counter from the car: %" PRIu32, session_info.counter);
   LOG_DEBUG("Received new clock time from the car: %" PRIu32, session_info.clock_time);
-  LOG_DEBUG("Epoch: %s", bytes_to_hex_string(session->getEpoch(), 16).c_str());
+  LOG_DEBUG("Epoch: %s", bytes_to_hex_string(session->get_epoch(), 16).c_str());
 
   // 8f3d244b50b07a9842cac108c928b5e7
   // pb_byte_t connection_id[16] = {0x8f, 0x3d, 0x24, 0x4b, 0x50, 0xb0, 0x7a, 0x98, 0x42, 0xca, 0xc1, 0x08, 0xc9, 0x28,
   // 0xb5, 0xe7}; 934f10691deda826a7982e92c4fce83f
   pb_byte_t connection_id[16] = {0x93, 0x4f, 0x10, 0x69, 0x1d, 0xed, 0xa8, 0x26,
                                  0xa7, 0x98, 0x2e, 0x92, 0xc4, 0xfc, 0xe8, 0x3f};
-  client.setConnectionID(connection_id);
+  client.set_connection_id(connection_id);
 
   LOG_INFO("Building charging amps message");
   pb_byte_t charging_amps_message_buffer[UniversalMessage_RoutableMessage_size];
   size_t charging_amps_message_length;
   CarServer_SetChargingAmpsAction charging_amps_action = CarServer_SetChargingAmpsAction_init_default;
   charging_amps_action.charging_amps = 12;
-  return_code = client.buildCarServerVehicleActionMessage(charging_amps_message_buffer, &charging_amps_message_length,
-                                                          CarServer_VehicleAction_setChargingAmpsAction_tag,
-                                                          &charging_amps_action);
-  if (return_code != 0) {
+  return_code = client.build_car_server_vehicle_action_message(
+      charging_amps_message_buffer, &charging_amps_message_length, CarServer_VehicleAction_setChargingAmpsAction_tag,
+      &charging_amps_action);
+  if (return_code != TeslaBLE::TeslaBLEStatus::OK) {
     LOG_ERROR("Failed to build charging amps message");
     return -1;
   }
@@ -233,10 +236,10 @@ int main() {
   size_t charging_limit_message_length;
   CarServer_ChargingSetLimitAction charging_limit_action = CarServer_ChargingSetLimitAction_init_default;
   charging_limit_action.percent = 95;
-  return_code = client.buildCarServerVehicleActionMessage(charging_limit_message_buffer, &charging_limit_message_length,
-                                                          CarServer_VehicleAction_chargingSetLimitAction_tag,
-                                                          &charging_limit_action);
-  if (return_code != 0) {
+  return_code = client.build_car_server_vehicle_action_message(
+      charging_limit_message_buffer, &charging_limit_message_length, CarServer_VehicleAction_chargingSetLimitAction_tag,
+      &charging_limit_action);
+  if (return_code != TeslaBLE::TeslaBLEStatus::OK) {
     LOG_ERROR("Failed to build charging limit message");
     return -1;
   }
@@ -250,9 +253,9 @@ int main() {
   CarServer_HvacAutoAction hvac_action = CarServer_HvacAutoAction_init_default;
   hvac_action.power_on = true;
   hvac_action.manual_override = false;
-  return_code = client.buildCarServerVehicleActionMessage(hvac_on_message_buffer, &hvac_on_message_length,
-                                                          CarServer_VehicleAction_hvacAutoAction_tag, &hvac_action);
-  if (return_code != 0) {
+  return_code = client.build_car_server_vehicle_action_message(
+      hvac_on_message_buffer, &hvac_on_message_length, CarServer_VehicleAction_hvacAutoAction_tag, &hvac_action);
+  if (return_code != TeslaBLE::TeslaBLEStatus::OK) {
     LOG_ERROR("Failed to build HVAC message");
     return -1;
   }
@@ -262,9 +265,9 @@ int main() {
   LOG_INFO("Get charge data message");
   pb_byte_t get_data_message_buffer[UniversalMessage_RoutableMessage_size];
   size_t get_data_message_length;
-  return_code = client.buildCarServerGetVehicleDataMessage(get_data_message_buffer, &get_data_message_length,
-                                                           CarServer_GetVehicleData_getChargeState_tag);
-  if (return_code != 0) {
+  return_code = client.build_car_server_get_vehicle_data_message(get_data_message_buffer, &get_data_message_length,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+  if (return_code != TeslaBLE::TeslaBLEStatus::OK) {
     LOG_ERROR("Failed to buildCarServerGetVehicleDataMessage");
     return -1;
   }

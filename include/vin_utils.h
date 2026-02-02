@@ -7,7 +7,6 @@
 #define TESLABLE_VIN_UTILS_H
 
 #include <string>
-#include <cstdint>
 
 namespace TeslaBLE {
 
@@ -24,8 +23,8 @@ namespace TeslaBLE {
  * @param vin The 17-character Vehicle Identification Number
  * @return The BLE advertisement name (e.g., "S1a87a5a75f3df858C"), or empty string on error
  */
-std::string getVINAdvertisementName(const char *vin);
-std::string getVINAdvertisementName(const std::string &vin);
+std::string get_vin_advertisement_name(const char *vin);
+std::string get_vin_advertisement_name(const std::string &vin);
 
 /**
  * @brief Check if a BLE device name matches the Tesla vehicle advertisement pattern.
@@ -35,8 +34,8 @@ std::string getVINAdvertisementName(const std::string &vin);
  * @param name The BLE device name to check
  * @return true if the name matches the Tesla pattern
  */
-bool isTeslaVehicleName(const char *name);
-bool isTeslaVehicleName(const std::string &name);
+bool is_tesla_vehicle_name(const char *name);
+bool is_tesla_vehicle_name(const std::string &name);
 
 /**
  * @brief Check if a BLE device name matches a specific VIN.
@@ -45,8 +44,8 @@ bool isTeslaVehicleName(const std::string &name);
  * @param vin The 17-character VIN to match
  * @return true if the device name corresponds to this VIN
  */
-bool matchesVIN(const char *device_name, const char *vin);
-bool matchesVIN(const std::string &device_name, const std::string &vin);
+bool matches_vin(const char *device_name, const char *vin);
+bool matches_vin(const std::string &device_name, const std::string &vin);
 
 }  // namespace TeslaBLE
 

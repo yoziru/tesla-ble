@@ -77,6 +77,8 @@ Checks: >-
   -readability-uppercase-literal-suffix,
   -readability-use-anyofallof,
 WarningsAsErrors: '*'
+HeaderFilterRegex: '.*'
+ExcludeHeaderFilterRegex: '(generated|_deps)/.*'
 FormatStyle:     google
 CheckOptions:
   - key:             google-readability-function-size.StatementThreshold

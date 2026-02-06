@@ -96,6 +96,7 @@ ctest --output-on-failure --verbose
 ./tests/test_message_building
 ./tests/test_message_parsing
 ./tests/test_session_management
+./tests/test_protocol_compliance
 ./tests/test_utils
 
 # Run the complete test suite
@@ -191,8 +192,24 @@ The test suite is organized into several categories:
 - **`test_message_parsing.cpp`**: Parsing of received messages
 - **`test_session_management.cpp`**: Session handling and peer management
 - **`test_utils.cpp`**: Utility functions and helper methods
+- **`test_vehicle.cpp`**: Vehicle state management and command processing
+- **`test_exponential_backoff.cpp`**: Exponential backoff retry logic
 
 Each test file contains comprehensive unit tests covering both success and failure scenarios, edge cases, and parameter validation.
+
+### State Architecture
+
+The library uses a unified state pattern for command processing with the following states:
+
+- **`IDLE`**: Initial state for new commands
+- **`AUTHENTICATING`**: Unified authentication initiation (replaces legacy domain-specific states)
+- **`AUTH_RESPONSE_WAITING`**: Unified authentication response waiting
+- **`READY`**: Command ready to be sent
+- **`WAITING_FOR_RESPONSE`**: Waiting for command response
+- **`COMPLETED`**: Command completed successfully
+- **`FAILED`**: Command failed
+
+This architecture provides a clean, maintainable approach to command lifecycle management with exponential backoff for retries.
 
 ### Dependencies
 

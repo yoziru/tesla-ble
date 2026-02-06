@@ -4,31 +4,33 @@
 
 #include "vehicle.h"
 
-#include <pb_decode.h>
-#include <pb_encode.h>
-
-#include <cinttypes>
-#include <cstring>
-#include <utility>
-#include <vector>
-
+#include "command_error.h"
 #include "defs.h"
-#include "errors.h"
+
 #include "tb_logging.h"
 #include "tb_utils.h"
 
+#include <pb_decode.h>
+#include <pb_encode.h>
+
+#include <algorithm>
+#include <cinttypes>
+#include <vector>
+#include <array>
+#include <cstdlib>  // for rand()
+#include <utility>  // for std::cmp_greater, std::cmp_less_equal
+
 namespace TeslaBLE {
 
-Vehicle::Vehicle(std::shared_ptr<BleAdapter> ble, std::shared_ptr<StorageAdapter> storage)
-    : ble_adapter_(std::move(std::move(ble))),
-      storage_adapter_(std::move(std::move(storage))),
-      client_(std::make_shared<Client>()) {
-  // Load existing keys and sessions from storage
-
-  // 1. Load private key
+Vehicle::Vehicle(const std::shared_ptr<BleAdapter> &ble, const std::shared_ptr<StorageAdapter> &storage)
+    : ble_adapter_(ble),
+      storage_adapter_(storage),
+      client_(std::make_shared<Client>()),
+      message_processor_(std::make_unique<MessageProcessor>(
+          [this](const UniversalMessage_RoutableMessage &msg) { handle_message_(msg); })) {
   std::vector<uint8_t> key_buffer;
   if (storage_adapter_->load("private_key", key_buffer)) {
-    if (client_->load_private_key(key_buffer.data(), key_buffer.size()) == TeslaBLEStatus::OK) {
+    if (client_->load_private_key(key_buffer.data(), key_buffer.size()) == 0) {
       LOG_INFO("Loaded private key from storage");
     } else {
       LOG_ERROR("Failed to load private key from storage");
@@ -37,353 +39,422 @@ Vehicle::Vehicle(std::shared_ptr<BleAdapter> ble, std::shared_ptr<StorageAdapter
     LOG_INFO("No private key found in storage");
   }
 
-  // 2. Load VCSEC session
   load_session_from_storage_(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
-
-  // 3. Load Infotainment session
   load_session_from_storage_(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+  initialize_rx_buffer();
 }
 
-void Vehicle::set_vin(const std::string &vin) {
+void TeslaBLE::Vehicle::initialize_rx_buffer() { rx_buffer_.reserve(MAX_MESSAGE_SIZE); }
+
+void TeslaBLE::Vehicle::set_vin(const std::string &vin) {
   if (client_) {
     client_->set_vin(vin);
   }
 }
 
-void Vehicle::set_connected(bool connected) {
+void TeslaBLE::Vehicle::set_connected(bool connected) {
   is_connected_ = connected;
   if (!connected) {
     LOG_INFO("Disconnected from vehicle");
 
-    // Clear authentication state flags on disconnect
-    // Session data persists (stored in NVS), but authentication must be
-    // re-established on reconnect as the vehicle may have started a new
-    // ephemeral session or the counters may be stale
-    is_vcsec_authenticated_ = false;
-    is_infotainment_authenticated_ = false;
+    auto *vcsec_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+    auto *info_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+    if (vcsec_peer) {
+      vcsec_peer->reset();
+    }
+    if (info_peer) {
+      info_peer->reset();
+    }
 
-    // Reset vehicle awake state - we don't know the state after disconnect
-    // This prevents stale awake state from causing incorrect command handling
     is_vehicle_awake_ = false;
 
-    // Clear command queue to prevent stale commands from blocking
-    // New commands will be enqueued after reconnection
     while (!command_queue_.empty()) {
       auto cmd = command_queue_.front();
       if (cmd->on_complete) {
-        cmd->on_complete(false);  // Notify failure
+        cmd->on_complete(CommandError::connection_lost());  // Notify failure
       }
       command_queue_.pop();
     }
 
-    // Clear RX buffer for clean slate
     rx_buffer_.clear();
   } else {
     LOG_INFO("Connected to vehicle");
   }
 }
 
-void Vehicle::loop() { process_command_queue_(); }
+void TeslaBLE::Vehicle::loop() {
+  message_processor_->process_messages();
+  if (is_connected_) {
+    process_command_queue_();
+  }
+}
 
-void Vehicle::send_command(UniversalMessage_Domain domain, std::string name,
-                           std::function<TeslaBLEStatus(Client *, uint8_t *, size_t *)> builder,
-                           std::function<void(bool)> on_complete, bool requires_wake) {
-  // TODO: Max queue size check?
+void TeslaBLE::Vehicle::send_command(UniversalMessage_Domain domain, const std::string &name,
+                                     std::function<int(Client *, uint8_t *, size_t *)> builder,
+                                     std::function<void(std::unique_ptr<CommandError>)> on_complete,
+                                     bool requires_wake) {
+  if (!is_connected_) {
+    LOG_DEBUG("Not connected - rejecting command: %s", name.c_str());
+    if (on_complete) {
+      on_complete(CommandError::connection_lost());
+    }
+    return;
+  }
 
-  auto cmd =
-      std::make_shared<Command>(domain, std::move(name), std::move(builder), std::move(on_complete), requires_wake);
+  if (command_queue_.size() >= MAX_COMMAND_QUEUE_SIZE) {
+    LOG_WARNING("Command queue full, rejecting command: %s", name.c_str());
+    if (on_complete) {
+      on_complete(CommandError::build_failed("queue full"));
+    }
+    return;
+  }
+
+  auto cmd = std::make_shared<Command>(domain, name, std::move(builder), std::move(on_complete), requires_wake);
   command_queue_.push(cmd);
-
   LOG_DEBUG("Enqueued command: %s (domain: %s, requires_wake: %s)", cmd->name.c_str(), domain_to_string(domain),
             requires_wake ? "true" : "false");
 }
 
-void Vehicle::process_command_queue_() {
-  if (command_queue_.empty())
-    return;
+void TeslaBLE::Vehicle::send_command_bool(UniversalMessage_Domain domain, const std::string &name,
+                                          std::function<int(Client *, uint8_t *, size_t *)> builder,
+                                          const std::function<void(bool)> &on_complete, bool requires_wake) {
+  auto rich_callback = on_complete ? [on_complete](std::unique_ptr<CommandError> error) { on_complete(!error); }
+                                   : std::function<void(std::unique_ptr<CommandError>)>(nullptr);
+  send_command(domain, name, std::move(builder), std::move(rich_callback), requires_wake);
+}
 
-  auto current_command = command_queue_.front();
-  auto now = std::chrono::steady_clock::now();
-
-  // Overall timeout
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - current_command->started_at);
-  if (duration > COMMAND_TIMEOUT) {
-    LOG_WARNING("Command timeout: %s", current_command->name.c_str());
-    mark_command_failed_(current_command, "Timeout");
+void TeslaBLE::Vehicle::process_command_queue_() {
+  if (command_queue_.empty()) {
     return;
   }
 
-  switch (current_command->state) {
+  auto command = command_queue_.front();
+  auto now = std::chrono::steady_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - command->started_at);
+  if (duration > COMMAND_TIMEOUT) {
+    if (is_connected_) {
+      LOG_WARNING("Command timeout while connected: %s", command->name.c_str());
+    } else {
+      LOG_DEBUG("Command timeout while disconnected: %s", command->name.c_str());
+    }
+    mark_command_failed_(command, CommandError::timeout("Command"));
+    return;
+  }
+
+  switch (command->state) {
     case CommandState::IDLE:
-      process_idle_command_(current_command);
+      process_idle_command_(command);
       break;
-
-    case CommandState::WAITING_FOR_VCSEC_AUTH:
-    case CommandState::WAITING_FOR_VCSEC_AUTH_RESPONSE:
-    case CommandState::WAITING_FOR_INFOTAINMENT_AUTH:
-    case CommandState::WAITING_FOR_INFOTAINMENT_AUTH_RESPONSE:
-    case CommandState::WAITING_FOR_WAKE:
-    case CommandState::WAITING_FOR_WAKE_RESPONSE:
-      process_auth_waiting_command_(current_command);
+    case CommandState::AUTHENTICATING:
+      process_authenticating_command_(command);
       break;
-
+    case CommandState::AUTH_RESPONSE_WAITING:
+      process_auth_response_waiting_command_(command);
+      break;
     case CommandState::READY:
-      process_ready_command_(current_command);
+      process_ready_command_(command);
       break;
-
     case CommandState::WAITING_FOR_RESPONSE: {
-      auto tx_duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - current_command->last_tx_at);
-      if (tx_duration > MAX_LATENCY) {
-        LOG_WARNING("Response timeout for command: %s (attempt %d/%d)", current_command->name.c_str(),
-                    current_command->retry_count, MAX_RETRIES + 1);
-        retry_command_(current_command);
+      auto tx_duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - command->last_tx_at);
+      if (tx_duration > CLOCK_SYNC_MAX_LATENCY) {
+        if (command->name == "Wake" && is_vehicle_awake_) {
+          LOG_INFO("Wake response timeout but vehicle is awake - proceeding");
+          mark_command_completed_(command);
+          break;
+        }
+        LOG_DEBUG("Response timeout for command: %s (attempt %d/%d)", command->name.c_str(), command->retry_count,
+                  MAX_RETRIES + 1);
+        retry_command(command);
       }
     } break;
-
     default:
       break;
   }
 }
 
-void Vehicle::process_idle_command_(const std::shared_ptr<Command> &command) {
-  command->started_at = std::chrono::steady_clock::now();
+std::shared_ptr<TeslaBLE::Command> TeslaBLE::Vehicle::peek_command_() const {
+  if (command_queue_.empty()) {
+    return nullptr;
+  }
+  return command_queue_.front();
+}
 
+void TeslaBLE::Vehicle::process_idle_command_(const std::shared_ptr<Command> &command) {
+  command->started_at = std::chrono::steady_clock::now();
   switch (command->domain) {
     case UniversalMessage_Domain_DOMAIN_BROADCAST:
       command->state = CommandState::READY;
       break;
-
     case UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY:
       initiate_vcsec_auth_(command);
       break;
-
     case UniversalMessage_Domain_DOMAIN_INFOTAINMENT:
       initiate_infotainment_auth_(command);
       break;
-
     default:
       LOG_ERROR("Unknown domain for command: %s", command->name.c_str());
-      mark_command_failed_(command, "Unknown domain");
+      mark_command_failed_(command, CommandError::build_failed("unknown domain"));
       break;
   }
 }
 
-void Vehicle::process_auth_waiting_command_(const std::shared_ptr<Command> &command) {
+void TeslaBLE::Vehicle::process_authenticating_command_(const std::shared_ptr<Command> &command) {
+  LOG_DEBUG("Processing auth for %s (%s)", command->name.c_str(), domain_to_string(command->current_auth_domain));
+
+  switch (command->current_auth_domain) {
+    case UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY:
+      initiate_auth_for_domain_(command, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+                                CommandState::AUTH_RESPONSE_WAITING, "VCSEC");
+      break;
+    case UniversalMessage_Domain_DOMAIN_INFOTAINMENT:
+      if (!is_domain_authenticated_(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)) {
+        LOG_DEBUG("VCSEC auth required before Infotainment auth");
+        command->current_auth_domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
+        initiate_auth_for_domain_(command, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+                                  CommandState::AUTH_RESPONSE_WAITING, "VCSEC");
+      } else {
+        initiate_auth_for_domain_(command, UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+                                  CommandState::AUTH_RESPONSE_WAITING, "Infotainment");
+      }
+      break;
+    case UniversalMessage_Domain_DOMAIN_BROADCAST:
+      initiate_wake_sequence_(command);
+      break;
+    default:
+      LOG_ERROR("Unknown authentication domain for command: %s", command->name.c_str());
+      mark_command_failed_(command, CommandError::build_failed("unknown auth domain"));
+      break;
+  }
+}
+
+void TeslaBLE::Vehicle::process_auth_response_waiting_command_(const std::shared_ptr<Command> &command) {
   auto now = std::chrono::steady_clock::now();
   auto tx_duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - command->last_tx_at);
-
-  if (tx_duration > MAX_LATENCY) {
-    switch (command->state) {
-      case CommandState::WAITING_FOR_VCSEC_AUTH_RESPONSE:
-        LOG_WARNING("VCSEC auth response timeout (attempt %d/%d)", command->retry_count + 1, MAX_RETRIES + 1);
-        command->state = CommandState::WAITING_FOR_VCSEC_AUTH;  // Retry initiation
+  if (tx_duration > AUTH_RESPONSE_TIMEOUT) {
+    switch (command->current_auth_domain) {
+      case UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY:
+        handle_vcsec_auth_timeout_(command);
         break;
-      case CommandState::WAITING_FOR_INFOTAINMENT_AUTH_RESPONSE:
-        LOG_WARNING("Infotainment auth response timeout (attempt %d/%d)", command->retry_count + 1, MAX_RETRIES + 1);
-        command->state = CommandState::WAITING_FOR_INFOTAINMENT_AUTH;
+      case UniversalMessage_Domain_DOMAIN_INFOTAINMENT:
+        handle_infotainment_auth_timeout_(command);
         break;
-      case CommandState::WAITING_FOR_WAKE_RESPONSE:
-        // Check if vehicle woke up (we may have received status update even without wake response)
-        if (is_vehicle_awake_) {
-          LOG_INFO("Wake response timeout but vehicle is awake - proceeding");
-          if (command->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
-            command->state = CommandState::WAITING_FOR_INFOTAINMENT_AUTH;
-            command->last_tx_at = std::chrono::steady_clock::time_point();  // Trigger immediate auth
-          } else {
-            mark_command_completed_(command);
-          }
-        } else {
-          LOG_WARNING("Wake response timeout - vehicle still asleep (attempt %d/%d)", command->retry_count + 1,
-                      MAX_RETRIES + 1);
-          retry_command_(command);
-        }
-        break;
-      case CommandState::WAITING_FOR_VCSEC_AUTH:
-        initiate_vcsec_auth_(command);
-        break;
-      case CommandState::WAITING_FOR_INFOTAINMENT_AUTH:
-        initiate_infotainment_auth_(command);
-        break;
-      case CommandState::WAITING_FOR_WAKE:
-        initiate_wake_sequence_(command);
+      case UniversalMessage_Domain_DOMAIN_BROADCAST:
+        handle_wake_response_timeout_(command);
         break;
       default:
+        LOG_ERROR("Unknown auth domain for timeout handling: %s", command->name.c_str());
+        mark_command_failed_(command, CommandError::timeout("Unknown auth"));
         break;
     }
   }
 }
 
-void Vehicle::initiate_vcsec_auth_(const std::shared_ptr<Command> &command) {
-  if (is_domain_authenticated_(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)) {
-    if (command->domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) {
-      command->state = CommandState::READY;
+void TeslaBLE::Vehicle::handle_auth_timeout_common_(const std::shared_ptr<Command> &command,
+                                                    const std::string &domain_name, CommandState retry_state) {
+  log_timeout_message_(domain_name + " auth response timeout", command);
+  auto now = std::chrono::steady_clock::now();
+  auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(now - command->started_at);
+  int attempt_level = std::min(command->retry_count / 2, 3);
+  static constexpr std::array<int, 4> TIMEOUT_THRESHOLDS = {30, 60, 120, 300};
+  if (total_duration > std::chrono::seconds(TIMEOUT_THRESHOLDS[attempt_level])) {
+    LOG_ERROR("Connection validation failed: %s auth stuck for %lld seconds (level %d, retry %d)", domain_name.c_str(),
+              (long long) total_duration.count(), attempt_level, command->retry_count);
+    reset_all_sessions_and_connection_();
+    mark_command_failed_(command, CommandError::session_stale("connection"));
+    return;
+  }
+  command->state = retry_state;
+}
+
+void TeslaBLE::Vehicle::handle_vcsec_auth_timeout_(const std::shared_ptr<Command> &command) {
+  handle_auth_timeout_common_(command, "VCSEC", CommandState::AUTHENTICATING);
+}
+
+void TeslaBLE::Vehicle::handle_infotainment_auth_timeout_(const std::shared_ptr<Command> &command) {
+  handle_auth_timeout_common_(command, "Infotainment", CommandState::AUTHENTICATING);
+}
+
+void TeslaBLE::Vehicle::handle_wake_response_timeout_(const std::shared_ptr<Command> &command) {
+  // Check if vehicle woke up (we may have received status update even without wake response)
+  if (is_vehicle_awake_) {
+    LOG_INFO("Wake response timeout but vehicle is awake - proceeding");
+    if (command->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
+      command->state = CommandState::AUTHENTICATING;
+      command->last_tx_at = std::chrono::steady_clock::time_point();  // Trigger immediate auth
     } else {
-      // Chain to infotainment
-      command->state = CommandState::WAITING_FOR_INFOTAINMENT_AUTH;
+      mark_command_completed_(command);
     }
   } else {
-    // Build Session Info Request
+    log_timeout_message_("Wake response timeout - vehicle still asleep", command);
+    retry_command(command);
+  }
+}
+
+void TeslaBLE::Vehicle::initiate_auth_for_domain_(const std::shared_ptr<Command> &command,
+                                                  UniversalMessage_Domain domain, CommandState waiting_state,
+                                                  const std::string &domain_name) {
+  if (is_domain_authenticated_(domain)) {
+    if (command->domain == domain) {
+      command->state = CommandState::READY;
+    } else if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) {
+      command->state = CommandState::AUTHENTICATING;
+    }
+  } else {
     uint8_t buffer[256];
     size_t len = 256;
-    if (client_->build_session_info_request_message(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, buffer, &len) ==
-        TeslaBLEStatus::OK) {
+    if (client_->build_session_info_request_message(domain, buffer, &len) == 0) {
       std::vector<uint8_t> data(buffer, buffer + len);
       if (ble_adapter_->write(data)) {
-        command->state = CommandState::WAITING_FOR_VCSEC_AUTH_RESPONSE;
+        command->state = waiting_state;
         command->last_tx_at = std::chrono::steady_clock::now();
-        LOG_INFO("Sent VCSEC Session Info Request");
+        LOG_INFO("Sent %s Session Info Request", domain_name.c_str());
       } else {
-        LOG_ERROR("Failed to write VCSEC Session Info Request");
+        LOG_ERROR("Failed to write %s Session Info Request", domain_name.c_str());
       }
     } else {
-      LOG_ERROR("Failed to build VCSEC Session Info Request");
-      mark_command_failed_(command, "Build failed");
+      LOG_ERROR("Failed to build %s Session Info Request", domain_name.c_str());
+      mark_command_failed_(command, CommandError::build_failed(domain_name + " Session Info Request"));
     }
   }
 }
 
-void Vehicle::initiate_infotainment_auth_(const std::shared_ptr<Command> &command) {
-  // FIRST: If vehicle is asleep and command doesn't require wake, skip immediately
-  // This avoids unnecessary auth attempts for optional polls when vehicle is sleeping
-  // Note: is_vehicle_awake_ is true unless VCSEC explicitly reports ASLEEP
+void TeslaBLE::Vehicle::initiate_vcsec_auth_(const std::shared_ptr<Command> &command) {
+  command->current_auth_domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
+  initiate_auth_for_domain_(command, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+                            CommandState::AUTH_RESPONSE_WAITING, "VCSEC");
+}
+
+void TeslaBLE::Vehicle::initiate_infotainment_auth_(const std::shared_ptr<Command> &command) {
   if (!is_vehicle_awake_ && !command->requires_wake) {
-    LOG_DEBUG("Vehicle is asleep and command doesn't require wake, skipping: %s", command->name.c_str());
-    mark_command_completed_(command);  // Mark as completed (no-op when asleep)
+    LOG_DEBUG("Vehicle asleep, skipping optional command: %s", command->name.c_str());
+    mark_command_completed_(command);
     return;
   }
-
-  // Check if VCSEC is authenticated (prerequisite for both wake and infotainment)
   if (!is_domain_authenticated_(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)) {
     LOG_DEBUG("VCSEC auth required before Infotainment auth");
-    // Directly initiate VCSEC auth instead of just setting state, to avoid extra loop iteration
     initiate_vcsec_auth_(command);
     return;
   }
-
-  // Check if vehicle is asleep and command requires wake - if so, transition to wake state
   if (!is_vehicle_awake_ && command->requires_wake) {
     LOG_DEBUG("Vehicle is asleep and command requires wake, transitioning to wake state");
-    command->state = CommandState::WAITING_FOR_WAKE;
-    command->last_tx_at = std::chrono::steady_clock::time_point();  // Trigger immediate wake sequence
+    command->state = CommandState::AUTHENTICATING;
+    command->last_tx_at = std::chrono::steady_clock::time_point();
     return;
   }
-
-  if (is_domain_authenticated_(UniversalMessage_Domain_DOMAIN_INFOTAINMENT)) {
-    command->state = CommandState::READY;
-  } else {
-    uint8_t buffer[256];
-    size_t len = 256;
-    if (client_->build_session_info_request_message(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, buffer, &len) ==
-        TeslaBLEStatus::OK) {
-      std::vector<uint8_t> data(buffer, buffer + len);
-      if (ble_adapter_->write(data)) {
-        command->state = CommandState::WAITING_FOR_INFOTAINMENT_AUTH_RESPONSE;
-        command->last_tx_at = std::chrono::steady_clock::now();
-        LOG_INFO("Sent Infotainment Session Info Request");
-      } else {
-        LOG_ERROR("Failed to write Infotainment Session Info Request");
-      }
-    } else {
-      LOG_ERROR("Failed to build Infotainment Session Info Request");
-      mark_command_failed_(command, "Build failed");
-    }
-  }
+  initiate_auth_for_domain_(command, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, CommandState::AUTH_RESPONSE_WAITING,
+                            "Infotainment");
 }
 
-void Vehicle::initiate_wake_sequence_(const std::shared_ptr<Command> &command) {
-  // Send Wake command (RKE Action)
+void TeslaBLE::Vehicle::initiate_wake_sequence_(const std::shared_ptr<Command> &command) {
   uint8_t buffer[256];
   size_t len = 256;
-  if (client_->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, buffer, &len) ==
-      TeslaBLEStatus::OK) {
+  if (client_->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, buffer, &len) == 0) {
     std::vector<uint8_t> data(buffer, buffer + len);
     if (ble_adapter_->write(data)) {
-      command->state = CommandState::WAITING_FOR_WAKE_RESPONSE;
+      command->state = CommandState::AUTH_RESPONSE_WAITING;
       command->last_tx_at = std::chrono::steady_clock::now();
       LOG_INFO("Sent Wake Command");
     } else {
       LOG_ERROR("Failed to write Wake Command");
+      mark_command_failed_(command, CommandError::build_failed("Wake write"));
     }
   } else {
     LOG_ERROR("Failed to build Wake Command");
-    mark_command_failed_(command, "Build failed");
+    mark_command_failed_(command, CommandError::build_failed("Wake Command"));
   }
 }
 
-void Vehicle::process_ready_command_(const std::shared_ptr<Command> &command) {
-  uint8_t buffer[1024];  // Assuming max message size
-  size_t len = 1024;
-
-  TeslaBLEStatus result = command->builder(client_.get(), buffer, &len);
-  if (result == TeslaBLEStatus::OK) {
-    std::vector<uint8_t> data(buffer, buffer + len);
-    if (ble_adapter_->write(data)) {
-      command->state = CommandState::WAITING_FOR_RESPONSE;
-      command->last_tx_at = std::chrono::steady_clock::now();
-      command->retry_count++;
-      LOG_INFO("Sent command: %s (attempt %d/%d)", command->name.c_str(), command->retry_count, MAX_RETRIES + 1);
-    } else {
-      LOG_ERROR("Failed to write command: %s", command->name.c_str());
-      retry_command_(command);
-    }
-  } else {
-    LOG_ERROR("Failed to build command: %s (error %d)", command->name.c_str(), result);
-    mark_command_failed_(command, "Build failed");
-  }
-}
-
-void Vehicle::retry_command_(const std::shared_ptr<Command> &command) {
+void TeslaBLE::Vehicle::retry_command(const std::shared_ptr<Command> &command) {
   if (command->retry_count >= MAX_RETRIES) {
     LOG_ERROR("Max retries exceeded for command: %s", command->name.c_str());
-    mark_command_failed_(command, "Max retries exceeded");
+    mark_command_failed_(command, CommandError::max_retries_exceeded(command->name));
     return;
   }
 
-  LOG_DEBUG("Retrying command: %s", command->name.c_str());
-  // Use last_tx_at to delay? Or just reset state.
-  // Logic from CommandManager: reset to appropriate state.
-
-  // Simplification: if waiting for response, go back to ready.
-  if (command->state == CommandState::WAITING_FOR_RESPONSE) {
-    command->state = CommandState::READY;
+  bool should_retry = true;
+  if (command->last_error) {
+    should_retry = command->last_error->is_temporary();
+    if (!should_retry) {
+      LOG_INFO("Not retrying %s: error is permanent", command->name.c_str());
+      mark_command_failed_(command, std::move(command->last_error));
+      return;
+    }
   }
-  // Handle different retry scenarios based on current state
-  else if (command->state == CommandState::WAITING_FOR_WAKE_RESPONSE) {
-    // Wake retry - go back to waiting for wake
-    command->state = CommandState::WAITING_FOR_WAKE;
+
+  command->retry_count++;
+  LOG_DEBUG("Retrying command: %s (attempt %d/%d)", command->name.c_str(), command->retry_count, MAX_RETRIES + 1);
+
+  std::chrono::milliseconds backoff_delay;
+  if (command->retry_count == 1) {
+    backoff_delay = INITIAL_RETRY_DELAY;
   } else {
-    // Default: auth failures or any other state goes to IDLE to re-verify/retry
-    command->state = CommandState::IDLE;
+    auto current_delay = command->next_retry_delay;
+    auto calculated_delay = std::chrono::milliseconds(static_cast<int64_t>(current_delay.count() * BACKOFF_MULTIPLIER));
+    backoff_delay = calculated_delay > MAX_RETRY_DELAY ? MAX_RETRY_DELAY : calculated_delay;
+    auto jitter = std::chrono::milliseconds(arc4random() % 101);
+    backoff_delay += jitter;
+  }
+
+  command->next_retry_delay = backoff_delay;
+  command->next_retry_time = std::chrono::steady_clock::now() + backoff_delay;
+  LOG_DEBUG("Exponential backoff: retry %d, delay %lldms for command: %s", static_cast<int>(command->retry_count + 1),
+            static_cast<long long>(backoff_delay.count()), command->name.c_str());
+  command->last_tx_at = std::chrono::steady_clock::now() - backoff_delay + std::chrono::milliseconds(100);
+
+  switch (command->state) {
+    case CommandState::WAITING_FOR_RESPONSE:
+      command->state = CommandState::READY;
+      break;
+    case CommandState::AUTH_RESPONSE_WAITING:
+    default:
+      command->state = CommandState::IDLE;
+      break;
   }
 }
 
-void Vehicle::mark_command_failed_(const std::shared_ptr<Command> &command, const std::string &reason) {
+void TeslaBLE::Vehicle::process_ready_command_(const std::shared_ptr<Command> &command) {
+  uint8_t buffer[256];
+  size_t len = 256;
+  if (command->builder(client_.get(), buffer, &len) == 0) {
+    std::vector<uint8_t> data(buffer, buffer + len);
+    if (ble_adapter_->write(data)) {
+      LOG_DEBUG("Sent command: %s (%zu bytes)", command->name.c_str(), data.size());
+      command->state = CommandState::WAITING_FOR_RESPONSE;
+      command->last_tx_at = std::chrono::steady_clock::now();
+    } else {
+      LOG_ERROR("Failed to write command data: %s", command->name.c_str());
+      mark_command_failed_(command, CommandError::build_failed("BLE write failed"));
+    }
+  } else {
+    LOG_ERROR("Failed to build command: %s", command->name.c_str());
+    mark_command_failed_(command, CommandError::build_failed(command->name));
+  }
+}
+
+void TeslaBLE::Vehicle::mark_command_failed_(const std::shared_ptr<Command> &command,
+                                             std::unique_ptr<CommandError> error) {
   command->state = CommandState::FAILED;
+  command->last_error = std::move(error);
   auto now = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - command->started_at);
   LOG_ERROR("[%s] Command failed after %lld ms: %s", command->name.c_str(), (long long) duration.count(),
-            reason.c_str());
-
-  if (command->on_complete) {
-    command->on_complete(false);
-  }
-
-  // Remove from queue if it's the front
-  if (!command_queue_.empty() && command_queue_.front() == command) {
-    command_queue_.pop();
-  }
+            command->last_error->message().c_str());
+  finalize_command_(command, std::move(command->last_error));
 }
 
-void Vehicle::mark_command_completed_(const std::shared_ptr<Command> &command) {
+void TeslaBLE::Vehicle::mark_command_completed_(const std::shared_ptr<Command> &command) {
   command->state = CommandState::COMPLETED;
   auto now = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - command->started_at);
   LOG_INFO("[%s] Command completed successfully in %lld ms", command->name.c_str(), (long long) duration.count());
+  finalize_command_(command, nullptr);
+}
 
+void TeslaBLE::Vehicle::finalize_command_(const std::shared_ptr<Command> &command,
+                                          std::unique_ptr<CommandError> error) {
   if (command->on_complete) {
-    command->on_complete(true);
+    command->on_complete(std::move(error));
   }
-
   if (!command_queue_.empty() && command_queue_.front() == command) {
     command_queue_.pop();
   }
@@ -394,35 +465,55 @@ bool Vehicle::is_domain_authenticated_(UniversalMessage_Domain domain) {
   return peer && peer->is_valid();
 }
 
-void Vehicle::on_rx_data(const std::vector<uint8_t> &data) {
+void TeslaBLE::Vehicle::on_rx_data(const std::vector<uint8_t> &data) {
   rx_buffer_.insert(rx_buffer_.end(), data.begin(), data.end());
-
-  // Reassembly logic
-  while (is_message_complete_()) {
-    process_complete_message_();
+  recovery_attempted_ = false;
+  while (is_message_complete()) {
+    process_complete_message();
   }
 }
 
-bool Vehicle::is_message_complete_() {
-  if (rx_buffer_.size() < 2)
+bool Vehicle::is_message_complete() {
+  if (rx_buffer_.size() < FRAME_HEADER_SIZE)
     return false;
-
-  int msg_len = get_expected_message_length_();
-  return rx_buffer_.size() >= (size_t) msg_len;
+  int msg_len = get_expected_message_length();
+  if (msg_len <= 0 || std::cmp_greater(msg_len, MAX_MESSAGE_SIZE)) {
+    return true;
+  }
+  return rx_buffer_.size() >= static_cast<size_t>(msg_len);
 }
 
-int Vehicle::get_expected_message_length_() {
-  if (rx_buffer_.size() < 2)
+int Vehicle::get_expected_message_length() {
+  if (rx_buffer_.size() < FRAME_HEADER_SIZE)
     return 0;
-  // Length bytes usually indicate the payload length following the header
-  return (int) ((rx_buffer_[0] << 8) | rx_buffer_[1]) + 2;
+  return static_cast<int>((rx_buffer_[0] << 8) | rx_buffer_[1]) + FRAME_HEADER_SIZE;
 }
 
-void Vehicle::process_complete_message_() {
-  int msg_len = get_expected_message_length_();
-  if (msg_len <= 0 || msg_len > 2048) {  // Sanity check
-    LOG_ERROR("Invalid message length %d, clearing buffer", msg_len);
+void TeslaBLE::Vehicle::process_complete_message() {
+  int msg_len = get_expected_message_length();
+  if (msg_len <= 0 || std::cmp_greater(msg_len, MAX_MESSAGE_SIZE)) {
+    LOG_ERROR("Invalid message length %d, attempting buffer recovery", msg_len);
+    bool severe_corruption = msg_len > 0xF000;
+    if (!attempt_buffer_recovery_(msg_len)) {
+      if (severe_corruption) {
+        LOG_ERROR("Severe buffer corruption detected (length: %d), clearing buffer", msg_len);
+      } else {
+        LOG_WARNING("Buffer recovery failed, clearing all data");
+      }
+      rx_buffer_.clear();
+      return;
+    }
+    recovery_attempted_ = true;
+  }
+
+  if (msg_len <= 0 || std::cmp_greater(msg_len, MAX_MESSAGE_SIZE)) {
+    LOG_WARNING("Buffer recovery produced invalid length %d, clearing buffer", msg_len);
     rx_buffer_.clear();
+    recovery_attempted_ = false;
+    return;
+  }
+
+  if (rx_buffer_.size() < static_cast<size_t>(msg_len)) {
     return;
   }
 
@@ -430,85 +521,54 @@ void Vehicle::process_complete_message_() {
   if (raw_message_callback_) {
     raw_message_callback_(full_msg);
   }
-
-  std::vector<uint8_t> msg_data(rx_buffer_.begin() + 2, rx_buffer_.begin() + msg_len);
-
-  // Parse
+  std::vector<uint8_t> msg_data(rx_buffer_.begin() + FRAME_HEADER_SIZE, rx_buffer_.begin() + msg_len);
   UniversalMessage_RoutableMessage msg = UniversalMessage_RoutableMessage_init_default;
-  if (client_->parse_universal_message(msg_data.data(), msg_data.size(), &msg) == TeslaBLEStatus::OK) {
+  if (client_->parse_universal_message(msg_data.data(), msg_data.size(), &msg) == 0) {
     LOG_DEBUG("Successfully parsed universal message");
     log_routable_message(TESLA_LOG_TAG, &msg);
-    handle_message_(msg);
+    message_processor_->queue_message(msg);
+    rx_buffer_.erase(rx_buffer_.begin(), rx_buffer_.begin() + msg_len);
+    recovery_attempted_ = false;
   } else {
-    LOG_ERROR("Failed to parse Universal Message");
+    LOG_ERROR("Failed to parse Universal Message (buffer size: %zu) - attempting buffer recovery", rx_buffer_.size());
+    if (recovery_attempted_ || !attempt_buffer_recovery_(msg_len)) {
+      LOG_WARNING("Buffer recovery failed after parse error, clearing all data");
+      rx_buffer_.clear();
+      recovery_attempted_ = false;
+    } else {
+      recovery_attempted_ = true;
+    }
   }
-
-  // Remove processed data
-  rx_buffer_.erase(rx_buffer_.begin(), rx_buffer_.begin() + msg_len);
 }
 
-void Vehicle::handle_message_(const UniversalMessage_RoutableMessage &msg) {
-  // Notify callback (for sensors)
+void TeslaBLE::Vehicle::handle_message_(const UniversalMessage_RoutableMessage &msg) {
   if (message_callback_) {
     message_callback_(msg);
   }
-
-  // Handle session info updates first (can come from any domain)
+  bool has_session_error = false;
+  if (msg.has_signedMessageStatus) {
+    handle_signed_message_error_(msg, has_session_error);
+  }
   if (msg.which_payload == UniversalMessage_RoutableMessage_session_info_tag) {
     handle_session_info_message_(msg);
+    auto cmd = peek_command_();
+    if (has_session_error && cmd &&
+        (cmd->state == CommandState::WAITING_FOR_RESPONSE || cmd->state == CommandState::AUTH_RESPONSE_WAITING)) {
+      LOG_INFO("Retrying command after session recovery");
+      cmd->state = CommandState::IDLE;
+      cmd->retry_count++;
+      if (cmd->retry_count > MAX_RETRIES) {
+        mark_command_failed_(cmd, CommandError::session_expired("session recovery"));
+      }
+    }
     return;
   }
-
-  // Handle Signed Message Status (errors)
-  if (msg.has_signedMessageStatus) {
-    if (msg.signedMessageStatus.operation_status == UniversalMessage_OperationStatus_E_OPERATIONSTATUS_ERROR) {
-      UniversalMessage_Domain domain = msg.from_destination.sub_destination.domain;
-      auto fault = msg.signedMessageStatus.signed_message_fault;
-      LOG_ERROR("Signed message error from %s: %s", domain_to_string(domain), message_fault_to_string(fault));
-
-      // Check for session-related errors that require re-authentication
-      bool session_error = (fault == UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_TIME_EXPIRED ||
-                            fault == UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_TOKEN_OR_COUNTER ||
-                            fault == UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_SIGNATURE);
-
-      if (session_error) {
-        // Invalidate the session for this domain
-        auto *peer = client_->get_peer(domain);
-        if (peer) {
-          LOG_INFO("Invalidating session for %s due to session error, will re-authenticate", domain_to_string(domain));
-          peer->set_is_valid(false);
-
-          // Mark the domain as unauthenticated so next command will re-auth
-          if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) {
-            is_vcsec_authenticated_ = false;
-          } else if (domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
-            is_infotainment_authenticated_ = false;
-          }
-        }
-      }
-
-      // Handle command failure and retry
-      if (!command_queue_.empty()) {
-        auto cmd = command_queue_.front();
-        if (cmd->state == CommandState::WAITING_FOR_RESPONSE) {
-          if (session_error) {
-            // For session errors, retry the command (it will re-authenticate)
-            LOG_INFO("Retrying command after session error");
-            cmd->state = CommandState::IDLE;
-            cmd->retry_count++;  // Count this as a retry
-            if (cmd->retry_count > MAX_RETRIES) {
-              mark_command_failed_(cmd, "Session error after max retries");
-            }
-          } else {
-            mark_command_failed_(cmd, "Signed Message Error");
-          }
-        }
-      }
-      return;
-    }
+  auto cmd = peek_command_();
+  if (has_session_error && cmd &&
+      (cmd->state == CommandState::WAITING_FOR_RESPONSE || cmd->state == CommandState::AUTH_RESPONSE_WAITING)) {
+    LOG_INFO("Transitioning to IDLE to trigger manual session recovery");
+    cmd->state = CommandState::IDLE;
   }
-
-  // Route based on domain
   if (msg.from_destination.which_sub_destination == UniversalMessage_Destination_domain_tag) {
     switch (msg.from_destination.sub_destination.domain) {
       case UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY:
@@ -524,167 +584,78 @@ void Vehicle::handle_message_(const UniversalMessage_RoutableMessage &msg) {
   }
 }
 
-void Vehicle::handle_session_info_message_(const UniversalMessage_RoutableMessage &msg) {
-  UniversalMessage_Domain domain = msg.from_destination.sub_destination.domain;
-
-  // Infer domain if missing (common in some responses?)
-  if (!msg.has_from_destination ||
-      msg.from_destination.which_sub_destination != UniversalMessage_Destination_domain_tag) {
-    if (!command_queue_.empty()) {
-      auto cmd = command_queue_.front();
-      if (cmd->state == CommandState::WAITING_FOR_INFOTAINMENT_AUTH_RESPONSE) {
-        domain = UniversalMessage_Domain_DOMAIN_INFOTAINMENT;
-      } else if (cmd->state == CommandState::WAITING_FOR_VCSEC_AUTH_RESPONSE) {
-        domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
-      }
-    }
+void TeslaBLE::Vehicle::handle_session_info_message_(const UniversalMessage_RoutableMessage &msg) {
+  UniversalMessage_Domain domain = UniversalMessage_Domain_DOMAIN_BROADCAST;
+  if (msg.has_from_destination &&
+      msg.from_destination.which_sub_destination == UniversalMessage_Destination_domain_tag) {
+    domain = msg.from_destination.sub_destination.domain;
+  } else if (!command_queue_.empty()) {
+    domain = command_queue_.front()->domain;
   }
+  if (domain != UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY &&
+      domain != UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
+    LOG_ERROR("Could not determine valid domain for session info update");
+    return;
+  }
+
+  auto fail_auth = [&](const char *format, auto... args) {
+    LOG_ERROR(format, args...);
+    handle_authentication_response_(domain, false);
+  };
 
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  TeslaBLEStatus result = client_->parse_payload_session_info(
+  int result = client_->parse_payload_session_info(
       const_cast<UniversalMessage_RoutableMessage_session_info_t *>(&msg.payload.session_info), &session_info);
-
-  if (result != TeslaBLEStatus::OK) {
-    LOG_ERROR("Failed to parse session info: %d", static_cast<int>(result));
-    handle_authentication_response_(domain, false);
+  if (result != 0 || session_info.status != Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK) {
+    fail_auth("Failed to parse valid session info (result=%d, status=%d)", result, session_info.status);
     return;
   }
-  LOG_DEBUG("Parsed session info successfully");
 
+  if (msg.which_sub_sigData != UniversalMessage_RoutableMessage_signature_data_tag ||
+      msg.sub_sigData.signature_data.which_sig_type != Signatures_SignatureData_session_info_tag_tag) {
+    fail_auth("Missing session info HMAC tag for %s", domain_to_string(domain));
+    return;
+  }
+
+  const auto &tag = msg.sub_sigData.signature_data.sig_type.session_info_tag.tag;
+  if (tag.size == 0) {
+    fail_auth("Empty session info HMAC tag for %s", domain_to_string(domain));
+    return;
+  }
+
+  pb_byte_t request_uuid[16] = {0};
+  size_t request_uuid_length = sizeof(request_uuid);
+  if (!client_->get_last_request_uuid(domain, request_uuid, &request_uuid_length)) {
+    fail_auth("Missing request UUID for session info verification (%s)", domain_to_string(domain));
+    return;
+  }
+
+  if (!client_->verify_session_info_tag(session_info, msg.payload.session_info.bytes, msg.payload.session_info.size,
+                                        request_uuid, request_uuid_length, tag.bytes, tag.size)) {
+    fail_auth("Session info HMAC verification failed for %s", domain_to_string(domain));
+    return;
+  }
+
+  LOG_DEBUG("Parsed session info successfully for %s", domain_to_string(domain));
   log_session_info(TESLA_LOG_TAG, &session_info);
-
-  if (session_info.status != Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK) {
-    LOG_ERROR("Session info invalid status: %d", session_info.status);
-    handle_authentication_response_(domain, false);
-    return;
-  }
-
   auto *peer = client_->get_peer(domain);
-  if (peer) {
-    TeslaBLEStatus update_result = peer->update_session(&session_info);
-    if (update_result == TeslaBLEStatus::OK) {
-      LOG_INFO("Session updated for %s", domain_to_string(domain));
-
-      // Persist session
-      std::vector<uint8_t> sess_data(msg.payload.session_info.bytes,
-                                     msg.payload.session_info.bytes + msg.payload.session_info.size);
-      std::string key =
-          (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) ? "session_vcsec" : "session_infotainment";
-      storage_adapter_->save(key, sess_data);
-
-      handle_authentication_response_(domain, true);
-    } else if (update_result == TeslaBLEStatus::ERROR_COUNTER_REPLAY) {
-      // Counter went backwards - the vehicle's session is authoritative
-      // This can happen after ERROR_TIME_EXPIRED when the vehicle sends new session info
-      LOG_INFO("Counter anti-replay detected for %s, force updating with vehicle's authoritative session",
-               domain_to_string(domain));
-
-      if (peer->force_update_session(&session_info) == TeslaBLEStatus::OK) {
-        LOG_INFO("Session force-updated for %s", domain_to_string(domain));
-
-        // Persist the new session
-        std::vector<uint8_t> sess_data(msg.payload.session_info.bytes,
-                                       msg.payload.session_info.bytes + msg.payload.session_info.size);
-        std::string key =
-            (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) ? "session_vcsec" : "session_infotainment";
-        storage_adapter_->save(key, sess_data);
-
-        handle_authentication_response_(domain, true);
-      } else {
-        LOG_ERROR("Failed to force update peer session for %s", domain_to_string(domain));
-        handle_authentication_response_(domain, false);
-      }
-    } else {
-      LOG_ERROR("Failed to update peer session for %s: %d", domain_to_string(domain), static_cast<int>(update_result));
-      handle_authentication_response_(domain, false);
-    }
+  if (peer && peer->update_session(&session_info) == 0) {
+    LOG_INFO("Session updated for %s", domain_to_string(domain));
+    persist_session_(domain, msg.payload.session_info);
+    handle_authentication_response_(domain, true);
+  } else {
+    LOG_ERROR("Failed to update peer session for %s", domain_to_string(domain));
+    handle_authentication_response_(domain, false);
   }
 }
 
-void Vehicle::handle_vcsec_message_(const UniversalMessage_RoutableMessage &msg) {
+void TeslaBLE::Vehicle::handle_vcsec_message_(const UniversalMessage_RoutableMessage &msg) {
   LOG_DEBUG("Processing VCSEC message");
-  VCSEC_FromVCSECMessage vcsec_msg = VCSEC_FromVCSECMessage_init_default;
-  TeslaBLEStatus result =
-      client_->parse_from_vcsec_message(const_cast<UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *>(
-                                            &msg.payload.protobuf_message_as_bytes),
-                                        &vcsec_msg);
-
-  if (result != TeslaBLEStatus::OK) {
-    LOG_ERROR("Failed to parse VCSEC message: %d", static_cast<int>(result));
+  if (msg.which_payload != UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag) {
+    LOG_ERROR("VCSEC message missing protobuf payload");
     return;
   }
 
-  LOG_DEBUG("Parsed VCSEC message successfully");
-
-  switch (vcsec_msg.which_sub_message) {
-    case VCSEC_FromVCSECMessage_commandStatus_tag:
-      log_vcsec_command_status(TESLA_LOG_TAG, &vcsec_msg.sub_message.commandStatus);
-      // Check if this matches pending command
-      if (!command_queue_.empty()) {
-        auto cmd = command_queue_.front();
-        if (cmd->domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) {
-          if (cmd->state == CommandState::WAITING_FOR_RESPONSE ||
-              cmd->state == CommandState::WAITING_FOR_WAKE_RESPONSE) {
-            mark_command_completed_(cmd);
-          }
-        }
-      }
-      break;
-
-    case VCSEC_FromVCSECMessage_vehicleStatus_tag:
-      LOG_DEBUG("Received vehicle status");
-      log_vehicle_status(TESLA_LOG_TAG, &vcsec_msg.sub_message.vehicleStatus);
-
-      // Track vehicle sleep state for command state machine
-      // Assume awake unless explicitly asleep (charging vehicles may report UNKNOWN)
-      is_vehicle_awake_ = (vcsec_msg.sub_message.vehicleStatus.vehicleSleepStatus !=
-                           VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_ASLEEP);
-
-      if (vehicle_status_callback_)
-        vehicle_status_callback_(vcsec_msg.sub_message.vehicleStatus);
-
-      // If we are waiting for wake response or VCSEC poll, check status
-      if (!command_queue_.empty()) {
-        auto cmd = command_queue_.front();
-        if (cmd->state == CommandState::WAITING_FOR_WAKE_RESPONSE) {
-          if (is_vehicle_awake_ || vcsec_msg.sub_message.vehicleStatus.has_closureStatuses) {
-            LOG_INFO("Vehicle is awake");
-            // If this was an infotainment command waiting for wake, transition to infotainment auth
-            if (cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
-              LOG_DEBUG("Transitioning infotainment command to auth state after wake");
-              cmd->state = CommandState::WAITING_FOR_INFOTAINMENT_AUTH;
-            } else {
-              // For wake commands or VCSEC commands, mark as completed
-              mark_command_completed_(cmd);
-            }
-          }
-        } else if (cmd->domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY &&
-                   cmd->state == CommandState::WAITING_FOR_RESPONSE) {
-          // Start Polling (or specific VCSEC poll) expects VehicleStatus
-          // Mark as completed since we got a status update
-          mark_command_completed_(cmd);
-        }
-      }
-      break;
-
-    case VCSEC_FromVCSECMessage_whitelistInfo_tag:
-      // Pairing info?
-      break;
-
-    case VCSEC_FromVCSECMessage_nominalError_tag:
-      LOG_ERROR("VCSEC Nominal Error: %s", generic_error_to_string(vcsec_msg.sub_message.nominalError.genericError));
-      if (!command_queue_.empty()) {
-        mark_command_failed_(command_queue_.front(), "VCSEC Error");
-      }
-      break;
-
-    default:
-      break;
-  }
-}
-
-void Vehicle::handle_carserver_message_(const UniversalMessage_RoutableMessage &msg) {
-  LOG_DEBUG("Processing CarServer message");
   const Signatures_SignatureData *sig_data = nullptr;
   if (msg.which_sub_sigData == UniversalMessage_RoutableMessage_signature_data_tag) {
     sig_data = &msg.sub_sigData.signature_data;
@@ -695,89 +666,258 @@ void Vehicle::handle_carserver_message_(const UniversalMessage_RoutableMessage &
     fault = msg.signedMessageStatus.signed_message_fault;
   }
 
+  const UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *payload = &msg.payload.protobuf_message_as_bytes;
+  UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t decrypt_buffer;
+  if (sig_data && sig_data->which_sig_type == Signatures_SignatureData_AES_GCM_Response_data_tag) {
+    LOG_DEBUG("AES_GCM_Response_data found in VCSEC signature_data");
+    auto *session = client_->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+    if (!session->is_initialized()) {
+      LOG_ERROR("VCSEC session not initialized for response decrypt");
+      return;
+    }
+
+    size_t request_hash_length = 0;
+    const pb_byte_t *request_hash = client_->get_last_request_hash(&request_hash_length);
+    if (!request_hash || request_hash_length == 0) {
+      LOG_ERROR("Missing request hash for VCSEC response decrypt");
+      return;
+    }
+
+    size_t decrypt_length = 0;
+    int return_code = session->decrypt_response(
+        payload->bytes, payload->size, sig_data->sig_type.AES_GCM_Response_data.nonce,
+        sig_data->sig_type.AES_GCM_Response_data.tag, request_hash, request_hash_length, msg.flags, fault,
+        decrypt_buffer.bytes, sizeof(decrypt_buffer.bytes), &decrypt_length);
+    if (return_code != 0) {
+      LOG_ERROR("Failed to decrypt VCSEC response: %d", return_code);
+      return;
+    }
+
+    decrypt_buffer.size = decrypt_length;
+    payload = &decrypt_buffer;
+  } else if (sig_data) {
+    LOG_DEBUG("No AES_GCM_Response_data found in VCSEC signature_data");
+  }
+
+  VCSEC_FromVCSECMessage vcsec_msg = VCSEC_FromVCSECMessage_init_default;
+  int result = client_->parse_from_vcsec_message(
+      const_cast<UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *>(payload), &vcsec_msg);
+  if (result != 0) {
+    LOG_ERROR("Failed to parse VCSEC message: %d", result);
+    return;
+  }
+  LOG_DEBUG("Parsed VCSEC message successfully");
+  switch (vcsec_msg.which_sub_message) {
+    case VCSEC_FromVCSECMessage_commandStatus_tag:
+      log_vcsec_command_status(TESLA_LOG_TAG, &vcsec_msg.sub_message.commandStatus);
+      if (auto cmd = peek_command_()) {
+        if (cmd->domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY &&
+            (cmd->state == CommandState::WAITING_FOR_RESPONSE || cmd->state == CommandState::AUTH_RESPONSE_WAITING)) {
+          mark_command_completed_(cmd);
+        }
+      }
+      break;
+    case VCSEC_FromVCSECMessage_vehicleStatus_tag:
+      LOG_DEBUG("Received vehicle status");
+      log_vehicle_status(TESLA_LOG_TAG, &vcsec_msg.sub_message.vehicleStatus);
+      is_vehicle_awake_ = vcsec_msg.sub_message.vehicleStatus.vehicleSleepStatus !=
+                          VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_ASLEEP;
+      if (vehicle_status_callback_) {
+        vehicle_status_callback_(vcsec_msg.sub_message.vehicleStatus);
+      }
+      if (auto cmd = peek_command_()) {
+        handle_vehicle_status_command_update_(cmd, vcsec_msg.sub_message.vehicleStatus);
+      }
+      break;
+    case VCSEC_FromVCSECMessage_whitelistInfo_tag:
+      break;
+    case VCSEC_FromVCSECMessage_nominalError_tag:
+      LOG_ERROR("VCSEC Nominal Error: %s", generic_error_to_string(vcsec_msg.sub_message.nominalError.genericError));
+      if (auto cmd = peek_command_()) {
+        mark_command_failed_(cmd, CommandError::authentication_failed("VCSEC"));
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_RoutableMessage &msg) {
+  LOG_DEBUG("Processing CarServer message");
+  const Signatures_SignatureData *sig_data = nullptr;
+  if (msg.which_sub_sigData == UniversalMessage_RoutableMessage_signature_data_tag) {
+    sig_data = &msg.sub_sigData.signature_data;
+  }
+  UniversalMessage_MessageFault_E fault = UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE;
+  if (msg.has_signedMessageStatus) {
+    fault = msg.signedMessageStatus.signed_message_fault;
+  }
   CarServer_Response response = CarServer_Response_init_default;
-  TeslaBLEStatus result = client_->parse_payload_car_server_response(
+  uint32_t response_counter = 0;
+  int result = client_->parse_payload_car_server_response(
       const_cast<UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *>(
           &msg.payload.protobuf_message_as_bytes),
-      const_cast<Signatures_SignatureData *>(sig_data), msg.which_sub_sigData, fault, &response);
-
-  if (result != TeslaBLEStatus::OK) {
+      const_cast<Signatures_SignatureData *>(sig_data), msg.which_sub_sigData, fault, msg.flags, &response,
+      &response_counter);
+  if (result != 0) {
     LOG_ERROR("Failed to parse CarServer response: %d", result);
     return;
   }
-
   LOG_DEBUG("Parsed CarServer.Response successfully");
   log_carserver_response(TESLA_LOG_TAG, &response);
-
-  // Trigger callbacks based on response content
+  auto *peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+  if (peer && response_counter > 0 && !peer->validate_response_counter(response_counter)) {
+    LOG_WARNING("Duplicate response counter detected: %u", response_counter);
+  }
   if (response.which_response_msg == CarServer_Response_vehicleData_tag) {
-    if (response.response_msg.vehicleData.has_charge_state && charge_state_callback_) {
-      charge_state_callback_(response.response_msg.vehicleData.charge_state);
-    }
-    if (response.response_msg.vehicleData.has_climate_state && climate_state_callback_) {
-      climate_state_callback_(response.response_msg.vehicleData.climate_state);
-    }
-    if (response.response_msg.vehicleData.has_drive_state && drive_state_callback_) {
-      drive_state_callback_(response.response_msg.vehicleData.drive_state);
-    }
-    if (response.response_msg.vehicleData.has_tire_pressure_state && tire_pressure_callback_) {
-      tire_pressure_callback_(response.response_msg.vehicleData.tire_pressure_state);
-    }
-    if (response.response_msg.vehicleData.has_closures_state && closures_state_callback_) {
-      closures_state_callback_(response.response_msg.vehicleData.closures_state);
-    }
-  }
-
-  // Check command completion
-  if (!command_queue_.empty()) {
-    auto cmd = command_queue_.front();
-    if (cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT &&
-        cmd->state == CommandState::WAITING_FOR_RESPONSE) {
-      if (response.has_actionStatus) {
-        if (response.actionStatus.result == CarServer_OperationStatus_E_OPERATIONSTATUS_OK) {
-          mark_command_completed_(cmd);
-        } else {
-          LOG_ERROR("CarServer Action Failed");
-          mark_command_failed_(cmd, "Action Failed");
-        }
-      } else {
-        // If it's a data response (vehicleData), assume success
-        if (response.which_response_msg == CarServer_Response_vehicleData_tag) {
-          mark_command_completed_(cmd);
-        }
+    auto &vd = response.response_msg.vehicleData;
+    auto emit_if = [&](bool has_value, auto &callback, const auto &value) {
+      if (has_value && callback) {
+        callback(value);
       }
+    };
+    emit_if(vd.has_charge_state, charge_state_callback_, vd.charge_state);
+    emit_if(vd.has_climate_state, climate_state_callback_, vd.climate_state);
+    emit_if(vd.has_drive_state, drive_state_callback_, vd.drive_state);
+    emit_if(vd.has_tire_pressure_state, tire_pressure_callback_, vd.tire_pressure_state);
+    emit_if(vd.has_closures_state, closures_state_callback_, vd.closures_state);
+  }
+  auto cmd = peek_command_();
+  if (cmd && cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT &&
+      cmd->state == CommandState::WAITING_FOR_RESPONSE) {
+    if (response.has_actionStatus) {
+      if (response.actionStatus.result == CarServer_OperationStatus_E_OPERATIONSTATUS_OK) {
+        mark_command_completed_(cmd);
+      } else {
+        LOG_ERROR("CarServer Action Failed");
+        mark_command_failed_(cmd, CommandError::authentication_failed("Infotainment action"));
+      }
+    } else if (response.which_response_msg == CarServer_Response_vehicleData_tag) {
+      mark_command_completed_(cmd);
     }
   }
 }
 
-void Vehicle::handle_authentication_response_(UniversalMessage_Domain domain, bool success) {
-  if (!command_queue_.empty()) {
-    auto cmd = command_queue_.front();
-    if ((cmd->state == CommandState::WAITING_FOR_VCSEC_AUTH_RESPONSE &&
-         domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) ||
-        (cmd->state == CommandState::WAITING_FOR_INFOTAINMENT_AUTH_RESPONSE &&
-         domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT)) {
-      if (success) {
-        // If VCSEC, might need to transition to Infotainment or Ready
-        if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) {
-          if (cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
-            cmd->state = CommandState::WAITING_FOR_INFOTAINMENT_AUTH;
-          } else {
-            cmd->state = CommandState::READY;
-          }
-        } else {
-          cmd->state = CommandState::READY;
-        }
-      } else {
-        mark_command_failed_(cmd, "Auth failed");
-      }
+void TeslaBLE::Vehicle::handle_authentication_response_(UniversalMessage_Domain domain, bool success) {
+  auto cmd = peek_command_();
+  if (!cmd || cmd->state != CommandState::AUTH_RESPONSE_WAITING) {
+    return;
+  }
+
+  if (success) {
+    if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY &&
+        cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
+      cmd->current_auth_domain = UniversalMessage_Domain_DOMAIN_INFOTAINMENT;
+      cmd->state = CommandState::AUTHENTICATING;
+      return;
     }
+    cmd->state = CommandState::READY;
+    return;
+  }
+
+  mark_command_failed_(cmd, CommandError::authentication_failed("auth response", true));
+}
+
+std::string Vehicle::get_session_key_(UniversalMessage_Domain domain) {
+  return (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) ? "session_vcsec" : "session_infotainment";
+}
+
+void TeslaBLE::Vehicle::persist_session_(UniversalMessage_Domain domain,
+                                         const UniversalMessage_RoutableMessage_session_info_t &session_info) {
+  std::string key = get_session_key_(domain);
+  std::vector<uint8_t> sess_data(session_info.bytes, session_info.bytes + session_info.size);
+  storage_adapter_->save(key, sess_data);
+}
+
+void TeslaBLE::Vehicle::reset_all_sessions_and_connection_() {
+  if (auto *vcsec_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)) {
+    vcsec_peer->reset();
+  }
+  if (auto *info_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT)) {
+    info_peer->reset();
+  }
+  clear_stored_session_(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  clear_stored_session_(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+  set_connected(false);
+}
+
+void TeslaBLE::Vehicle::log_timeout_message_(const std::string &message, const std::shared_ptr<Command> &command) {
+  if (is_connected_) {
+    LOG_WARNING("%s (attempt %d/%d)", message.c_str(), command->retry_count + 1, MAX_RETRIES + 1);
+  } else {
+    LOG_DEBUG("%s while disconnected (attempt %d/%d)", message.c_str(), command->retry_count + 1, MAX_RETRIES + 1);
   }
 }
 
-void Vehicle::load_session_from_storage_(UniversalMessage_Domain domain) {
-  std::string key =
-      (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) ? "session_vcsec" : "session_infotainment";
+bool Vehicle::attempt_buffer_recovery_(int &msg_len) {
+  if (rx_buffer_.size() <= FRAME_HEADER_SIZE) {
+    return false;
+  }
+
+  LOG_INFO("Attempting to recover buffer from %zu bytes", rx_buffer_.size());
+
+  // Search for potential next valid message start
+  for (size_t i = 1; i < rx_buffer_.size() - FRAME_HEADER_SIZE; i++) {
+    uint16_t potential_len = (rx_buffer_[i] << 8) | rx_buffer_[i + 1];
+
+    // Valid length check: reasonable size and fits in buffer
+    // Also check for corrupted length values (near max uint16)
+    if (potential_len > 0 && potential_len <= MAX_MESSAGE_SIZE &&
+        potential_len < 0xF000 &&  // Filter out obviously corrupted lengths
+        i + FRAME_HEADER_SIZE + potential_len <= rx_buffer_.size()) {
+      LOG_INFO("Found potential valid message at offset %zu, length %d", i, potential_len);
+
+      // Remove corrupted prefix, keep valid suffix
+      rx_buffer_.erase(rx_buffer_.begin(), rx_buffer_.begin() + i);
+      LOG_DEBUG("Buffer recovered to %zu bytes", rx_buffer_.size());
+
+      // Retry processing with recovered buffer
+      msg_len = get_expected_message_length();
+      if (msg_len > 0 && std::cmp_less_equal(msg_len, MAX_MESSAGE_SIZE)) {
+        LOG_INFO("Successfully recovered valid message, continuing processing");
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+void TeslaBLE::Vehicle::handle_vehicle_status_command_update_(const std::shared_ptr<Command> &cmd,
+                                                              const VCSEC_VehicleStatus &status) {
+  switch (cmd->state) {
+    case CommandState::AUTH_RESPONSE_WAITING:
+      if (is_vehicle_awake_ || status.has_closureStatuses) {
+        LOG_INFO("Vehicle is awake");
+        if (cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
+          LOG_DEBUG("Transitioning infotainment command to auth state after wake");
+          cmd->state = CommandState::AUTHENTICATING;
+        } else {
+          mark_command_completed_(cmd);
+        }
+      }
+      break;
+    case CommandState::WAITING_FOR_RESPONSE:
+      if (cmd->domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) {
+        mark_command_completed_(cmd);
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+void TeslaBLE::Vehicle::clear_stored_session_(UniversalMessage_Domain domain) {
+  std::string key = get_session_key_(domain);
+  if (storage_adapter_->remove(key)) {
+    LOG_INFO("Cleared stored session for %s", domain_to_string(domain));
+  } else {
+    LOG_WARNING("Failed to clear stored session for %s (may not exist)", domain_to_string(domain));
+  }
+}
+
+void TeslaBLE::Vehicle::load_session_from_storage_(UniversalMessage_Domain domain) {
+  std::string key = get_session_key_(domain);
 
   std::vector<uint8_t> session_data;
   if (!storage_adapter_->load(key, session_data)) {
@@ -797,13 +937,13 @@ void Vehicle::load_session_from_storage_(UniversalMessage_Domain domain) {
     return;
   }
 
-  memcpy(session_info_buffer.bytes, session_data.data(), session_data.size());
+  std::copy_n(session_data.data(), session_data.size(), session_info_buffer.bytes);
   session_info_buffer.size = session_data.size();
 
   // Parse the session info
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  TeslaBLEStatus result = client_->parse_payload_session_info(&session_info_buffer, &session_info);
-  if (result != TeslaBLEStatus::OK) {
+  int result = client_->parse_payload_session_info(&session_info_buffer, &session_info);
+  if (result != 0) {
     LOG_ERROR("Failed to parse stored session info for %s: %d", domain_to_string(domain), result);
     return;
   }
@@ -814,11 +954,33 @@ void Vehicle::load_session_from_storage_(UniversalMessage_Domain domain) {
     return;
   }
 
+  // Validate session age - reject sessions older than 1 hour to prevent INVALID_SIGNATURE errors
+  // Stale sessions cause crypto failures when vehicle's internal state changes
+  uint32_t current_time = static_cast<uint32_t>(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
+  uint32_t session_time = session_info.clock_time;
+  uint32_t session_age_seconds = current_time - session_time;
+
+  // If session has no clock_time, check if it's from a previous run (be very conservative)
+  if (session_time == 0) {
+    LOG_WARNING("Stored session for %s has no timestamp - rejecting to prevent crypto errors",
+                domain_to_string(domain));
+    return;
+  }
+
+  // Reject sessions older than 1 hour (3600 seconds)
+  if (session_age_seconds > 3600) {
+    LOG_WARNING("Stored session for %s is too old (%u seconds) - rejecting to prevent crypto errors",
+                domain_to_string(domain), session_age_seconds);
+    return;
+  }
+
+  LOG_DEBUG("Session age validation passed for %s: %u seconds old", domain_to_string(domain), session_age_seconds);
+
   // Update the peer with the loaded session
   auto *peer = client_->get_peer(domain);
   if (peer) {
-    // Use forceUpdateSession since we're loading from storage (no anti-replay check needed)
-    if (peer->force_update_session(&session_info) == TeslaBLEStatus::OK) {
+    // Use update_session - it will handle counter correctly (preserve higher value)
+    if (peer->update_session(&session_info) == 0) {
       LOG_INFO("Loaded session from storage for %s (counter: %u)", domain_to_string(domain), session_info.counter);
     } else {
       LOG_ERROR("Failed to apply stored session for %s", domain_to_string(domain));
@@ -826,13 +988,17 @@ void Vehicle::load_session_from_storage_(UniversalMessage_Domain domain) {
   }
 }
 
-void Vehicle::wake() {
+void TeslaBLE::Vehicle::wake() {
+  if (is_vehicle_awake_) {
+    LOG_DEBUG("Vehicle is already awake, skipping redundant wake action");
+    return;
+  }
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Wake", [](Client *client, uint8_t *buff, size_t *len) {
     return client->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, buff, len);
   });
 }
 
-void Vehicle::vcsec_poll() {
+void TeslaBLE::Vehicle::vcsec_poll() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "VCSEC Poll",
                [](Client *client, uint8_t *buff, size_t *len) {
                  return client->build_vcsec_information_request_message(
@@ -840,8 +1006,7 @@ void Vehicle::vcsec_poll() {
                });
 }
 
-void Vehicle::infotainment_poll(bool force_wake) {
-  // Poll various vehicle states, need to do this separately to avoid ERROR_RESPONSE_MTU_EXCEEDED
+void TeslaBLE::Vehicle::infotainment_poll(bool force_wake) {
   charge_state_poll(force_wake);
   climate_state_poll(force_wake);
   drive_state_poll(force_wake);
@@ -849,108 +1014,75 @@ void Vehicle::infotainment_poll(bool force_wake) {
   tire_pressure_poll(force_wake);
 }
 
-void Vehicle::charge_state_poll(bool force_wake) {
+void TeslaBLE::Vehicle::send_infotainment_poll_(const std::string &name, int32_t data_type, bool force_wake) {
   send_command(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Charge State Poll",
-      [](Client *client, uint8_t *buff, size_t *len) {
-        return client->build_car_server_get_vehicle_data_message(buff, len,
-                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, name,
+      [data_type](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len, data_type);
       },
       nullptr, force_wake);
 }
 
-void Vehicle::climate_state_poll(bool force_wake) {
-  send_command(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Climate State Poll",
-      [](Client *client, uint8_t *buff, size_t *len) {
-        return client->build_car_server_get_vehicle_data_message(buff, len,
-                                                                 CarServer_GetVehicleData_getClimateState_tag);
-      },
-      nullptr, force_wake);
+void TeslaBLE::Vehicle::charge_state_poll(bool force_wake) {
+  send_infotainment_poll_("Charge State Poll", CarServer_GetVehicleData_getChargeState_tag, force_wake);
 }
 
-void Vehicle::drive_state_poll(bool force_wake) {
-  send_command(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Drive State Poll",
-      [](Client *client, uint8_t *buff, size_t *len) {
-        return client->build_car_server_get_vehicle_data_message(buff, len, CarServer_GetVehicleData_getDriveState_tag);
-      },
-      nullptr, force_wake);
+void TeslaBLE::Vehicle::climate_state_poll(bool force_wake) {
+  send_infotainment_poll_("Climate State Poll", CarServer_GetVehicleData_getClimateState_tag, force_wake);
 }
 
-void Vehicle::closures_state_poll(bool force_wake) {
-  send_command(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Closures State Poll",
-      [](Client *client, uint8_t *buff, size_t *len) {
-        return client->build_car_server_get_vehicle_data_message(buff, len,
-                                                                 CarServer_GetVehicleData_getClosuresState_tag);
-      },
-      nullptr, force_wake);
+void TeslaBLE::Vehicle::drive_state_poll(bool force_wake) {
+  send_infotainment_poll_("Drive State Poll", CarServer_GetVehicleData_getDriveState_tag, force_wake);
 }
 
-void Vehicle::tire_pressure_poll(bool force_wake) {
-  send_command(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Tire Pressure Poll",
-      [](Client *client, uint8_t *buff, size_t *len) {
-        return client->build_car_server_get_vehicle_data_message(buff, len,
-                                                                 CarServer_GetVehicleData_getTirePressureState_tag);
-      },
-      nullptr, force_wake);
+void TeslaBLE::Vehicle::closures_state_poll(bool force_wake) {
+  send_infotainment_poll_("Closures State Poll", CarServer_GetVehicleData_getClosuresState_tag, force_wake);
 }
 
-void Vehicle::set_charging_state(bool enable) {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, enable ? "Start Charging" : "Stop Charging",
-               [enable](Client *client, uint8_t *buff, size_t *len) {
-                 int32_t action = enable ? 1 : 0;
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_chargingStartStopAction_tag, &action);
-               });
+void TeslaBLE::Vehicle::tire_pressure_poll(bool force_wake) {
+  send_infotainment_poll_("Tire Pressure Poll", CarServer_GetVehicleData_getTirePressureState_tag, force_wake);
 }
 
-void Vehicle::set_charging_amps(int amps) {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Set Charging Amps",
-               [amps](Client *client, uint8_t *buff, size_t *len) {
-                 int32_t val = amps;
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_setChargingAmpsAction_tag, &val);
-               });
+void TeslaBLE::Vehicle::set_charging_state(bool enable) {
+  send_infotainment_action_(enable ? "Start Charging" : "Stop Charging",
+                            CarServer_VehicleAction_chargingStartStopAction_tag, enable);
 }
 
-void Vehicle::set_charging_limit(int limit) {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Set Charging Limit",
-               [limit](Client *client, uint8_t *buff, size_t *len) {
-                 int32_t val = limit;
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_chargingSetLimitAction_tag, &val);
-               });
+void TeslaBLE::Vehicle::set_charging_amps(int amps) {
+  if (!ParameterValidator::is_valid_charging_amps(amps)) {
+    LOG_ERROR("Invalid charging amps value: %d (must be 0-80)", amps);
+    return;
+  }
+  LOG_DEBUG("set_charging_amps called with: %d", amps);
+  send_infotainment_action_("Set Charging Amps", CarServer_VehicleAction_setChargingAmpsAction_tag, amps);
 }
 
-void Vehicle::unlock_charge_port() {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Unlock Charge Port",
-               [](Client *client, uint8_t *buff, size_t *len) {
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_chargePortDoorOpen_tag, nullptr);
-               });
+void TeslaBLE::Vehicle::set_charging_limit(int limit) {
+  send_infotainment_action_("Set Charging Limit", CarServer_VehicleAction_chargingSetLimitAction_tag, limit);
+}
+
+void TeslaBLE::Vehicle::unlock_charge_port() {
+  send_infotainment_action_("Unlock Charge Port", CarServer_VehicleAction_chargePortDoorOpen_tag);
 }
 
 // =============================================================================
 // VCSEC Closure Controls
 // =============================================================================
 
-void Vehicle::lock() {
+void TeslaBLE::Vehicle::lock() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Lock", [](Client *client, uint8_t *buff, size_t *len) {
     return client->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_LOCK, buff, len);
   });
 }
 
-void Vehicle::unlock() {
+void TeslaBLE::Vehicle::unlock() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Unlock",
                [](Client *client, uint8_t *buff, size_t *len) {
                  return client->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_UNLOCK, buff, len);
                });
 }
 
-void Vehicle::open_trunk() {
+void TeslaBLE::Vehicle::open_trunk() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Open Trunk",
                [](Client *client, uint8_t *buff, size_t *len) {
                  VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
@@ -959,7 +1091,7 @@ void Vehicle::open_trunk() {
                });
 }
 
-void Vehicle::close_trunk() {
+void TeslaBLE::Vehicle::close_trunk() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Close Trunk",
                [](Client *client, uint8_t *buff, size_t *len) {
                  VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
@@ -968,7 +1100,7 @@ void Vehicle::close_trunk() {
                });
 }
 
-void Vehicle::open_frunk() {
+void TeslaBLE::Vehicle::open_frunk() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Open Frunk",
                [](Client *client, uint8_t *buff, size_t *len) {
                  VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
@@ -977,7 +1109,7 @@ void Vehicle::open_frunk() {
                });
 }
 
-void Vehicle::open_charge_port() {
+void TeslaBLE::Vehicle::open_charge_port() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Open Charge Port",
                [](Client *client, uint8_t *buff, size_t *len) {
                  VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
@@ -986,7 +1118,7 @@ void Vehicle::open_charge_port() {
                });
 }
 
-void Vehicle::close_charge_port() {
+void TeslaBLE::Vehicle::close_charge_port() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Close Charge Port",
                [](Client *client, uint8_t *buff, size_t *len) {
                  VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
@@ -995,7 +1127,7 @@ void Vehicle::close_charge_port() {
                });
 }
 
-void Vehicle::unlatch_driver_door() {
+void TeslaBLE::Vehicle::unlatch_driver_door() {
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Unlatch Driver Door",
                [](Client *client, uint8_t *buff, size_t *len) {
                  VCSEC_ClosureMoveRequest request = VCSEC_ClosureMoveRequest_init_zero;
@@ -1008,153 +1140,138 @@ void Vehicle::unlatch_driver_door() {
 // HVAC Controls (Infotainment)
 // =============================================================================
 
-void Vehicle::set_climate(bool enable) {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, enable ? "Climate On" : "Climate Off",
-               [enable](Client *client, uint8_t *buff, size_t *len) {
-                 bool val = enable;
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_hvacAutoAction_tag, &val);
-               });
+void TeslaBLE::Vehicle::set_climate(bool enable) {
+  send_infotainment_action_(enable ? "Climate On" : "Climate Off", CarServer_VehicleAction_hvacAutoAction_tag, enable);
 }
 
-void Vehicle::set_climate_temp(float temp_celsius) {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Set Climate Temperature",
-               [temp_celsius](Client *client, uint8_t *buff, size_t *len) {
-                 float temp = temp_celsius;
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_hvacTemperatureAdjustmentAction_tag, &temp);
-               });
+void TeslaBLE::Vehicle::set_climate_temp(float temp_celsius) {
+  send_infotainment_action_("Set Climate Temp", CarServer_VehicleAction_hvacTemperatureAdjustmentAction_tag,
+                            temp_celsius);
 }
 
-void Vehicle::set_climate_keeper(int mode) {
-  const char *mode_names[] = {"Off", "On", "Dog", "Camp"};
-  const char *name = (mode >= 0 && mode <= 3) ? mode_names[mode] : "Unknown";
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, std::string("Climate Keeper ") + name,
-               [mode](Client *client, uint8_t *buff, size_t *len) {
-                 int m = mode;
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_hvacClimateKeeperAction_tag, &m);
-               });
+void TeslaBLE::Vehicle::set_climate_keeper(int mode) {
+  const char *modes[] = {"Off", "On", "Dog", "Camp"};
+  std::string name = std::string("Climate Keeper ") + (mode >= 0 && mode <= 3 ? modes[mode] : "Unknown");
+  send_infotainment_action_(name, CarServer_VehicleAction_hvacClimateKeeperAction_tag, mode);
 }
 
-void Vehicle::set_bioweapon_mode(bool enable) {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, enable ? "Bioweapon Mode On" : "Bioweapon Mode Off",
-               [enable](Client *client, uint8_t *buff, size_t *len) {
-                 bool val = enable;
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_hvacBioweaponModeAction_tag, &val);
-               });
+void TeslaBLE::Vehicle::set_bioweapon_mode(bool enable) {
+  send_infotainment_action_(enable ? "Bioweapon On" : "Bioweapon Off",
+                            CarServer_VehicleAction_hvacBioweaponModeAction_tag, enable);
 }
 
-void Vehicle::set_preconditioning_max(bool enable) {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, enable ? "Defrost On" : "Defrost Off",
-               [enable](Client *client, uint8_t *buff, size_t *len) {
-                 bool val = enable;
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_hvacSetPreconditioningMaxAction_tag, &val);
-               });
+void TeslaBLE::Vehicle::set_preconditioning_max(bool enable) {
+  send_infotainment_action_(enable ? "Defrost On" : "Defrost Off",
+                            CarServer_VehicleAction_hvacSetPreconditioningMaxAction_tag, enable);
 }
 
-void Vehicle::set_steering_wheel_heat(bool enable) {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
-               enable ? "Steering Wheel Heat On" : "Steering Wheel Heat Off",
-               [enable](Client *client, uint8_t *buff, size_t *len) {
-                 bool val = enable;
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag, &val);
-               });
+void TeslaBLE::Vehicle::set_steering_wheel_heat(bool enable) {
+  send_infotainment_action_(enable ? "Steering Heat On" : "Steering Heat Off",
+                            CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag, enable);
 }
 
 // =============================================================================
 // Vehicle Controls (Infotainment)
 // =============================================================================
 
-void Vehicle::flash_lights() {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Flash Lights",
-               [](Client *client, uint8_t *buff, size_t *len) {
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_vehicleControlFlashLightsAction_tag, nullptr);
-               });
+void TeslaBLE::Vehicle::flash_lights() {
+  send_infotainment_action_("Flash Lights", CarServer_VehicleAction_vehicleControlFlashLightsAction_tag);
 }
 
-void Vehicle::honk_horn() {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Honk Horn",
-               [](Client *client, uint8_t *buff, size_t *len) {
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_vehicleControlHonkHornAction_tag, nullptr);
-               });
+void TeslaBLE::Vehicle::honk_horn() {
+  send_infotainment_action_("Honk Horn", CarServer_VehicleAction_vehicleControlHonkHornAction_tag);
 }
 
-void Vehicle::set_sentry_mode(bool enable) {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, enable ? "Sentry Mode On" : "Sentry Mode Off",
-               [enable](Client *client, uint8_t *buff, size_t *len) {
-                 bool val = enable;
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, &val);
-               });
+void TeslaBLE::Vehicle::set_sentry_mode(bool enable) {
+  send_infotainment_action_(enable ? "Sentry On" : "Sentry Off",
+                            CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, enable);
 }
 
-void Vehicle::vent_windows() {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Vent Windows",
-               [](Client *client, uint8_t *buff, size_t *len) {
-                 int32_t action = 0;  // 0 = vent
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_vehicleControlWindowAction_tag, &action);
-               });
+void TeslaBLE::Vehicle::vent_windows() {
+  send_infotainment_action_("Vent Windows", CarServer_VehicleAction_vehicleControlWindowAction_tag, 0);
 }
 
-void Vehicle::close_windows() {
-  send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Close Windows",
-               [](Client *client, uint8_t *buff, size_t *len) {
-                 int32_t action = 1;  // 1 = close
-                 return client->build_car_server_vehicle_action_message(
-                     buff, len, CarServer_VehicleAction_vehicleControlWindowAction_tag, &action);
-               });
+void TeslaBLE::Vehicle::close_windows() {
+  send_infotainment_action_("Close Windows", CarServer_VehicleAction_vehicleControlWindowAction_tag, 1);
 }
 
-void Vehicle::authenticate_key_request() {
-  // Trigger VCSEC auth manually if needed, though usually automatic
-  send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Key Auth Request",
-               [](Client *client, uint8_t *buf, size_t *len) {
-                 // Just triggering auth logic if needed, usually we just send whitelist query or ephemeral key exchange
-                 return client->build_vcsec_information_request_message(
-                     VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS, buf, len);
-               });
-}
+// =============================================================================
+// Pairing and Key Management
+// =============================================================================
 
-void Vehicle::pair(Keys_Role role) {
+void TeslaBLE::Vehicle::pair(Keys_Role role) {
   LOG_INFO("Initiating pairing sequence...");
-
-  // Ensure we have a key first
-  if (client_->create_private_key() != TeslaBLEStatus::OK) {
+  if (client_->create_private_key() != 0) {
     LOG_WARNING("Could not check/create private key, proceeding anyway");
   }
-
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Whitelist Add Key",
-               [role](Client *client, uint8_t *buf, size_t *len) {
-                 return client->build_white_list_message(role, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_NFC_CARD, buf, len);
+               [role_copy = role](Client *client, uint8_t *buf, size_t *len) {
+                 return client->build_white_list_message(role_copy, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_NFC_CARD, buf,
+                                                         len);
                });
 }
 
-void Vehicle::regenerate_key() {
+void TeslaBLE::Vehicle::regenerate_key() {
   LOG_INFO("Regenerating private key...");
-  if (client_->create_private_key() == TeslaBLEStatus::OK) {
-    // Get and save new key
-    constexpr size_t max_key_size = 133;  // 2 * 66 + 1 (MBEDTLS_ECP_MAX_PT_LEN for P-521)
-    uint8_t key_buf[max_key_size];
+  if (client_->create_private_key() == 0) {
+    // NOLINTNEXTLINE(readability-math-missing-parentheses) - macro from external library
+    uint8_t key_buf[MBEDTLS_ECP_MAX_PT_LEN];
     size_t key_len = 0;
     size_t buf_len = sizeof(key_buf);
-
-    if (client_->get_private_key(key_buf, buf_len, &key_len) == TeslaBLEStatus::OK) {
+    if (client_->get_private_key(key_buf, buf_len, &key_len) == 0) {
       std::vector<uint8_t> key_vec(key_buf, key_buf + key_len);
       if (storage_adapter_->save("private_key", key_vec)) {
         LOG_INFO("New private key saved to storage");
       } else {
         LOG_ERROR("Failed to save new private key");
       }
+    } else {
+      LOG_ERROR("Failed to create private key");
     }
-  } else {
-    LOG_ERROR("Failed to create private key");
+  }
+}  // namespace TeslaBLE
+
+void TeslaBLE::Vehicle::handle_signed_message_error_(const UniversalMessage_RoutableMessage &msg,
+                                                     bool &has_session_error) {
+  if (msg.signedMessageStatus.operation_status != UniversalMessage_OperationStatus_E_OPERATIONSTATUS_ERROR) {
+    return;
+  }
+
+  UniversalMessage_Domain domain = UniversalMessage_Domain_DOMAIN_BROADCAST;
+  if (msg.has_from_destination &&
+      msg.from_destination.which_sub_destination == UniversalMessage_Destination_domain_tag) {
+    domain = msg.from_destination.sub_destination.domain;
+  } else if (auto cmd = peek_command_()) {
+    domain = cmd->domain;
+  }
+
+  auto fault = msg.signedMessageStatus.signed_message_fault;
+  LOG_ERROR("Signed message error from %s: %s", domain_to_string(domain), message_fault_to_string(fault));
+
+  auto *peer = client_->get_peer(domain);
+  if (peer) {
+    switch (fault) {
+      case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_TIME_EXPIRED:
+      case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INCORRECT_EPOCH:
+      case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_TOKEN_OR_COUNTER:
+        LOG_INFO("Session sync required for %s (%s)", domain_to_string(domain), message_fault_to_string(fault));
+        has_session_error = true;
+        break;
+      case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_SIGNATURE:
+        LOG_INFO("INVALID_SIGNATURE for %s: resetting session and clearing stored data", domain_to_string(domain));
+        peer->reset();
+        // Clear stored session to prevent repeated INVALID_SIGNATURE errors
+        clear_stored_session_(domain);
+        has_session_error = true;
+        break;
+      default:
+        break;
+    }
+  }
+
+  auto cmd = peek_command_();
+  if (!has_session_error && cmd && cmd->state == CommandState::WAITING_FOR_RESPONSE) {
+    mark_command_failed_(cmd, CommandError::authentication_failed("signed message"));
   }
 }
 

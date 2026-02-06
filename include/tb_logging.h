@@ -1,5 +1,6 @@
 #pragma once
 
+#include "vehicle.h"
 #include "car_server.pb.h"
 #include "signatures.pb.h"
 #include "universal_message.pb.h"
@@ -23,7 +24,7 @@ const char *carserver_operation_status_to_string(CarServer_OperationStatus_E sta
 
 void log_aes_gcm_personalized_signature_data(const char *tag,
                                              const Signatures_AES_GCM_Personalized_Signature_Data *data);
-void log_destination(const char *tag, const char *direction, const UniversalMessage_Destination *dest);
+void log_destination(const char *tag, const char *prefix, const UniversalMessage_Destination *dest);
 void log_information_request(const char *tag, const VCSEC_InformationRequest *msg);
 void log_message_status(const char *tag, const UniversalMessage_MessageStatus *status);
 void log_routable_message(const char *tag, const UniversalMessage_RoutableMessage *msg);

@@ -1,35 +1,53 @@
 #include "message_builders.h"
+
 #include "defs.h"
+#include "tb_utils.h"
+
 #include "car_server.pb.h"
-#include "errors.h"
+#include "universal_message.pb.h"
 
 namespace TeslaBLE {
 
 // Forward declarations of builder functions
-static TeslaBLEStatus build_charging_set_limit(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_charging_start_stop(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_set_charging_amps(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_charge_port_door_open(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_charge_port_door_close(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_scheduled_charging(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_hvac_auto_action(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_hvac_steering_wheel_heater(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_vehicle_control_flash_lights(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_vehicle_control_honk_horn(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_vehicle_control_set_sentry_mode(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_media_play_action(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_media_next_favorite(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_media_previous_favorite(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_media_next_track(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_media_previous_track(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_ping_action(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_vehicle_control_window_action(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_hvac_set_preconditioning_max(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_hvac_temperature_adjustment(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_hvac_climate_keeper(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_hvac_bioweapon_mode(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_vehicle_control_schedule_software_update(CarServer_VehicleAction &action, const void *data);
-static TeslaBLEStatus build_set_cabin_overheat_protection(CarServer_VehicleAction &action, const void *data);
+static int build_charging_set_limit(CarServer_VehicleAction &action, const void *data);
+static int build_charging_start_stop(CarServer_VehicleAction &action, const void *data);
+static int build_set_charging_amps(CarServer_VehicleAction &action, const void *data);
+static int build_charge_port_door_open(CarServer_VehicleAction &action, const void *data);
+static int build_charge_port_door_close(CarServer_VehicleAction &action, const void *data);
+static int build_scheduled_charging(CarServer_VehicleAction &action, const void *data);
+static int build_hvac_auto_action(CarServer_VehicleAction &action, const void *data);
+static int build_hvac_steering_wheel_heater(CarServer_VehicleAction &action, const void *data);
+static int build_vehicle_control_flash_lights(CarServer_VehicleAction &action, const void *data);
+static int build_vehicle_control_honk_horn(CarServer_VehicleAction &action, const void *data);
+static int build_vehicle_control_set_sentry_mode(CarServer_VehicleAction &action, const void *data);
+static int build_media_play_action(CarServer_VehicleAction &action, const void *data);
+static int build_media_next_favorite(CarServer_VehicleAction &action, const void *data);
+static int build_media_previous_favorite(CarServer_VehicleAction &action, const void *data);
+static int build_media_next_track(CarServer_VehicleAction &action, const void *data);
+static int build_media_previous_track(CarServer_VehicleAction &action, const void *data);
+static int build_ping_action(CarServer_VehicleAction &action, const void *data);
+static int build_vehicle_control_window_action(CarServer_VehicleAction &action, const void *data);
+static int build_hvac_set_preconditioning_max(CarServer_VehicleAction &action, const void *data);
+static int build_hvac_temperature_adjustment(CarServer_VehicleAction &action, const void *data);
+static int build_hvac_climate_keeper(CarServer_VehicleAction &action, const void *data);
+static int build_hvac_bioweapon_mode(CarServer_VehicleAction &action, const void *data);
+static int build_vehicle_control_schedule_software_update(CarServer_VehicleAction &action, const void *data);
+static int build_set_cabin_overheat_protection(CarServer_VehicleAction &action, const void *data);
+static int build_vehicle_control_cancel_software_update(CarServer_VehicleAction &action, const void *data);
+static int build_vehicle_control_reset_valet_pin(CarServer_VehicleAction &action, const void *data);
+static int build_vehicle_control_reset_pin_to_drive(CarServer_VehicleAction &action, const void *data);
+static int build_driving_clear_speed_limit_pin_admin(CarServer_VehicleAction &action, const void *data);
+static int build_vehicle_control_reset_pin_to_drive_admin(CarServer_VehicleAction &action, const void *data);
+
+namespace {
+template<typename T> const T *require_data(const void *data, const char *message) {
+  if (!data) {
+    LOG_ERROR("%s", message);
+    return nullptr;
+  }
+  return static_cast<const T *>(data);
+}
+}  // namespace
 
 // Initialize the static builder map
 const std::unordered_map<pb_size_t, VehicleActionBuilder::BuilderFunction> VehicleActionBuilder::BUILDERS = {
@@ -67,30 +85,30 @@ const std::unordered_map<pb_size_t, VehicleActionBuilder::BuilderFunction> Vehic
     {CarServer_VehicleAction_setCabinOverheatProtectionAction_tag, build_set_cabin_overheat_protection}};
 
 // Builder implementations
-TeslaBLEStatus VehicleActionBuilder::build_charging_set_limit(CarServer_VehicleAction &action, const void *data) {
-  if (!data) {
-    LOG_ERROR("Charging set limit action requires int32_t data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_charging_set_limit(CarServer_VehicleAction &action, const void *data) {
+  const int32_t *percent_ptr = require_data<int32_t>(data, "Charging set limit action requires int32_t data");
+  if (!percent_ptr) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  int32_t percent = *static_cast<const int32_t *>(data);
-  TeslaBLEStatus result = validate_charging_limit(percent);
-  if (result != TeslaBLEStatus::OK) {
-    return result;
+  int32_t percent = *percent_ptr;
+  if (!ParameterValidator::is_valid_charging_limit(percent)) {
+    LOG_ERROR("Invalid charging limit percentage: %d (must be 50-100)", percent);
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
   action.vehicle_action_msg.chargingSetLimitAction = CarServer_ChargingSetLimitAction_init_default;
   action.vehicle_action_msg.chargingSetLimitAction.percent = percent;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_charging_start_stop(CarServer_VehicleAction &action, const void *data) {
-  if (!data) {
-    LOG_ERROR("Charging start/stop action requires boolean data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_charging_start_stop(CarServer_VehicleAction &action, const void *data) {
+  const bool *start_ptr = require_data<bool>(data, "Charging start/stop action requires boolean data");
+  if (!start_ptr) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  bool start = *static_cast<const bool *>(data);
+  bool start = *start_ptr;
   action.vehicle_action_msg.chargingStartStopAction = CarServer_ChargingStartStopAction_init_default;
 
   if (start) {
@@ -103,178 +121,172 @@ TeslaBLEStatus VehicleActionBuilder::build_charging_start_stop(CarServer_Vehicle
     action.vehicle_action_msg.chargingStartStopAction.charging_action.stop = CarServer_Void_init_default;
   }
 
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_set_charging_amps(CarServer_VehicleAction &action, const void *data) {
-  if (!data) {
-    LOG_ERROR("Set charging amps action requires int32_t data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_set_charging_amps(CarServer_VehicleAction &action, const void *data) {
+  const int32_t *amps_ptr = require_data<int32_t>(data, "Set charging amps action requires int32_t data");
+  if (!amps_ptr) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  int32_t amps = *static_cast<const int32_t *>(data);
-  TeslaBLEStatus result = validate_charging_amps(amps);
-  if (result != TeslaBLEStatus::OK) {
-    return result;
+  int32_t amps = *amps_ptr;
+  LOG_DEBUG("Charging amps received: %d", amps);
+  if (!ParameterValidator::is_valid_charging_amps(amps)) {
+    LOG_ERROR("Invalid charging amps value: %d (must be 0-80)", amps);
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
   action.vehicle_action_msg.setChargingAmpsAction = CarServer_SetChargingAmpsAction_init_default;
   action.vehicle_action_msg.setChargingAmpsAction.charging_amps = amps;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_charge_port_door_open(CarServer_VehicleAction &action, const void *data) {
+int VehicleActionBuilder::build_charge_port_door_open(CarServer_VehicleAction &action, const void *data) {
   action.vehicle_action_msg.chargePortDoorOpen = CarServer_ChargePortDoorOpen_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_charge_port_door_close(CarServer_VehicleAction &action, const void *data) {
+int VehicleActionBuilder::build_charge_port_door_close(CarServer_VehicleAction &action, const void *data) {
   action.vehicle_action_msg.chargePortDoorClose = CarServer_ChargePortDoorClose_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_scheduled_charging(CarServer_VehicleAction &action, const void *data) {
-  if (!data) {
-    LOG_ERROR("Scheduled charging action requires CarServer_ScheduledChargingAction data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_scheduled_charging(CarServer_VehicleAction &action, const void *data) {
+  const CarServer_ScheduledChargingAction *sched_data = require_data<CarServer_ScheduledChargingAction>(
+      data, "Scheduled charging action requires CarServer_ScheduledChargingAction data");
+  if (!sched_data) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  const auto *sched_data = static_cast<const CarServer_ScheduledChargingAction *>(data);
   action.vehicle_action_msg.scheduledChargingAction = *sched_data;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_hvac_auto_action(CarServer_VehicleAction &action, const void *data) {
-  if (!data) {
-    LOG_ERROR("HVAC auto action requires boolean data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_hvac_auto_action(CarServer_VehicleAction &action, const void *data) {
+  const bool *is_on_ptr = require_data<bool>(data, "HVAC auto action requires boolean data");
+  if (!is_on_ptr) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  bool is_on = *static_cast<const bool *>(data);
+  bool is_on = *is_on_ptr;
   action.vehicle_action_msg.hvacAutoAction = CarServer_HvacAutoAction_init_default;
   action.vehicle_action_msg.hvacAutoAction.power_on = is_on;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_hvac_steering_wheel_heater(CarServer_VehicleAction &action,
-                                                                      const void *data) {
-  if (!data) {
-    LOG_ERROR("HVAC steering wheel heater action requires boolean data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_hvac_steering_wheel_heater(CarServer_VehicleAction &action, const void *data) {
+  const bool *is_on_ptr = require_data<bool>(data, "HVAC steering wheel heater action requires boolean data");
+  if (!is_on_ptr) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  bool is_on = *static_cast<const bool *>(data);
+  bool is_on = *is_on_ptr;
   action.vehicle_action_msg.hvacSteeringWheelHeaterAction = CarServer_HvacSteeringWheelHeaterAction_init_default;
   action.vehicle_action_msg.hvacSteeringWheelHeaterAction.power_on = is_on;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_vehicle_control_flash_lights(CarServer_VehicleAction &action,
-                                                                        const void *data) {
+int VehicleActionBuilder::build_vehicle_control_flash_lights(CarServer_VehicleAction &action, const void *data) {
   action.vehicle_action_msg.vehicleControlFlashLightsAction = CarServer_VehicleControlFlashLightsAction_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_vehicle_control_honk_horn(CarServer_VehicleAction &action,
-                                                                     const void *data) {
+int VehicleActionBuilder::build_vehicle_control_honk_horn(CarServer_VehicleAction &action, const void *data) {
   action.vehicle_action_msg.vehicleControlHonkHornAction = CarServer_VehicleControlHonkHornAction_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_vehicle_control_set_sentry_mode(CarServer_VehicleAction &action,
-                                                                           const void *data) {
-  if (!data) {
-    LOG_ERROR("Vehicle control set sentry mode action requires boolean data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_vehicle_control_set_sentry_mode(CarServer_VehicleAction &action, const void *data) {
+  const bool *is_on_ptr = require_data<bool>(data, "Vehicle control set sentry mode action requires boolean data");
+  if (!is_on_ptr) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  bool is_on = *static_cast<const bool *>(data);
+  bool is_on = *is_on_ptr;
   action.vehicle_action_msg.vehicleControlSetSentryModeAction =
       CarServer_VehicleControlSetSentryModeAction_init_default;
   action.vehicle_action_msg.vehicleControlSetSentryModeAction.on = is_on;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_vehicle_control_cancel_software_update(CarServer_VehicleAction &action,
-                                                                                  const void *data) {
+int VehicleActionBuilder::build_vehicle_control_cancel_software_update(CarServer_VehicleAction &action,
+                                                                       const void *data) {
   action.vehicle_action_msg.vehicleControlCancelSoftwareUpdateAction =
       CarServer_VehicleControlCancelSoftwareUpdateAction_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_vehicle_control_reset_valet_pin(CarServer_VehicleAction &action,
-                                                                           const void *data) {
+int VehicleActionBuilder::build_vehicle_control_reset_valet_pin(CarServer_VehicleAction &action, const void *data) {
   action.vehicle_action_msg.vehicleControlResetValetPinAction =
       CarServer_VehicleControlResetValetPinAction_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_vehicle_control_reset_pin_to_drive(CarServer_VehicleAction &action,
-                                                                              const void *data) {
+int VehicleActionBuilder::build_vehicle_control_reset_pin_to_drive(CarServer_VehicleAction &action, const void *data) {
   action.vehicle_action_msg.vehicleControlResetPinToDriveAction =
       CarServer_VehicleControlResetPinToDriveAction_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_driving_clear_speed_limit_pin_admin(CarServer_VehicleAction &action,
-                                                                               const void *data) {
+int VehicleActionBuilder::build_driving_clear_speed_limit_pin_admin(CarServer_VehicleAction &action, const void *data) {
   action.vehicle_action_msg.drivingClearSpeedLimitPinAdminAction =
       CarServer_DrivingClearSpeedLimitPinAdminAction_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_vehicle_control_reset_pin_to_drive_admin(CarServer_VehicleAction &action,
-                                                                                    const void *data) {
+int VehicleActionBuilder::build_vehicle_control_reset_pin_to_drive_admin(CarServer_VehicleAction &action,
+                                                                         const void *data) {
   action.vehicle_action_msg.vehicleControlResetPinToDriveAdminAction =
       CarServer_VehicleControlResetPinToDriveAdminAction_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_media_play_action(CarServer_VehicleAction &action, const void *data) {
+int VehicleActionBuilder::build_media_play_action(CarServer_VehicleAction &action, const void *data) {
   action.vehicle_action_msg.mediaPlayAction = CarServer_MediaPlayAction_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_media_next_favorite(CarServer_VehicleAction &action, const void *data) {
+int VehicleActionBuilder::build_media_next_favorite(CarServer_VehicleAction &action, const void *data) {
   action.vehicle_action_msg.mediaNextFavorite = CarServer_MediaNextFavorite_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_media_previous_favorite(CarServer_VehicleAction &action, const void *data) {
+int VehicleActionBuilder::build_media_previous_favorite(CarServer_VehicleAction &action, const void *data) {
   action.vehicle_action_msg.mediaPreviousFavorite = CarServer_MediaPreviousFavorite_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_media_next_track(CarServer_VehicleAction &action, const void *data) {
+int VehicleActionBuilder::build_media_next_track(CarServer_VehicleAction &action, const void *data) {
   action.vehicle_action_msg.mediaNextTrack = CarServer_MediaNextTrack_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_media_previous_track(CarServer_VehicleAction &action, const void *data) {
+int VehicleActionBuilder::build_media_previous_track(CarServer_VehicleAction &action, const void *data) {
   action.vehicle_action_msg.mediaPreviousTrack = CarServer_MediaPreviousTrack_init_default;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_ping_action(CarServer_VehicleAction &action, const void *data) {
-  if (!data) {
-    LOG_ERROR("Ping action requires int32_t data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_ping_action(CarServer_VehicleAction &action, const void *data) {
+  const int32_t *ping_value_ptr = require_data<int32_t>(data, "Ping action requires int32_t data");
+  if (!ping_value_ptr) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  int32_t ping_value = *static_cast<const int32_t *>(data);
+  int32_t ping_value = *ping_value_ptr;
   action.vehicle_action_msg.ping = CarServer_Ping_init_default;
   action.vehicle_action_msg.ping.ping_id = ping_value;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_vehicle_control_window_action(CarServer_VehicleAction &action,
-                                                                         const void *data) {
-  if (!data) {
-    LOG_ERROR("Vehicle control window action requires int32_t data (0=vent, 1=close)");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_vehicle_control_window_action(CarServer_VehicleAction &action, const void *data) {
+  const int32_t *window_action_ptr =
+      require_data<int32_t>(data, "Vehicle control window action requires int32_t data (0=vent, 1=close)");
+  if (!window_action_ptr) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  int32_t window_action = *static_cast<const int32_t *>(data);
+  int32_t window_action = *window_action_ptr;
   action.vehicle_action_msg.vehicleControlWindowAction = CarServer_VehicleControlWindowAction_init_default;
 
   if (window_action == 0) {
@@ -287,31 +299,29 @@ TeslaBLEStatus VehicleActionBuilder::build_vehicle_control_window_action(CarServ
     action.vehicle_action_msg.vehicleControlWindowAction.action.close = CarServer_Void_init_default;
   }
 
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_hvac_set_preconditioning_max(CarServer_VehicleAction &action,
-                                                                        const void *data) {
-  if (!data) {
-    LOG_ERROR("HVAC set preconditioning max action requires boolean data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_hvac_set_preconditioning_max(CarServer_VehicleAction &action, const void *data) {
+  const bool *is_on_ptr = require_data<bool>(data, "HVAC set preconditioning max action requires boolean data");
+  if (!is_on_ptr) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  bool is_on = *static_cast<const bool *>(data);
+  bool is_on = *is_on_ptr;
   action.vehicle_action_msg.hvacSetPreconditioningMaxAction = CarServer_HvacSetPreconditioningMaxAction_init_default;
   action.vehicle_action_msg.hvacSetPreconditioningMaxAction.on = is_on;
   action.vehicle_action_msg.hvacSetPreconditioningMaxAction.manual_override = true;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_hvac_temperature_adjustment(CarServer_VehicleAction &action,
-                                                                       const void *data) {
-  if (!data) {
-    LOG_ERROR("HVAC temperature adjustment action requires float data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_hvac_temperature_adjustment(CarServer_VehicleAction &action, const void *data) {
+  const float *temp_celsius_ptr = require_data<float>(data, "HVAC temperature adjustment action requires float data");
+  if (!temp_celsius_ptr) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  float temp_celsius = *static_cast<const float *>(data);
+  float temp_celsius = *temp_celsius_ptr;
 
   // Validate temperature is within reasonable range (15-28°C like the UI)
   if (temp_celsius < 15.0f || temp_celsius > 28.0f) {
@@ -322,86 +332,68 @@ TeslaBLEStatus VehicleActionBuilder::build_hvac_temperature_adjustment(CarServer
   // Set driver and passenger to same temperature for now
   action.vehicle_action_msg.hvacTemperatureAdjustmentAction.driver_temp_celsius = temp_celsius;
   action.vehicle_action_msg.hvacTemperatureAdjustmentAction.passenger_temp_celsius = temp_celsius;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_hvac_climate_keeper(CarServer_VehicleAction &action, const void *data) {
-  if (!data) {
-    LOG_ERROR("HVAC climate keeper action requires int data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_hvac_climate_keeper(CarServer_VehicleAction &action, const void *data) {
+  const int *mode_ptr = require_data<int>(data, "HVAC climate keeper action requires int data");
+  if (!mode_ptr) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  int mode = *static_cast<const int *>(data);
+  int mode = *mode_ptr;
   action.vehicle_action_msg.hvacClimateKeeperAction = CarServer_HvacClimateKeeperAction_init_default;
   action.vehicle_action_msg.hvacClimateKeeperAction.ClimateKeeperAction =
       static_cast<CarServer_HvacClimateKeeperAction_ClimateKeeperAction_E>(mode);
   action.vehicle_action_msg.hvacClimateKeeperAction.manual_override = true;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_hvac_bioweapon_mode(CarServer_VehicleAction &action, const void *data) {
-  if (!data) {
-    LOG_ERROR("HVAC bioweapon mode action requires boolean data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_hvac_bioweapon_mode(CarServer_VehicleAction &action, const void *data) {
+  const bool *is_on_ptr = require_data<bool>(data, "HVAC bioweapon mode action requires boolean data");
+  if (!is_on_ptr) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  bool is_on = *static_cast<const bool *>(data);
+  bool is_on = *is_on_ptr;
   action.vehicle_action_msg.hvacBioweaponModeAction = CarServer_HvacBioweaponModeAction_init_default;
   action.vehicle_action_msg.hvacBioweaponModeAction.on = is_on;
   action.vehicle_action_msg.hvacBioweaponModeAction.manual_override = true;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_vehicle_control_schedule_software_update(CarServer_VehicleAction &action,
-                                                                                    const void *data) {
-  if (!data) {
-    LOG_ERROR("Schedule software update action requires int32_t data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_vehicle_control_schedule_software_update(CarServer_VehicleAction &action,
+                                                                         const void *data) {
+  const int32_t *offset_sec_ptr = require_data<int32_t>(data, "Schedule software update action requires int32_t data");
+  if (!offset_sec_ptr) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  int32_t offset_sec = *static_cast<const int32_t *>(data);
+  int32_t offset_sec = *offset_sec_ptr;
   action.vehicle_action_msg.vehicleControlScheduleSoftwareUpdateAction =
       CarServer_VehicleControlScheduleSoftwareUpdateAction_init_default;
   action.vehicle_action_msg.vehicleControlScheduleSoftwareUpdateAction.offset_sec = offset_sec;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus VehicleActionBuilder::build_set_cabin_overheat_protection(CarServer_VehicleAction &action,
-                                                                         const void *data) {
-  if (!data) {
-    LOG_ERROR("Set cabin overheat protection action requires data");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+int VehicleActionBuilder::build_set_cabin_overheat_protection(CarServer_VehicleAction &action, const void *data) {
+  const CarServer_SetCabinOverheatProtectionAction *cop_data = require_data<CarServer_SetCabinOverheatProtectionAction>(
+      data, "Set cabin overheat protection action requires data");
+  if (!cop_data) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  const auto *cop_data = static_cast<const CarServer_SetCabinOverheatProtectionAction *>(data);
   action.vehicle_action_msg.setCabinOverheatProtectionAction = *cop_data;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
 // Helper functions
-TeslaBLEStatus VehicleActionBuilder::validate_input_parameters(const pb_byte_t *output_buffer,
-                                                               const size_t *output_length) {
+int VehicleActionBuilder::validate_input_parameters(const pb_byte_t *output_buffer, const size_t *output_length) {
   if (!output_buffer || !output_length) {
     LOG_ERROR("Invalid parameters: output_buffer and output_length cannot be null");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
-  return TeslaBLEStatus::OK;
-}
-
-TeslaBLEStatus VehicleActionBuilder::validate_charging_limit(int32_t percent) {
-  if (!ParameterValidator::is_valid_charging_limit(percent)) {
-    LOG_ERROR("Invalid charging limit percentage: %d (must be 50-100)", percent);
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
-  }
-  return TeslaBLEStatus::OK;
-}
-
-TeslaBLEStatus VehicleActionBuilder::validate_charging_amps(int32_t amps) {
-  if (!ParameterValidator::is_valid_charging_amps(amps)) {
-    LOG_ERROR("Invalid charging amps value: %d (must be 0-80)", amps);
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
-  }
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
 // Parameter validation implementations
@@ -416,14 +408,30 @@ bool ParameterValidator::is_valid_ping_value(int32_t ping_value) {
 }
 
 bool ParameterValidator::is_valid_vin(const char *vin) {
-  if (!vin)
+  if (!vin) {
     return false;
-  size_t len = strlen(vin);
-  return len == 17;  // Standard VIN length
+  }
+
+  size_t len = 0;
+  while (len < 17 && vin[len] != '\0') {
+    ++len;
+  }
+
+  return len == 17 && vin[len] == '\0';  // Standard VIN length
 }
 
 bool ParameterValidator::is_valid_connection_id(const pb_byte_t *connection_id) {
-  return connection_id != nullptr;  // Basic null check, could be enhanced
+  if (!connection_id) {
+    return false;
+  }
+
+  for (size_t i = 0; i < 16; ++i) {
+    if (connection_id[i] != 0) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 }  // namespace TeslaBLE

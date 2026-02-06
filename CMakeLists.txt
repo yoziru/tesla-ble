@@ -8,6 +8,7 @@ set(TESLABLE_SRCS
     "src/crypto_context.cpp"
     "src/errors.cpp"
     "src/message_builders.cpp"
+    "src/message_processor.cpp"
     "src/peer.cpp"
     "src/tb_logging.cpp"
     "src/tb_utils.cpp"
@@ -35,6 +36,7 @@ set(TESLABLE_PUBLIC_HEADERS
     include/client.h
     include/adapters.h
     include/errors.h
+    include/message_processor.h
     include/peer.h
     include/tb_logging.h
     include/tb_utils.h

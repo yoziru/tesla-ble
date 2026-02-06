@@ -13,4 +13,4 @@ test_protocol_vectors
 test_protocol_handshake
 test_protocol_authentication
 test_protocol_edge_cases
-test_protocol_failures
+test_protocol_compliance

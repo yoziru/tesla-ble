@@ -9,7 +9,7 @@
 using namespace TeslaBLE;
 
 // Mock received message from VCSEC (from main.cpp)
-static pb_byte_t MOCK_VCSEC_MESSAGE[177] = {
+static const pb_byte_t MOCK_VCSEC_MESSAGE[177] = {
     0x32, 0x12, 0x12, 0x10, 0x2f, 0xdd, 0xc1, 0x45, 0xca, 0xcc, 0xca, 0x43, 0x05, 0x66, 0x37, 0x0d, 0xf1, 0x49,
     0x85, 0x5d, 0x3a, 0x02, 0x08, 0x02, 0x7a, 0x5e, 0x08, 0x01, 0x12, 0x41, 0x04, 0xc7, 0xa1, 0xf4, 0x71, 0x38,
     0x48, 0x6a, 0xa4, 0x72, 0x99, 0x71, 0x49, 0x48, 0x78, 0xd3, 0x3b, 0x1a, 0x24, 0xe3, 0x95, 0x71, 0xf7, 0x48,
@@ -22,7 +22,7 @@ static pb_byte_t MOCK_VCSEC_MESSAGE[177] = {
     0xcc, 0xe3, 0xd5, 0x1a, 0x6f, 0x3c, 0x2a, 0xee, 0xa8, 0x91, 0x36, 0x44, 0xa7, 0x05, 0x84};
 
 // Mock received message from INFOTAINMENT (from main.cpp)
-static pb_byte_t MOCK_INFOTAINMENT_MESSAGE[177] = {
+static const pb_byte_t MOCK_INFOTAINMENT_MESSAGE[177] = {
     0x32, 0x12, 0x12, 0x10, 0x8f, 0x3d, 0x24, 0x4b, 0x50, 0xb0, 0x7a, 0x98, 0x42, 0xca, 0xc1, 0x08, 0xc9, 0x28,
     0xb5, 0xe7, 0x3a, 0x02, 0x08, 0x03, 0x7a, 0x5e, 0x08, 0x01, 0x12, 0x41, 0x04, 0xc7, 0xa1, 0xf4, 0x71, 0x38,
     0x48, 0x6a, 0xa4, 0x72, 0x99, 0x71, 0x49, 0x48, 0x78, 0xd3, 0x3b, 0x1a, 0x24, 0xe3, 0x95, 0x71, 0xf7, 0x48,
@@ -37,38 +37,38 @@ static pb_byte_t MOCK_INFOTAINMENT_MESSAGE[177] = {
 class SessionManagementTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    client = std::make_unique<TeslaBLE::Client>();
-    client->set_vin(TestConstants::TEST_VIN);
+    client_ = std::make_unique<Client>();
+    client_->set_vin(TestConstants::TEST_VIN);
 
     // Load private key for testing
     auto status =
-        client->load_private_key(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                 strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
-    ASSERT_EQ(status, TeslaBLEStatus::OK) << "Failed to load private key for testing";
+        client_->load_private_key(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                  strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+    ASSERT_EQ(status, TeslaBLE_Status_E_OK) << "Failed to load private key for testing";
   }
 
-  void TearDown() override { client.reset(); }
+  void TearDown() override { client_.reset(); }
 
-  std::unique_ptr<TeslaBLE::Client> client;
+  std::unique_ptr<Client> client_;
 };
 
 TEST_F(SessionManagementTest, GetVCSECPeer) {
-  auto vcsec_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  auto *vcsec_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
 
   EXPECT_NE(vcsec_peer, nullptr) << "VCSEC peer should not be null";
   EXPECT_FALSE(vcsec_peer->is_initialized()) << "VCSEC peer should not be initialized initially";
 }
 
 TEST_F(SessionManagementTest, GetInfotainmentPeer) {
-  auto infotainment_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+  auto *infotainment_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
 
   EXPECT_NE(infotainment_peer, nullptr) << "Infotainment peer should not be null";
   EXPECT_FALSE(infotainment_peer->is_initialized()) << "Infotainment peer should not be initialized initially";
 }
 
 TEST_F(SessionManagementTest, GetMultiplePeersReturnsSameInstance) {
-  auto vcsec_peer1 = client->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
-  auto vcsec_peer2 = client->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  auto *vcsec_peer1 = client_->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  auto *vcsec_peer2 = client_->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
 
   EXPECT_EQ(vcsec_peer1, vcsec_peer2) << "Multiple calls to getPeer should return same instance";
 }
@@ -76,54 +76,57 @@ TEST_F(SessionManagementTest, GetMultiplePeersReturnsSameInstance) {
 TEST_F(SessionManagementTest, InitializeVCSECSession) {
   // Parse the VCSEC message
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-  auto parse_result =
-      client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
-  ASSERT_EQ(parse_result, TeslaBLEStatus::OK) << "Failed to parse VCSEC message";
+  auto parse_result = client_->parse_universal_message(const_cast<pb_byte_t *>(MOCK_VCSEC_MESSAGE),
+                                                       sizeof(MOCK_VCSEC_MESSAGE), &received_message);
+  ASSERT_EQ(parse_result, TeslaBLE_Status_E_OK) << "Failed to parse VCSEC message";
 
   // Parse session info
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  auto session_parse_result = client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
-  ASSERT_EQ(session_parse_result, TeslaBLEStatus::OK) << "Failed to parse session info";
+  auto session_parse_result =
+      client_->parse_payload_session_info(&received_message.payload.session_info, &session_info);
+  ASSERT_EQ(session_parse_result, TeslaBLE_Status_E_OK) << "Failed to parse session info";
 
   // Get peer and update session
-  auto vcsec_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  auto *vcsec_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
   ASSERT_NE(vcsec_peer, nullptr) << "VCSEC peer should not be null";
 
   auto update_result = vcsec_peer->update_session(&session_info);
-  EXPECT_EQ(update_result, TeslaBLEStatus::OK) << "Updating VCSEC session should succeed";
+  EXPECT_EQ(update_result, TeslaBLE_Status_E_OK) << "Updating VCSEC session should succeed";
   EXPECT_TRUE(vcsec_peer->is_initialized()) << "VCSEC peer should be initialized after update";
 }
 
 TEST_F(SessionManagementTest, InitializeInfotainmentSession) {
   // Parse the Infotainment message
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-  auto parse_result =
-      client->parse_universal_message(MOCK_INFOTAINMENT_MESSAGE, sizeof(MOCK_INFOTAINMENT_MESSAGE), &received_message);
-  ASSERT_EQ(parse_result, TeslaBLEStatus::OK) << "Failed to parse Infotainment message";
+  auto parse_result = client_->parse_universal_message(const_cast<pb_byte_t *>(MOCK_INFOTAINMENT_MESSAGE),
+                                                       sizeof(MOCK_INFOTAINMENT_MESSAGE), &received_message);
+  ASSERT_EQ(parse_result, TeslaBLE_Status_E_OK) << "Failed to parse Infotainment message";
 
   // Parse session info
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  auto session_parse_result = client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
-  ASSERT_EQ(session_parse_result, TeslaBLEStatus::OK) << "Failed to parse session info";
+  auto session_parse_result =
+      client_->parse_payload_session_info(&received_message.payload.session_info, &session_info);
+  ASSERT_EQ(session_parse_result, TeslaBLE_Status_E_OK) << "Failed to parse session info";
 
   // Get peer and update session
-  auto infotainment_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+  auto *infotainment_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
   ASSERT_NE(infotainment_peer, nullptr) << "Infotainment peer should not be null";
 
   auto update_result = infotainment_peer->update_session(&session_info);
-  EXPECT_EQ(update_result, TeslaBLEStatus::OK) << "Updating Infotainment session should succeed";
+  EXPECT_EQ(update_result, TeslaBLE_Status_E_OK) << "Updating Infotainment session should succeed";
   EXPECT_TRUE(infotainment_peer->is_initialized()) << "Infotainment peer should be initialized after update";
 }
 
 TEST_F(SessionManagementTest, SessionCounterHandling) {
   // Initialize VCSEC session first
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-  client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
+  client_->parse_universal_message(const_cast<pb_byte_t *>(MOCK_VCSEC_MESSAGE), sizeof(MOCK_VCSEC_MESSAGE),
+                                   &received_message);
 
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
+  client_->parse_payload_session_info(&received_message.payload.session_info, &session_info);
 
-  auto vcsec_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  auto *vcsec_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
   vcsec_peer->update_session(&session_info);
 
   ASSERT_TRUE(vcsec_peer->is_initialized()) << "VCSEC peer should be initialized";
@@ -136,12 +139,13 @@ TEST_F(SessionManagementTest, SessionCounterHandling) {
 TEST_F(SessionManagementTest, SessionEpochHandling) {
   // Initialize VCSEC session first
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-  client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
+  client_->parse_universal_message(const_cast<pb_byte_t *>(MOCK_VCSEC_MESSAGE), sizeof(MOCK_VCSEC_MESSAGE),
+                                   &received_message);
 
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
+  client_->parse_payload_session_info(&received_message.payload.session_info, &session_info);
 
-  auto vcsec_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  auto *vcsec_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
   vcsec_peer->update_session(&session_info);
 
   ASSERT_TRUE(vcsec_peer->is_initialized()) << "VCSEC peer should be initialized";
@@ -152,31 +156,32 @@ TEST_F(SessionManagementTest, SessionEpochHandling) {
 }
 
 TEST_F(SessionManagementTest, UpdateSessionWithNullSessionInfo) {
-  auto vcsec_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  auto *vcsec_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
   ASSERT_NE(vcsec_peer, nullptr) << "VCSEC peer should not be null";
 
   auto update_result = vcsec_peer->update_session(nullptr);
-  EXPECT_NE(update_result, TeslaBLEStatus::OK) << "Updating session with null session info should fail";
+  EXPECT_NE(update_result, TeslaBLE_Status_E_OK) << "Updating session with null session info should fail";
   EXPECT_FALSE(vcsec_peer->is_initialized()) << "Peer should not be initialized after failed update";
 }
 
 TEST_F(SessionManagementTest, MultipleSessionUpdates) {
   // Initialize VCSEC session
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-  client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
+  client_->parse_universal_message(const_cast<pb_byte_t *>(MOCK_VCSEC_MESSAGE), sizeof(MOCK_VCSEC_MESSAGE),
+                                   &received_message);
 
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
+  client_->parse_payload_session_info(&received_message.payload.session_info, &session_info);
 
-  auto vcsec_peer = client->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  auto *vcsec_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
 
   // First update
   auto first_update = vcsec_peer->update_session(&session_info);
-  EXPECT_EQ(first_update, TeslaBLEStatus::OK) << "First session update should succeed";
+  EXPECT_EQ(first_update, TeslaBLE_Status_E_OK) << "First session update should succeed";
   EXPECT_TRUE(vcsec_peer->is_initialized()) << "Peer should be initialized after first update";
 
   // Second update with same session info should also work
   auto second_update = vcsec_peer->update_session(&session_info);
-  EXPECT_EQ(second_update, TeslaBLEStatus::OK) << "Second session update should succeed";
+  EXPECT_EQ(second_update, TeslaBLE_Status_E_OK) << "Second session update should succeed";
   EXPECT_TRUE(vcsec_peer->is_initialized()) << "Peer should remain initialized after second update";
 }

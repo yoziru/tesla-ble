@@ -21,13 +21,13 @@ namespace TeslaBLE {
 class ProtocolAuthenticationTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    client = std::make_unique<Client>();
-    client->set_vin(TestConstants::TEST_VIN);
-    crypto_context = std::make_shared<CryptoContext>();
+    client_ = std::make_unique<Client>();
+    client_->set_vin(TestConstants::TEST_VIN);
+    crypto_context_ = std::make_shared<CryptoContext>();
   }
 
-  std::unique_ptr<Client> client;
-  std::shared_ptr<CryptoContext> crypto_context;
+  std::unique_ptr<Client> client_;
+  std::shared_ptr<CryptoContext> crypto_context_;
 };
 
 // Test 1: HMAC-SHA256 Authentication Method
@@ -36,11 +36,11 @@ TEST_F(ProtocolAuthenticationTest, AuthenticationStateTransitions) {
   // Test authentication state transitions during protocol flow
 
   // Load private key for ECDH operations
-  crypto_context->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                   strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1  // +1 for null terminator
+  crypto_context_->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                    strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1  // +1 for null terminator
   );
 
-  Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context, TestConstants::TEST_VIN);
+  Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context_, TestConstants::TEST_VIN);
 
   // Verify initial state (unauthenticated)
   EXPECT_FALSE(peer.is_valid()) << "Session should be invalid initially";
@@ -55,7 +55,7 @@ TEST_F(ProtocolAuthenticationTest, AuthenticationStateTransitions) {
   session_info.publicKey.size = 65;
 
   auto result = peer.update_session(&session_info);
-  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to update session";
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "Failed to update session";
 
   // Verify authenticated state
   EXPECT_TRUE(peer.is_valid()) << "Session should be valid after successful authentication";
@@ -63,7 +63,7 @@ TEST_F(ProtocolAuthenticationTest, AuthenticationStateTransitions) {
 
 // Test 2: Metadata Serialization Edge Cases
 TEST_F(ProtocolAuthenticationTest, MetadataSerializationEdgeCases) {
-  Peer peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, crypto_context, TestConstants::LONG_VIN);
+  Peer peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, crypto_context_, TestConstants::LONG_VIN);
 
   // Test with different VIN lengths and formats
   uint8_t ad_buffer[512];
@@ -71,21 +71,21 @@ TEST_F(ProtocolAuthenticationTest, MetadataSerializationEdgeCases) {
 
   auto result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
                                          TestConstants::LONG_VIN, 4000, ad_buffer, &ad_length);
-  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to construct AD buffer with long VIN";
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "Failed to construct AD buffer with long VIN";
 
   // Test with maximum counter value
   peer.set_counter(UINT32_MAX - 1);
 
   result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
                                     TestConstants::LONG_VIN, 5000, ad_buffer, &ad_length);
-  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to construct AD buffer with max counter";
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "Failed to construct AD buffer with max counter";
 
   // Test with flags set
   result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
                                     TestConstants::LONG_VIN, 6000, ad_buffer, &ad_length,
                                     0x01  // FLAG_ENCRYPT_RESPONSE
   );
-  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to construct AD buffer with flags";
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "Failed to construct AD buffer with flags";
 
   // Verify flags appear in buffer when non-zero
   bool found_flags = false;
@@ -101,7 +101,7 @@ TEST_F(ProtocolAuthenticationTest, MetadataSerializationEdgeCases) {
 
 // Test 3: Counter Rollover and Edge Cases
 TEST_F(ProtocolAuthenticationTest, CounterEdgeCases) {
-  Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context, TestConstants::TEST_VIN);
+  Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context_, TestConstants::TEST_VIN);
 
   // Test counter rollover behavior
   peer.set_counter(UINT32_MAX - 5);
@@ -123,7 +123,7 @@ TEST_F(ProtocolAuthenticationTest, CounterEdgeCases) {
 
 // Test 4: Time and Expiration Handling
 TEST_F(ProtocolAuthenticationTest, TimeAndExpirationHandling) {
-  Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context, TestConstants::TEST_VIN);
+  Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context_, TestConstants::TEST_VIN);
 
   // Set a base time
   peer.set_time_zero(1000);
@@ -146,7 +146,7 @@ TEST_F(ProtocolAuthenticationTest, TimeAndExpirationHandling) {
 
 // Test 5: Nonce Generation and Uniqueness
 TEST_F(ProtocolAuthenticationTest, NonceGeneration) {
-  Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context, TestConstants::TEST_VIN);
+  Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context_, TestConstants::TEST_VIN);
 
   // Generate multiple nonces and verify they're different
   uint8_t nonce1[12], nonce2[12], nonce3[12];
@@ -161,12 +161,18 @@ TEST_F(ProtocolAuthenticationTest, NonceGeneration) {
   EXPECT_NE(memcmp(nonce1, nonce3, 12), 0) << "Nonces should be different";
 
   // Nonces should not be all zeros
-  bool nonce1_all_zero = true, nonce2_all_zero = true;
+  bool nonce1_all_zero = true;
+  bool nonce2_all_zero = true;
   for (int i = 0; i < 12; ++i) {
-    if (nonce1[i] != 0)
+    if (nonce1[i] != 0) {
       nonce1_all_zero = false;
-    if (nonce2[i] != 0)
+    }
+    if (nonce2[i] != 0) {
       nonce2_all_zero = false;
+    }
+    if (!nonce1_all_zero && !nonce2_all_zero) {
+      break;
+    }
   }
   EXPECT_FALSE(nonce1_all_zero) << "Nonce should not be all zeros";
   EXPECT_FALSE(nonce2_all_zero) << "Nonce should not be all zeros";
@@ -175,10 +181,10 @@ TEST_F(ProtocolAuthenticationTest, NonceGeneration) {
 // Test 6: Session State Validation
 TEST_F(ProtocolAuthenticationTest, SessionStateValidation) {
   // Load private key first
-  crypto_context->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                   strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+  crypto_context_->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                    strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
 
-  Peer peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, crypto_context, TestConstants::TEST_VIN);
+  Peer peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, crypto_context_, TestConstants::TEST_VIN);
 
   // Initially should not be initialized
   EXPECT_FALSE(peer.is_initialized()) << "Peer should not be initialized initially";
@@ -198,7 +204,7 @@ TEST_F(ProtocolAuthenticationTest, SessionStateValidation) {
   session_info.publicKey.size = 65;
 
   auto result = peer.update_session(&session_info);
-  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Session update should succeed";
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "Session update should succeed";
 
   // After valid session update, should be initialized
   EXPECT_TRUE(peer.is_initialized()) << "Peer should be initialized after session update";
@@ -212,31 +218,31 @@ TEST_F(ProtocolAuthenticationTest, SessionStateValidation) {
 // Test 7: Error Conditions and Robustness
 TEST_F(ProtocolAuthenticationTest, ErrorConditions) {
   // Load private key first
-  crypto_context->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                   strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+  crypto_context_->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                    strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
 
-  Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context, TestConstants::TEST_VIN);
+  Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context_, TestConstants::TEST_VIN);
 
   // Test session info with minimal data (should be handled gracefully)
   Signatures_SessionInfo minimal_session = Signatures_SessionInfo_init_default;
   // Leave most fields uninitialized (zero)
 
   auto result = peer.update_session(&minimal_session);
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Should handle minimal session info gracefully";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Should handle minimal session info gracefully";
 
   // AD buffer construction should work even with basic initialization
   uint8_t ad_buffer[256];
   size_t ad_length;
   result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
                                     TestConstants::TEST_VIN, 1000, ad_buffer, &ad_length);
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "AD buffer construction should work with default session values";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "AD buffer construction should work with default session values";
 
   // Test null pointer handling
   size_t dummy_length;
   result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
                                     nullptr,  // null VIN
                                     1000, ad_buffer, &dummy_length);
-  EXPECT_NE(result, TeslaBLEStatus::OK) << "Null VIN should be rejected";
+  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "Null VIN should be rejected";
 
   // Test buffer size handling (implementation should handle gracefully)
   uint8_t small_buffer[10];
@@ -244,14 +250,14 @@ TEST_F(ProtocolAuthenticationTest, ErrorConditions) {
                                     TestConstants::TEST_VIN, 1000, small_buffer, &dummy_length);
   // Note: Implementation may handle small buffers gracefully by truncating or providing partial data
   // This is acceptable defensive behavior for a robust client library
-  EXPECT_TRUE(result == TeslaBLEStatus::OK || result != TeslaBLEStatus::OK)
+  EXPECT_TRUE(result == TeslaBLE_Status_E_OK || result != TeslaBLE_Status_E_OK)
       << "Buffer size constraints should be handled gracefully";
 }
 
 // Test 8: Protocol Version Compatibility
 TEST_F(ProtocolAuthenticationTest, ProtocolCompatibility) {
   // Test both signature types work with same peer
-  Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context, TestConstants::TEST_VIN);
+  Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context_, TestConstants::TEST_VIN);
 
   uint8_t ad_buffer1[256], ad_buffer2[256];
   size_t ad_length1, ad_length2;
@@ -264,8 +270,8 @@ TEST_F(ProtocolAuthenticationTest, ProtocolCompatibility) {
   auto result2 = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_HMAC_PERSONALIZED,
                                           TestConstants::TEST_VIN, 1000, ad_buffer2, &ad_length2);
 
-  EXPECT_EQ(result1, TeslaBLEStatus::OK) << "AES-GCM AD buffer construction should succeed";
-  EXPECT_EQ(result2, TeslaBLEStatus::OK) << "HMAC AD buffer construction should succeed";
+  EXPECT_EQ(result1, TeslaBLE_Status_E_OK) << "AES-GCM AD buffer construction should succeed";
+  EXPECT_EQ(result2, TeslaBLE_Status_E_OK) << "HMAC AD buffer construction should succeed";
 
   // Buffers should be different (different signature types)
   EXPECT_NE(memcmp(ad_buffer1, ad_buffer2, std::min(ad_length1, ad_length2)), 0)

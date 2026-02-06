@@ -24,7 +24,7 @@ class SessionRecoveryTest : public ::testing::Test {
     // Load the client private key
     auto result = crypto_->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
                                             strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
-    ASSERT_EQ(result, TeslaBLEStatus::OK) << "Failed to load private key";
+    ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "Failed to load private key";
 
     // Create peer for testing
     peer_ = std::make_unique<Peer>(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, crypto_, TestConstants::TEST_VIN);
@@ -35,7 +35,7 @@ class SessionRecoveryTest : public ::testing::Test {
     crypto_.reset();
   }
 
-  Signatures_SessionInfo createSessionInfo(uint32_t counter, uint32_t clock_time = 1000) {
+  Signatures_SessionInfo create_session_info_(uint32_t counter, uint32_t clock_time = 1000) {
     Signatures_SessionInfo session_info = Signatures_SessionInfo_init_zero;
     session_info.counter = counter;
     session_info.clock_time = clock_time;
@@ -60,15 +60,15 @@ class SessionRecoveryTest : public ::testing::Test {
  */
 TEST_F(SessionRecoveryTest, UpdateSessionWithHigherCounter) {
   // Initialize with counter = 100
-  auto session_info = createSessionInfo(100);
+  auto session_info = create_session_info_(100);
   auto result = peer_->update_session(&session_info);
-  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Initial session update should succeed";
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "Initial session update should succeed";
   EXPECT_EQ(peer_->get_counter(), 100);
 
   // Update with higher counter = 200
-  auto new_session_info = createSessionInfo(200);
+  auto new_session_info = create_session_info_(200);
   result = peer_->update_session(&new_session_info);
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Update with higher counter should succeed";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Update with higher counter should succeed";
   EXPECT_EQ(peer_->get_counter(), 200);
 }
 
@@ -77,14 +77,14 @@ TEST_F(SessionRecoveryTest, UpdateSessionWithHigherCounter) {
  */
 TEST_F(SessionRecoveryTest, UpdateSessionRejectsLowerCounter) {
   // Initialize with counter = 100
-  auto session_info = createSessionInfo(100);
+  auto session_info = create_session_info_(100);
   auto result = peer_->update_session(&session_info);
-  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Initial session update should succeed";
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "Initial session update should succeed";
 
   // Try to update with lower counter = 50 (should fail)
-  auto old_session_info = createSessionInfo(50);
+  auto old_session_info = create_session_info_(50);
   result = peer_->update_session(&old_session_info);
-  EXPECT_EQ(result, TeslaBLEStatus::ERROR_COUNTER_REPLAY) << "Update with lower counter should fail";
+  EXPECT_EQ(result, TeslaBLE_Status_E_ERROR_COUNTER_REPLAY) << "Update with lower counter should fail";
   EXPECT_EQ(peer_->get_counter(), 100) << "Counter should remain unchanged";
 }
 
@@ -94,23 +94,23 @@ TEST_F(SessionRecoveryTest, UpdateSessionRejectsLowerCounter) {
  */
 TEST_F(SessionRecoveryTest, ForceUpdateSessionAcceptsLowerCounter) {
   // Initialize with counter = 100000 (simulating our local counter being high)
-  auto session_info = createSessionInfo(100000);
+  auto session_info = create_session_info_(100000);
   auto result = peer_->update_session(&session_info);
-  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Initial session update should succeed";
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "Initial session update should succeed";
   EXPECT_EQ(peer_->get_counter(), 100000);
   EXPECT_TRUE(peer_->is_valid());
 
   // Simulate vehicle sending new session info with lower counter (this is what happens after ERROR_TIME_EXPIRED)
   // The vehicle may have restarted or our local counter drifted too high
-  auto new_session_info = createSessionInfo(500);  // Much lower counter from vehicle
+  auto new_session_info = create_session_info_(500);  // Much lower counter from vehicle
 
   // Regular updateSession should reject this
   result = peer_->update_session(&new_session_info);
-  EXPECT_EQ(result, TeslaBLEStatus::ERROR_COUNTER_REPLAY) << "Regular update should reject lower counter";
+  EXPECT_EQ(result, TeslaBLE_Status_E_ERROR_COUNTER_REPLAY) << "Regular update should reject lower counter";
 
   // forceUpdateSession should accept it
   result = peer_->force_update_session(&new_session_info);
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Force update should accept lower counter";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Force update should accept lower counter";
   EXPECT_EQ(peer_->get_counter(), 500) << "Counter should be updated to vehicle's value";
   EXPECT_TRUE(peer_->is_valid()) << "Session should be valid after force update";
 }
@@ -120,9 +120,9 @@ TEST_F(SessionRecoveryTest, ForceUpdateSessionAcceptsLowerCounter) {
  */
 TEST_F(SessionRecoveryTest, ForceUpdateSessionRestoresValidity) {
   // Initialize with a valid session
-  auto session_info = createSessionInfo(100);
+  auto session_info = create_session_info_(100);
   auto result = peer_->update_session(&session_info);
-  ASSERT_EQ(result, TeslaBLEStatus::OK);
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK);
   EXPECT_TRUE(peer_->is_valid());
 
   // Invalidate the session (simulating what happens on ERROR_TIME_EXPIRED)
@@ -130,9 +130,9 @@ TEST_F(SessionRecoveryTest, ForceUpdateSessionRestoresValidity) {
   EXPECT_FALSE(peer_->is_valid()) << "Session should be invalidated";
 
   // Force update with new session info
-  auto new_session_info = createSessionInfo(50);  // Lower counter
+  auto new_session_info = create_session_info_(50);  // Lower counter
   result = peer_->force_update_session(&new_session_info);
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Force update should succeed";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Force update should succeed";
   EXPECT_TRUE(peer_->is_valid()) << "Session should be valid again after force update";
 }
 
@@ -141,9 +141,9 @@ TEST_F(SessionRecoveryTest, ForceUpdateSessionRestoresValidity) {
  */
 TEST_F(SessionRecoveryTest, ForceUpdateSessionWithEpochChange) {
   // Initialize with original session
-  auto session_info = createSessionInfo(100);
+  auto session_info = create_session_info_(100);
   auto result = peer_->update_session(&session_info);
-  ASSERT_EQ(result, TeslaBLEStatus::OK);
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK);
 
   // Create session info with different epoch
   Signatures_SessionInfo new_session_info = Signatures_SessionInfo_init_zero;
@@ -163,7 +163,7 @@ TEST_F(SessionRecoveryTest, ForceUpdateSessionWithEpochChange) {
   // Note: With a different epoch, updateSession should actually accept lower counter
   // because epochs define independent counter spaces
   result = peer_->update_session(&new_session_info);
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Update with new epoch should succeed even with lower counter";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Update with new epoch should succeed even with lower counter";
 }
 
 /**
@@ -171,7 +171,7 @@ TEST_F(SessionRecoveryTest, ForceUpdateSessionWithEpochChange) {
  */
 TEST_F(SessionRecoveryTest, ForceUpdateSessionWithNullInfo) {
   auto result = peer_->force_update_session(nullptr);
-  EXPECT_EQ(result, TeslaBLEStatus::ERROR_INVALID_SESSION) << "Force update with null should fail";
+  EXPECT_EQ(result, TeslaBLE_Status_E_ERROR_INVALID_SESSION) << "Force update with null should fail";
 }
 
 /**
@@ -184,9 +184,9 @@ TEST_F(SessionRecoveryTest, ForceUpdateSessionWithNullInfo) {
  */
 TEST_F(SessionRecoveryTest, FullSessionRecoveryFlow) {
   // Step 1: Establish initial session with high counter
-  auto initial_session = createSessionInfo(180000);  // High counter like in the logs
+  auto initial_session = create_session_info_(180000);  // High counter like in the logs
   auto result = peer_->update_session(&initial_session);
-  ASSERT_EQ(result, TeslaBLEStatus::OK) << "Initial session should be established";
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "Initial session should be established";
   EXPECT_TRUE(peer_->is_initialized()) << "Peer should be initialized";
 
   // Step 2 & 3: Simulate ERROR_TIME_EXPIRED by invalidating session
@@ -194,15 +194,15 @@ TEST_F(SessionRecoveryTest, FullSessionRecoveryFlow) {
   EXPECT_FALSE(peer_->is_valid()) << "Session should be invalid";
 
   // Step 4: Receive new session info with lower counter (from vehicle after error)
-  auto recovery_session = createSessionInfo(174762);  // Lower counter (from logs)
+  auto recovery_session = create_session_info_(174762);  // Lower counter (from logs)
 
   // Regular update should fail due to anti-replay
   result = peer_->update_session(&recovery_session);
-  EXPECT_EQ(result, TeslaBLEStatus::ERROR_COUNTER_REPLAY) << "Regular update should fail";
+  EXPECT_EQ(result, TeslaBLE_Status_E_ERROR_COUNTER_REPLAY) << "Regular update should fail";
 
   // Step 5: Force update to recover
   result = peer_->force_update_session(&recovery_session);
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Force update should succeed";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Force update should succeed";
   EXPECT_TRUE(peer_->is_valid()) << "Session should be valid after recovery";
   EXPECT_EQ(peer_->get_counter(), 174762) << "Counter should match vehicle's value";
 }
@@ -212,9 +212,9 @@ TEST_F(SessionRecoveryTest, FullSessionRecoveryFlow) {
  */
 TEST_F(SessionRecoveryTest, IsInitializedReturnsFalseWhenInvalid) {
   // Initialize session
-  auto session_info = createSessionInfo(100);
+  auto session_info = create_session_info_(100);
   auto result = peer_->update_session(&session_info);
-  ASSERT_EQ(result, TeslaBLEStatus::OK);
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK);
   EXPECT_TRUE(peer_->is_initialized()) << "Peer should be initialized";
 
   // Invalidate
@@ -226,11 +226,11 @@ TEST_F(SessionRecoveryTest, IsInitializedReturnsFalseWhenInvalid) {
  * Test updating session with same counter (edge case)
  */
 TEST_F(SessionRecoveryTest, UpdateSessionWithSameCounter) {
-  auto session_info = createSessionInfo(100);
+  auto session_info = create_session_info_(100);
   auto result = peer_->update_session(&session_info);
-  ASSERT_EQ(result, TeslaBLEStatus::OK);
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK);
 
   // Update with same counter should succeed (not a replay, same state)
   result = peer_->update_session(&session_info);
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Update with same counter should succeed";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Update with same counter should succeed";
 }

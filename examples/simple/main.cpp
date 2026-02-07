@@ -59,11 +59,12 @@ int main() {
   // https://github.com/teslamotors/vehicle-command/issues/232#issuecomment-2181503570
   LOG_INFO("Building whitelist message for CHARGING MANAGER");
   int return_code =
-      client.build_whitelist_message(Keys_Role_ROLE_CHARGING_MANAGER, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY,
-                                     whitelist_message_buffer, &whitelist_message_length);
+      client.build_white_list_message(Keys_Role_ROLE_CHARGING_MANAGER, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY,
+                                      whitelist_message_buffer, &whitelist_message_length);
 
   if (return_code != 0) {
-    LOG_ERROR("Failed to build whitelist message: %s", TeslaBLE::TeslaBLE_Status_to_string(return_code));
+    auto status = static_cast<TeslaBLE::TeslaBLE_Status_E>(return_code);
+    LOG_ERROR("Failed to build whitelist message: %s", TeslaBLE::teslable_status_to_string(status));
     return -1;
   }
   LOG_DEBUG("Whitelist message length: %d", whitelist_message_length);
@@ -89,7 +90,8 @@ int main() {
   return_code =
       client.parse_universal_message(received_bytes_vcsec, sizeof(received_bytes_vcsec), &received_message_vcsec);
   if (return_code != 0) {
-    LOG_ERROR("Failed to parse received message VSSE: %s", TeslaBLE::TeslaBLE_Status_to_string(return_code));
+    auto status = static_cast<TeslaBLE::TeslaBLE_Status_E>(return_code);
+    LOG_ERROR("Failed to parse received message VSSE: %s", TeslaBLE::teslable_status_to_string(status));
     return -1;
   }
   log_routable_message(&received_message_vcsec);
@@ -118,7 +120,7 @@ int main() {
   }
 
   LOG_DEBUG("VCSEC Public key: %s",
-            bytes_to_hex_string(session_info_vcsec.public_key.bytes, session_info_vcsec.public_key.size).c_str());
+            bytes_to_hex_string(session_info_vcsec.publicKey.bytes, session_info_vcsec.publicKey.size).c_str());
 
   LOG_DEBUG("Parsed VCSEC session info response");
   LOG_DEBUG("Received new counter from the car: %" PRIu32, session->get_counter());

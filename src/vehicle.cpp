@@ -279,6 +279,7 @@ void TeslaBLE::Vehicle::handle_wake_response_timeout_(const std::shared_ptr<Comm
   if (is_vehicle_awake_) {
     LOG_INFO("Wake response timeout but vehicle is awake - proceeding");
     if (command->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
+      command->current_auth_domain = UniversalMessage_Domain_DOMAIN_INFOTAINMENT;
       command->state = CommandState::AUTHENTICATING;
       command->last_tx_at = std::chrono::steady_clock::time_point();  // Trigger immediate auth
     } else {
@@ -336,7 +337,8 @@ void TeslaBLE::Vehicle::initiate_infotainment_auth_(const std::shared_ptr<Comman
     return;
   }
   if (!is_vehicle_awake_ && command->requires_wake) {
-    LOG_DEBUG("Vehicle is asleep and command requires wake, transitioning to wake state");
+    LOG_DEBUG("Vehicle is asleep and command requires wake, initiating wake sequence");
+    command->current_auth_domain = UniversalMessage_Domain_DOMAIN_BROADCAST;
     command->state = CommandState::AUTHENTICATING;
     command->last_tx_at = std::chrono::steady_clock::time_point();
     return;
@@ -891,6 +893,7 @@ void TeslaBLE::Vehicle::handle_vehicle_status_command_update_(const std::shared_
         LOG_INFO("Vehicle is awake");
         if (cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
           LOG_DEBUG("Transitioning infotainment command to auth state after wake");
+          cmd->current_auth_domain = UniversalMessage_Domain_DOMAIN_INFOTAINMENT;
           cmd->state = CommandState::AUTHENTICATING;
         } else {
           mark_command_completed_(cmd);

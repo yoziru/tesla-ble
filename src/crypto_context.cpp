@@ -68,68 +68,70 @@ void CryptoContext::cleanup_() {
   }
 }
 
-TeslaBLEStatus CryptoContext::initialize() {
+void CryptoContext::reset_private_key_() {
+  mbedtls_pk_free(private_key_context_.get());
+  mbedtls_pk_init(private_key_context_.get());
+}
+
+TeslaBLE_Status_E CryptoContext::ensure_initialized_() {
   if (initialized_) {
-    return TeslaBLEStatus::OK;
+    return TeslaBLE_Status_E_OK;
+  }
+  return initialize();
+}
+
+TeslaBLE_Status_E CryptoContext::initialize() {
+  if (initialized_) {
+    return TeslaBLE_Status_E_OK;
   }
 
   int result = mbedtls_ctr_drbg_seed(drbg_context_.get(), mbedtls_entropy_func, entropy_context_.get(), nullptr, 0);
 
   if (result != 0) {
     LOG_ERROR("Failed to seed DRBG: -0x%04x", (unsigned int) -result);
-    return TeslaBLEStatus::ERROR_INTERNAL;
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 
   initialized_ = true;
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus CryptoContext::create_private_key() {
-  if (!initialized_) {
-    TeslaBLEStatus result = initialize();
-    if (result != TeslaBLEStatus::OK) {
-      return result;
-    }
+TeslaBLE_Status_E CryptoContext::create_private_key() {
+  TeslaBLE_Status_E status = ensure_initialized_();
+  if (status != TeslaBLE_Status_E_OK) {
+    return status;
   }
 
-  // Free existing key if any
-  mbedtls_pk_free(private_key_context_.get());
-  mbedtls_pk_init(private_key_context_.get());
+  reset_private_key_();
 
   int result = mbedtls_pk_setup(private_key_context_.get(), mbedtls_pk_info_from_type(MBEDTLS_PK_ECKEY));
-
   if (result != 0) {
     LOG_ERROR("Failed to setup private key: -0x%04x", (unsigned int) -result);
-    return TeslaBLEStatus::ERROR_INTERNAL;
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 
   result = mbedtls_ecp_gen_key(MBEDTLS_ECP_DP_SECP256R1, mbedtls_pk_ec(*private_key_context_), mbedtls_ctr_drbg_random,
                                drbg_context_.get());
-
   if (result != 0) {
     LOG_ERROR("Failed to generate private key: -0x%04x", (unsigned int) -result);
-    return TeslaBLEStatus::ERROR_INTERNAL;
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus CryptoContext::load_private_key(const uint8_t *private_key_buffer, size_t key_size) {
+TeslaBLE_Status_E CryptoContext::load_private_key(const uint8_t *private_key_buffer, size_t key_size) {
   if (!private_key_buffer || key_size == 0) {
     LOG_ERROR("Invalid private key buffer");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  if (!initialized_) {
-    TeslaBLEStatus result = initialize();
-    if (result != TeslaBLEStatus::OK) {
-      return result;
-    }
+  TeslaBLE_Status_E status = ensure_initialized_();
+  if (status != TeslaBLE_Status_E_OK) {
+    return status;
   }
 
-  // Free existing key if any
-  mbedtls_pk_free(private_key_context_.get());
-  mbedtls_pk_init(private_key_context_.get());
+  reset_private_key_();
 
   // Let mbedtls handle the basic PEM parsing
   int result = mbedtls_pk_parse_key(private_key_context_.get(), private_key_buffer, key_size,
@@ -138,75 +140,74 @@ TeslaBLEStatus CryptoContext::load_private_key(const uint8_t *private_key_buffer
 
   if (result != 0) {
     LOG_ERROR("Failed to parse private key: -0x%04x", (unsigned int) -result);
-    return TeslaBLEStatus::ERROR_INTERNAL;
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 
   // Tesla protocol validation - ensure it's an EC key
   if (!mbedtls_pk_can_do(private_key_context_.get(), MBEDTLS_PK_ECKEY)) {
     LOG_ERROR("Private key is not an EC key - Tesla protocol requires ECDSA");
-    mbedtls_pk_free(private_key_context_.get());
-    mbedtls_pk_init(private_key_context_.get());
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+    reset_private_key_();
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
   // Tesla protocol validation - verify it's a SECP256R1 (P-256) key
   mbedtls_ecp_keypair *ec_key = mbedtls_pk_ec(*private_key_context_);
   if (mbedtls_ecp_keypair_get_group_id(ec_key) != MBEDTLS_ECP_DP_SECP256R1) {
     LOG_ERROR("Private key is not SECP256R1 (P-256) - Tesla protocol requires this curve");
-    mbedtls_pk_free(private_key_context_.get());
-    mbedtls_pk_init(private_key_context_.get());
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+    reset_private_key_();
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus CryptoContext::get_private_key(pb_byte_t *output_buffer, size_t buffer_length, size_t *output_length) {
+TeslaBLE_Status_E CryptoContext::get_private_key(pb_byte_t *output_buffer, size_t buffer_length,
+                                                 size_t *output_length) {
   if (!output_buffer || !output_length) {
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
   if (!is_private_key_initialized()) {
     LOG_ERROR("Private key not initialized");
-    return TeslaBLEStatus::ERROR_PRIVATE_KEY_NOT_INITIALIZED;
+    return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
   }
 
-  int result = mbedtls_pk_write_key_pem(private_key_context_.get(), output_buffer, buffer_length);
+  int write_result = mbedtls_pk_write_key_pem(private_key_context_.get(), output_buffer, buffer_length);
 
-  if (result != 0) {
-    LOG_ERROR("Failed to write private key: -0x%04x", (unsigned int) -result);
-    return TeslaBLEStatus::ERROR_INTERNAL;
+  if (write_result != 0) {
+    LOG_ERROR("Failed to write private key: -0x%04x", (unsigned int) -write_result);
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 
-  *output_length = strlen(reinterpret_cast<char *>(output_buffer)) + 1;
-  return TeslaBLEStatus::OK;
+  *output_length = std::strlen(reinterpret_cast<char *>(output_buffer)) + 1;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus CryptoContext::generate_public_key(pb_byte_t *output_buffer, size_t *output_length) {
+TeslaBLE_Status_E CryptoContext::generate_public_key(pb_byte_t *output_buffer, size_t *output_length) {
   if (!output_buffer || !output_length) {
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
   if (!is_private_key_initialized()) {
     LOG_ERROR("Private key not initialized");
-    return TeslaBLEStatus::ERROR_PRIVATE_KEY_NOT_INITIALIZED;
+    return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
   }
 
   // Verify the private key context is properly set up
   if (!private_key_context_) {
     LOG_ERROR("Private key context is null");
-    return TeslaBLEStatus::ERROR_INTERNAL;
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 
   if (mbedtls_pk_get_type(private_key_context_.get()) != MBEDTLS_PK_ECKEY) {
     LOG_ERROR("Private key is not an EC key, type: %d", mbedtls_pk_get_type(private_key_context_.get()));
-    return TeslaBLEStatus::ERROR_INTERNAL;
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 
   mbedtls_ecp_keypair *ec_key = mbedtls_pk_ec(*private_key_context_);
   if (!ec_key) {
     LOG_ERROR("Failed to get EC keypair from PK context");
-    return TeslaBLEStatus::ERROR_INTERNAL;
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 
   // Set the maximum buffer size for the output
@@ -218,50 +219,48 @@ TeslaBLEStatus CryptoContext::generate_public_key(pb_byte_t *output_buffer, size
 
   if (result != 0) {
     LOG_ERROR("Failed to generate public key: -0x%04x", (unsigned int) -result);
-    return TeslaBLEStatus::ERROR_INTERNAL;
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus CryptoContext::generate_key_id(const pb_byte_t *public_key, size_t key_size, pb_byte_t *key_id) {
+TeslaBLE_Status_E CryptoContext::generate_key_id(const pb_byte_t *public_key, size_t key_size, pb_byte_t *key_id) {
   if (!public_key || !key_id || key_size == 0) {
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
   std::array<pb_byte_t, 20> hash_buffer{};
-  TeslaBLEStatus result = CryptoUtils::sha1_hash(public_key, key_size, hash_buffer.data());
-  if (result != TeslaBLEStatus::OK) {
+  TeslaBLE_Status_E result = CryptoUtils::sha1_hash(public_key, key_size, hash_buffer.data());
+  if (result != TeslaBLE_Status_E_OK) {
     return result;
   }
 
   // Copy first 4 bytes as key ID
   std::memcpy(key_id, hash_buffer.data(), 4);
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus CryptoContext::perform_tesla_ecdh(const uint8_t *tesla_public_key, size_t tesla_key_size,
-                                                 uint8_t *session_key) {
+TeslaBLE_Status_E CryptoContext::perform_tesla_ecdh(const uint8_t *tesla_public_key, size_t tesla_key_size,
+                                                    uint8_t *session_key) {
   if (!tesla_public_key || !session_key || tesla_key_size != 65) {
     LOG_ERROR("Invalid parameters for Tesla ECDH");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
   if (tesla_public_key[0] != 0x04) {
     LOG_ERROR("Invalid Tesla public key format: expected uncompressed point (0x04)");
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  if (!initialized_) {
-    TeslaBLEStatus result = initialize();
-    if (result != TeslaBLEStatus::OK) {
-      return result;
-    }
+  TeslaBLE_Status_E status = ensure_initialized_();
+  if (status != TeslaBLE_Status_E_OK) {
+    return status;
   }
 
   if (!is_private_key_initialized()) {
     LOG_ERROR("Private key not initialized for ECDH");
-    return TeslaBLEStatus::ERROR_PRIVATE_KEY_NOT_INITIALIZED;
+    return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
   }
 
   LOG_DEBUG("Starting Tesla ECDH key exchange");
@@ -269,20 +268,20 @@ TeslaBLEStatus CryptoContext::perform_tesla_ecdh(const uint8_t *tesla_public_key
   // Use the loaded private key instead of generating ephemeral keys
   if (!mbedtls_pk_can_do(private_key_context_.get(), MBEDTLS_PK_ECKEY)) {
     LOG_ERROR("Loaded key is not an EC key");
-    return TeslaBLEStatus::ERROR_INTERNAL;
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 
   // Get the ECP keypair from the loaded private key
   mbedtls_ecp_keypair *our_keypair = mbedtls_pk_ec(*private_key_context_);
   if (!our_keypair) {
     LOG_ERROR("Failed to get ECP keypair from loaded private key");
-    return TeslaBLEStatus::ERROR_INTERNAL;
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 
   LOG_DEBUG("Using loaded private key for ECDH");
 
-  TeslaBLEStatus status = TeslaBLEStatus::ERROR_CRYPTO;
-  int ret = 0;
+  TeslaBLE_Status_E ecdh_status = TeslaBLE_Status_E_ERROR_CRYPTO;
+  int result = 0;
 
   do {
     // Import Tesla's public key point
@@ -290,10 +289,10 @@ TeslaBLEStatus CryptoContext::perform_tesla_ecdh(const uint8_t *tesla_public_key
     mbedtls_ecp_point tesla_point;
     mbedtls_ecp_point_init(&tesla_point);
 
-    ret = mbedtls_ecp_point_read_binary(&our_keypair->MBEDTLS_PRIVATE(grp), &tesla_point, tesla_public_key,
-                                        tesla_key_size);
-    if (ret != 0) {
-      LOG_ERROR("Failed to import Tesla public key: -0x%04x", -ret);
+    result = mbedtls_ecp_point_read_binary(&our_keypair->MBEDTLS_PRIVATE(grp), &tesla_point, tesla_public_key,
+                                           tesla_key_size);
+    if (result != 0) {
+      LOG_ERROR("Failed to import Tesla public key: -0x%04x", -result);
       mbedtls_ecp_point_free(&tesla_point);
       break;
     }
@@ -303,24 +302,24 @@ TeslaBLEStatus CryptoContext::perform_tesla_ecdh(const uint8_t *tesla_public_key
     mbedtls_ecp_point shared_point;
     mbedtls_ecp_point_init(&shared_point);
 
-    ret = mbedtls_ecp_mul(&our_keypair->MBEDTLS_PRIVATE(grp), &shared_point, &our_keypair->MBEDTLS_PRIVATE(d),
-                          &tesla_point, mbedtls_ctr_drbg_random, drbg_context_.get());
+    result = mbedtls_ecp_mul(&our_keypair->MBEDTLS_PRIVATE(grp), &shared_point, &our_keypair->MBEDTLS_PRIVATE(d),
+                             &tesla_point, mbedtls_ctr_drbg_random, drbg_context_.get());
 
     mbedtls_ecp_point_free(&tesla_point);
 
-    if (ret != 0) {
-      LOG_ERROR("Failed to compute shared secret: -0x%04x", -ret);
+    if (result != 0) {
+      LOG_ERROR("Failed to compute shared secret: -0x%04x", -result);
       mbedtls_ecp_point_free(&shared_point);
       break;
     }
 
     // Extract X coordinate from the shared point (this is the shared secret)
     uint8_t shared_secret[32];  // P-256 shared secret is 32 bytes
-    ret = mbedtls_mpi_write_binary(&shared_point.MBEDTLS_PRIVATE(X), shared_secret, sizeof(shared_secret));
+    result = mbedtls_mpi_write_binary(&shared_point.MBEDTLS_PRIVATE(X), shared_secret, sizeof(shared_secret));
     mbedtls_ecp_point_free(&shared_point);
-    if (ret != 0) {
+    if (result != 0) {
       mbedtls_platform_zeroize(shared_secret, sizeof(shared_secret));
-      LOG_ERROR("Failed to write shared secret: -0x%04x", -ret);
+      LOG_ERROR("Failed to write shared secret: -0x%04x", -result);
       break;
     }
 
@@ -328,11 +327,11 @@ TeslaBLEStatus CryptoContext::perform_tesla_ecdh(const uint8_t *tesla_public_key
 
     // Derive session key: K = SHA1(shared_secret)[:16] (Tesla protocol)
     uint8_t sha1_hash[20];
-    ret = mbedtls_sha1(shared_secret, sizeof(shared_secret), sha1_hash);
-    if (ret != 0) {
+    result = mbedtls_sha1(shared_secret, sizeof(shared_secret), sha1_hash);
+    if (result != 0) {
       mbedtls_platform_zeroize(shared_secret, sizeof(shared_secret));
       mbedtls_platform_zeroize(sha1_hash, sizeof(sha1_hash));
-      LOG_ERROR("Failed to hash shared secret: -0x%04x", -ret);
+      LOG_ERROR("Failed to hash shared secret: -0x%04x", -result);
       break;
     }
 
@@ -344,39 +343,37 @@ TeslaBLEStatus CryptoContext::perform_tesla_ecdh(const uint8_t *tesla_public_key
     mbedtls_platform_zeroize(sha1_hash, sizeof(sha1_hash));
 
     LOG_DEBUG("Tesla ECDH completed successfully");
-    LOG_DEBUG("Session key: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-              session_key[0], session_key[1], session_key[2], session_key[3], session_key[4], session_key[5],
-              session_key[6], session_key[7], session_key[8], session_key[9], session_key[10], session_key[11],
-              session_key[12], session_key[13], session_key[14], session_key[15]);
+    LOG_VERBOSE("Session key: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+                session_key[0], session_key[1], session_key[2], session_key[3], session_key[4], session_key[5],
+                session_key[6], session_key[7], session_key[8], session_key[9], session_key[10], session_key[11],
+                session_key[12], session_key[13], session_key[14], session_key[15]);
 
-    status = TeslaBLEStatus::OK;
+    ecdh_status = TeslaBLE_Status_E_OK;
 
   } while (false);
 
   // No cleanup needed - we used the loaded keypair, not a temporary one
 
-  return status;
+  return ecdh_status;
 }
 
-TeslaBLEStatus CryptoContext::generate_random_bytes(uint8_t *output, size_t length) {
+TeslaBLE_Status_E CryptoContext::generate_random_bytes(uint8_t *output, size_t length) {
   if (!output || length == 0) {
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
-  if (!initialized_) {
-    TeslaBLEStatus result = initialize();
-    if (result != TeslaBLEStatus::OK) {
-      return result;
-    }
+  TeslaBLE_Status_E status = ensure_initialized_();
+  if (status != TeslaBLE_Status_E_OK) {
+    return status;
   }
 
   int ret = mbedtls_ctr_drbg_random(drbg_context_.get(), output, length);
   if (ret != 0) {
     LOG_ERROR("Failed to generate random bytes: -0x%04x", -ret);
-    return TeslaBLEStatus::ERROR_CRYPTO;
+    return TeslaBLE_Status_E_ERROR_CRYPTO;
   }
 
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
 bool CryptoContext::is_private_key_initialized() const {
@@ -384,33 +381,33 @@ bool CryptoContext::is_private_key_initialized() const {
 }
 
 // CryptoUtils implementation
-TeslaBLEStatus CryptoUtils::generate_random_bytes(pb_byte_t *output, size_t length,
-                                                  mbedtls_ctr_drbg_context *drbg_context) {
+TeslaBLE_Status_E CryptoUtils::generate_random_bytes(pb_byte_t *output, size_t length,
+                                                     mbedtls_ctr_drbg_context *drbg_context) {
   if (!output || !drbg_context || length == 0) {
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
   int result = mbedtls_ctr_drbg_random(drbg_context, output, length);
   if (result != 0) {
     LOG_ERROR("Failed to generate random bytes: -0x%04x", (unsigned int) -result);
-    return TeslaBLEStatus::ERROR_INTERNAL;
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
-TeslaBLEStatus CryptoUtils::sha1_hash(const pb_byte_t *input, size_t input_length, pb_byte_t *output) {
+TeslaBLE_Status_E CryptoUtils::sha1_hash(const pb_byte_t *input, size_t input_length, pb_byte_t *output) {
   if (!input || !output || input_length == 0) {
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
   int result = mbedtls_sha1(input, input_length, output);
   if (result != 0) {
     LOG_ERROR("SHA1 hash failed: -0x%04x", (unsigned int) -result);
-    return TeslaBLEStatus::ERROR_INTERNAL;
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
 }
 
 bool CryptoUtils::secure_memory_compare(const pb_byte_t *a, const pb_byte_t *b, size_t length) {
@@ -433,29 +430,53 @@ void CryptoUtils::clear_sensitive_memory(void *memory, size_t length) {
 }
 
 // Derive SESSION_INFO_KEY = HMAC-SHA256(K, "session info")
-TeslaBLEStatus CryptoUtils::derive_session_info_key(const uint8_t *shared_key, size_t shared_key_len, uint8_t *out_key,
-                                                    size_t out_key_len) {
+TeslaBLE_Status_E CryptoUtils::derive_session_info_key(const uint8_t *shared_key, size_t shared_key_len,
+                                                       uint8_t *out_key, size_t out_key_len) {
   // out_key must be at least 32 bytes (SHA256 output)
   if (!shared_key || shared_key_len == 0 || !out_key || out_key_len < 32) {
     if (out_key && out_key_len > 0) {
       mbedtls_platform_zeroize(out_key, out_key_len);
     }
-    return TeslaBLEStatus::ERROR_INVALID_PARAMS;
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
   const char *session_info_str = "session info";
   const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
   if (!md_info) {
     mbedtls_platform_zeroize(out_key, out_key_len);
-    return TeslaBLEStatus::ERROR_INTERNAL;
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
   int ret =
       mbedtls_md_hmac(md_info, shared_key, shared_key_len, reinterpret_cast<const unsigned char *>(session_info_str),
                       sizeof("session info") - 1, out_key);
   if (ret != 0) {
     mbedtls_platform_zeroize(out_key, out_key_len);
-    return TeslaBLEStatus::ERROR_CRYPTO;
+    return TeslaBLE_Status_E_ERROR_CRYPTO;
   }
-  return TeslaBLEStatus::OK;
+  return TeslaBLE_Status_E_OK;
+}
+
+TeslaBLE_Status_E CryptoUtils::hmac_sha256(const uint8_t *key, size_t key_len, const uint8_t *data, size_t data_len,
+                                           uint8_t *out, size_t out_len) {
+  if (!key || key_len == 0 || !data || data_len == 0 || !out || out_len < 32) {
+    if (out && out_len > 0) {
+      mbedtls_platform_zeroize(out, out_len);
+    }
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+
+  const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  if (!md_info) {
+    mbedtls_platform_zeroize(out, out_len);
+    return TeslaBLE_Status_E_ERROR_INTERNAL;
+  }
+
+  int ret = mbedtls_md_hmac(md_info, key, key_len, data, data_len, out);
+  if (ret != 0) {
+    mbedtls_platform_zeroize(out, out_len);
+    return TeslaBLE_Status_E_ERROR_CRYPTO;
+  }
+
+  return TeslaBLE_Status_E_OK;
 }
 
 }  // namespace TeslaBLE

@@ -12,6 +12,9 @@
 #include <cstdint>
 #include <memory>
 #include <cstring>
+#include <sstream>
+#include <iomanip>
+#include <cstdlib>
 #include "client.h"
 
 namespace TeslaBLE {
@@ -115,22 +118,21 @@ namespace TestUtils {
 /**
  * @brief Create a basic client with loaded test key
  */
-inline std::unique_ptr<Client> createTestClient() {
+inline std::unique_ptr<Client> create_test_client() {
   auto client = std::make_unique<Client>();
   client->set_vin(TEST_VIN);
-  TeslaBLEStatus status = client->load_private_key(reinterpret_cast<const unsigned char *>(CLIENT_PRIVATE_KEY_PEM),
-                                                   strlen(CLIENT_PRIVATE_KEY_PEM) + 1);
-  if (status != TeslaBLEStatus::OK) {
+  int status = client->load_private_key(reinterpret_cast<const unsigned char *>(CLIENT_PRIVATE_KEY_PEM),
+                                        strlen(CLIENT_PRIVATE_KEY_PEM) + 1);
+  if (status != TeslaBLE_Status_E_OK) {
     return nullptr;
   }
-  client->set_connection_id(TEST_CONNECTION_ID);
   return client;
 }
 
 /**
  * @brief Convert bytes to hex string for testing
  */
-inline std::string bytesToHex(const uint8_t *bytes, size_t length) {
+inline std::string bytes_to_hex(const uint8_t *bytes, size_t length) {
   std::stringstream ss;
   ss << std::hex << std::setfill('0');
   for (size_t i = 0; i < length; ++i) {
@@ -142,10 +144,10 @@ inline std::string bytesToHex(const uint8_t *bytes, size_t length) {
 /**
  * @brief Convert hex string to bytes for testing
  */
-inline void hexToBytes(const std::string &hex, uint8_t *bytes) {
+inline void hex_to_bytes(const std::string &hex, uint8_t *bytes) {
   for (size_t i = 0; i < hex.length(); i += 2) {
-    std::string byteString = hex.substr(i, 2);
-    bytes[i / 2] = static_cast<uint8_t>(strtol(byteString.c_str(), nullptr, 16));
+    std::string byte_string = hex.substr(i, 2);
+    bytes[i / 2] = static_cast<uint8_t>(strtol(byte_string.c_str(), nullptr, 16));
   }
 }
 

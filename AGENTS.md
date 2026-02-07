@@ -22,6 +22,12 @@ cd build && ctest -j 2>&1 | grep -E "(FAILED.*\]|^[0-9]+% tests|expected equalit
 - **Protocol**: Protobuf messages (nanopb), AES-GCM encryption (mbedtls)
 - **Dependencies**: nanopb, mbedtls, googletest
 - **Generated Code**: `generated/src/*.pb.c`, `generated/include/*.pb.h`
+- **Generated Code**: Avoid manual edits; regenerate from `proto/` when needed
+
+## Protocol Notes
+- **Session info verification**: HMAC tag is required; request UUID must match the last request per domain.
+- **Response AAD**: Use response flags when building AAD (not a hardcoded encrypt-response flag).
+- **VCSEC responses**: Treat plaintext unless `AES_GCM_Response_data` is present.
 
 ## Code Style
 - **Namespace**: `TeslaBLE`
@@ -31,7 +37,6 @@ cd build && ctest -j 2>&1 | grep -E "(FAILED.*\]|^[0-9]+% tests|expected equalit
   - `_` suffix for members (`crypto_context_`)
   - `_` suffix for private/protected methods (`cleanup_`, `initialize_peers_`)
   - `UPPER_CASE` for static constants
-- **Types**: Use `pb_byte_t`, `pb_size_t` for protobuf; `std::array`, `std::unique_ptr`
 - **Types**: Use `pb_byte_t`, `pb_size_t` for protobuf; `std::array`, `std::unique_ptr`
 - **Error Handling**: Return `TeslaBLE_Status_E` enum (0=OK); use `LOG_ERROR`/`LOG_DEBUG` macros
 - **Formatting**: No comments unless requested; 4-space indent; braces on same line

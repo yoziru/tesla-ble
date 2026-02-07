@@ -10,7 +10,7 @@ namespace TeslaBLE {
 
 // Helper function to convert OperationStatus enum to string
 // Both UniversalMessage and VCSEC use the same underlying values for these.
-template<typename T> static const char *generic_operation_status_to_string(T status) {
+template<typename T> const char *generic_operation_status_to_string(T status) {
   switch (static_cast<int>(status)) {
     case 0:  // OK
       return "OK";
@@ -164,8 +164,7 @@ const char *vssec_signed_message_information_to_string(VCSEC_SignedMessage_infor
   }
 }
 
-static const char *vssec_whitelist_operation_information_to_string(
-    VCSEC_WhitelistOperation_information_E request_type) {
+const char *vssec_whitelist_operation_information_to_string(VCSEC_WhitelistOperation_information_E request_type) {
   switch (request_type) {
     case VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_NONE:
       return "NONE";
@@ -255,8 +254,8 @@ const char *generic_error_to_string(Errors_GenericError_E error) {
   }
 }
 
-void log_destination(const char *tag, const char *direction, const UniversalMessage_Destination *dest) {
-  LOG_DEBUG("Destination: %s", direction);
+void log_destination(const char *tag, const char *prefix, const UniversalMessage_Destination *dest) {
+  LOG_DEBUG("Destination: %s", prefix);
   LOG_DEBUG("  which_sub_destination: %d", dest->which_sub_destination);
   switch (dest->which_sub_destination) {
     case UniversalMessage_Destination_domain_tag:
@@ -274,63 +273,65 @@ void log_destination(const char *tag, const char *direction, const UniversalMess
 
 void log_session_info_request(const char *tag, const UniversalMessage_SessionInfoRequest *req) {
   LOG_DEBUG("  SessionInfoRequest:");
-  LOG_DEBUG("    public_key: %s", format_hex(req->public_key.bytes, req->public_key.size).c_str());
-  LOG_DEBUG("    challenge: %s", format_hex(req->challenge.bytes, req->challenge.size).c_str());
+  LOG_VERBOSE("    public_key: %s", format_hex(req->public_key.bytes, req->public_key.size).c_str());
+  LOG_VERBOSE("    challenge: %s", format_hex(req->challenge.bytes, req->challenge.size).c_str());
 }
 
 void log_session_info(const char *tag, const Signatures_SessionInfo *req) {
   LOG_DEBUG("SessionInfo:");
-  LOG_DEBUG("  counter: %" PRIu32, req->counter);
-  LOG_DEBUG("  publicKey: %s", format_hex(req->publicKey.bytes, req->publicKey.size).c_str());
-  LOG_DEBUG("  epoch: %s", format_hex(req->epoch, 16).c_str());
-  LOG_DEBUG("  clock_time: %" PRIu32, req->clock_time);
-  LOG_DEBUG("  status: %s",
-            req->status == Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK ? "OK" : "KEY_NOT_ON_WHITELIST");
+  LOG_VERBOSE("  counter: %" PRIu32, req->counter);
+  LOG_VERBOSE("  publicKey: %s", format_hex(req->publicKey.bytes, req->publicKey.size).c_str());
+  LOG_VERBOSE("  epoch: %s", format_hex(req->epoch, 16).c_str());
+  LOG_VERBOSE("  clock_time: %" PRIu32, req->clock_time);
+  LOG_VERBOSE("  status: %s",
+              req->status == Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK ? "OK" : "KEY_NOT_ON_WHITELIST");
 }
 
 void log_aes_gcm_personalized_signature_data(const char *tag,
                                              const Signatures_AES_GCM_Personalized_Signature_Data *data) {
   LOG_DEBUG("    AES_GCM_Personalized_Signature_Data:");
-  LOG_DEBUG("      epoch: %s", format_hex(data->epoch, 16).c_str());
-  LOG_DEBUG("      nonce: %s", format_hex(data->nonce, 12).c_str());
-  LOG_DEBUG("      counter: %" PRIu32, data->counter);
-  LOG_DEBUG("      expires_at: %" PRIu32, data->expires_at);
-  LOG_DEBUG("      tag: %s", format_hex(data->tag, 16).c_str());
+  LOG_VERBOSE("      epoch: %s", format_hex(data->epoch, 16).c_str());
+  LOG_VERBOSE("      nonce: %s", format_hex(data->nonce, 12).c_str());
+  LOG_VERBOSE("      counter: %" PRIu32, data->counter);
+  LOG_VERBOSE("      expires_at: %" PRIu32, data->expires_at);
+  LOG_VERBOSE("      tag: %s", format_hex(data->tag, 16).c_str());
 }
 
 void log_signature_data(const char *tag, const Signatures_SignatureData *sig) {
   LOG_DEBUG("  SignatureData:");
   LOG_DEBUG("    has_signer_identity: %s", sig->has_signer_identity ? "true" : "false");
   if (sig->has_signer_identity) {
-    LOG_DEBUG("    signer_identity: ");
-    LOG_DEBUG("      public_key: %s", format_hex(sig->signer_identity.identity_type.public_key.bytes,
-                                                 sig->signer_identity.identity_type.public_key.size)
-                                          .c_str());
+    LOG_VERBOSE("    signer_identity: ");
+    LOG_VERBOSE("      public_key: %s", format_hex(sig->signer_identity.identity_type.public_key.bytes,
+                                                   sig->signer_identity.identity_type.public_key.size)
+                                            .c_str());
   }
   LOG_DEBUG("    which_sig_type: %d", sig->which_sig_type);
   switch (sig->which_sig_type) {
     case Signatures_SignatureData_AES_GCM_Personalized_data_tag:
       log_aes_gcm_personalized_signature_data(tag, &sig->sig_type.AES_GCM_Personalized_data);
-      break;
+      return;
     case Signatures_SignatureData_session_info_tag_tag:
-      LOG_DEBUG("    session_info_tag: %s",
-                format_hex(sig->sig_type.session_info_tag.tag.bytes, sig->sig_type.session_info_tag.tag.size).c_str());
-      break;
+      LOG_VERBOSE(
+          "    session_info_tag: %s",
+          format_hex(sig->sig_type.session_info_tag.tag.bytes, sig->sig_type.session_info_tag.tag.size).c_str());
+      return;
     case Signatures_SignatureData_HMAC_Personalized_data_tag:
-      LOG_DEBUG("    HMAC_Personalized_data: ");
-      LOG_DEBUG("      epoch: %s", format_hex(sig->sig_type.HMAC_Personalized_data.epoch, 16).c_str());
-      LOG_DEBUG("      counter: %" PRIu32, sig->sig_type.HMAC_Personalized_data.counter);
-      LOG_DEBUG("      expires_at: %" PRIu32, sig->sig_type.HMAC_Personalized_data.expires_at);
-      LOG_DEBUG("      tag: %s", format_hex(sig->sig_type.HMAC_Personalized_data.tag, 16).c_str());
-      break;
+      LOG_VERBOSE("    HMAC_Personalized_data: ");
+      LOG_VERBOSE("      epoch: %s", format_hex(sig->sig_type.HMAC_Personalized_data.epoch, 16).c_str());
+      LOG_VERBOSE("      counter: %" PRIu32, sig->sig_type.HMAC_Personalized_data.counter);
+      LOG_VERBOSE("      expires_at: %" PRIu32, sig->sig_type.HMAC_Personalized_data.expires_at);
+      LOG_VERBOSE("      tag: %s", format_hex(sig->sig_type.HMAC_Personalized_data.tag, 16).c_str());
+      return;
     case Signatures_SignatureData_AES_GCM_Response_data_tag:
-      LOG_DEBUG("    AES_GCM_Response_data: ");
-      LOG_DEBUG("      nonce: %s", format_hex(sig->sig_type.AES_GCM_Response_data.nonce, 12).c_str());
-      LOG_DEBUG("      counter: %" PRIu32, sig->sig_type.AES_GCM_Response_data.counter);
-      LOG_DEBUG("      tag: %s", format_hex(sig->sig_type.AES_GCM_Response_data.tag, 16).c_str());
-      break;
+      LOG_VERBOSE("    AES_GCM_Response_data: ");
+      LOG_VERBOSE("      nonce: %s", format_hex(sig->sig_type.AES_GCM_Response_data.nonce, 12).c_str());
+      LOG_VERBOSE("      counter: %" PRIu32, sig->sig_type.AES_GCM_Response_data.counter);
+      LOG_VERBOSE("      tag: %s", format_hex(sig->sig_type.AES_GCM_Response_data.tag, 16).c_str());
+      return;
     default:
       LOG_DEBUG("    unknown sig_type");
+      return;
   }
 }
 
@@ -339,10 +340,10 @@ void log_information_request(const char *tag, const VCSEC_InformationRequest *ms
   LOG_DEBUG("  which_request: %d", msg->which_key);
 
   LOG_DEBUG("  informationRequestType: %s", information_request_type_to_string(msg->informationRequestType));
-  LOG_DEBUG("  publicKeySHA1: %s",
-            format_hex(msg->key.keyId.publicKeySHA1.bytes, msg->key.keyId.publicKeySHA1.size).c_str());
-  LOG_DEBUG("  publicKey: %s", format_hex(msg->key.publicKey.bytes, msg->key.publicKey.size).c_str());
-  LOG_DEBUG("  slot: %" PRIu32, msg->key.slot);
+  LOG_VERBOSE("  publicKeySHA1: %s",
+              format_hex(msg->key.keyId.publicKeySHA1.bytes, msg->key.keyId.publicKeySHA1.size).c_str());
+  LOG_VERBOSE("  publicKey: %s", format_hex(msg->key.publicKey.bytes, msg->key.publicKey.size).c_str());
+  LOG_VERBOSE("  slot: %" PRIu32, msg->key.slot);
 }
 
 void log_routable_message(const char *tag, const UniversalMessage_RoutableMessage *msg) {
@@ -361,10 +362,9 @@ void log_routable_message(const char *tag, const UniversalMessage_RoutableMessag
   switch (msg->which_payload) {
     case UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag:
       LOG_DEBUG("  payload: protobuf_message_as_bytes (callback)");
-      // log byte array as string
-      LOG_DEBUG("    payload: %s",
-                format_hex(msg->payload.protobuf_message_as_bytes.bytes, msg->payload.protobuf_message_as_bytes.size)
-                    .c_str());
+      LOG_VERBOSE("    payload: %s",
+                  format_hex(msg->payload.protobuf_message_as_bytes.bytes, msg->payload.protobuf_message_as_bytes.size)
+                      .c_str());
       break;
     case UniversalMessage_RoutableMessage_session_info_request_tag:
       LOG_DEBUG("  payload: session_info_request");
@@ -372,8 +372,8 @@ void log_routable_message(const char *tag, const UniversalMessage_RoutableMessag
       break;
     case UniversalMessage_RoutableMessage_session_info_tag:
       LOG_DEBUG("  payload: session_info (callback)");
-      // log byte array as string
-      LOG_DEBUG("    payload: %s", format_hex(msg->payload.session_info.bytes, msg->payload.session_info.size).c_str());
+      LOG_VERBOSE("    payload: %s",
+                  format_hex(msg->payload.session_info.bytes, msg->payload.session_info.size).c_str());
       break;
     default:
       LOG_DEBUG("  payload: unknown");
@@ -413,7 +413,6 @@ void log_routable_message(const char *tag, const UniversalMessage_RoutableMessag
   if (msg->uuid.size > 0) {
     LOG_DEBUG("  uuid: %s", format_hex(msg->uuid.bytes, msg->uuid.size).c_str());
   }
-  LOG_DEBUG("[Done logging routable message]");
 }
 
 const char *closure_state_to_string(VCSEC_ClosureState_E state) {
@@ -508,9 +507,9 @@ void log_vssec_whitelist_operation_status(const char *tag, const VCSEC_Whitelist
   // has_signerOfOperation;
   if (status->has_signerOfOperation) {
     LOG_DEBUG("    signerOfOperation:");
-    LOG_DEBUG("      public_key: %s",
-              format_hex(status->signerOfOperation.publicKeySHA1.bytes, status->signerOfOperation.publicKeySHA1.size)
-                  .c_str());
+    LOG_VERBOSE("      public_key: %s",
+                format_hex(status->signerOfOperation.publicKeySHA1.bytes, status->signerOfOperation.publicKeySHA1.size)
+                    .c_str());
   }
   LOG_INFO("    operation_status: %s", vcsec_operation_status_to_string(status->operationStatus));
   LOG_INFO("    information: %s",
@@ -534,7 +533,7 @@ void log_vcsec_command_status(const char *tag, const VCSEC_CommandStatus *msg) {
   }
 }
 
-static void carserver_result_reason_to_string(const char *tag, const CarServer_ResultReason *reason) {
+void carserver_result_reason_to_string(const char *tag, const CarServer_ResultReason *reason) {
   LOG_ERROR("  ResultReason:");
   LOG_ERROR("    which_reason: %d", reason->which_reason);
   switch (reason->which_reason) {
@@ -557,7 +556,7 @@ const char *carserver_operation_status_to_string(CarServer_OperationStatus_E sta
   }
 }
 
-static void log_charging_state(const char *tag, const CarServer_ChargeState_ChargingState &state) {
+void log_charging_state(const char *tag, const CarServer_ChargeState_ChargingState &state) {
   const char *state_str = "Unknown";
   switch (state.which_type) {
     case CarServer_ChargeState_ChargingState_Unknown_tag:
@@ -588,7 +587,7 @@ static void log_charging_state(const char *tag, const CarServer_ChargeState_Char
   LOG_DEBUG("Charging State: %s", state_str);
 }
 
-static void log_charge_state(const char *tag, const CarServer_ChargeState &charge_state) {
+void log_charge_state(const char *tag, const CarServer_ChargeState &charge_state) {
   LOG_DEBUG("=== Charge State ===");
 
   if (charge_state.has_charging_state) {

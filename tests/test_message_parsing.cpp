@@ -3,13 +3,26 @@
 #include <universal_message.pb.h>
 #include <signatures.pb.h>
 #include <car_server.pb.h>
+#include <algorithm>
+#include <array>
+#include <ranges>
 #include <cstring>
 #include "test_constants.h"
 
 using namespace TeslaBLE;
 
 // Mock received message from VCSEC (from main.cpp)
-static pb_byte_t MOCK_VCSEC_MESSAGE[177] = {
+namespace {
+constexpr size_t K_MOCK_MESSAGE_SIZE = 177;
+
+std::array<pb_byte_t, K_MOCK_MESSAGE_SIZE> copy_mock_message(const pb_byte_t (&data)[K_MOCK_MESSAGE_SIZE]) {
+  std::array<pb_byte_t, K_MOCK_MESSAGE_SIZE> copy{};
+  std::ranges::copy(data, copy.begin());
+  return copy;
+}
+}  // namespace
+
+static const pb_byte_t MOCK_VCSEC_MESSAGE[K_MOCK_MESSAGE_SIZE] = {
     0x32, 0x12, 0x12, 0x10, 0x2f, 0xdd, 0xc1, 0x45, 0xca, 0xcc, 0xca, 0x43, 0x05, 0x66, 0x37, 0x0d, 0xf1, 0x49,
     0x85, 0x5d, 0x3a, 0x02, 0x08, 0x02, 0x7a, 0x5e, 0x08, 0x01, 0x12, 0x41, 0x04, 0xc7, 0xa1, 0xf4, 0x71, 0x38,
     0x48, 0x6a, 0xa4, 0x72, 0x99, 0x71, 0x49, 0x48, 0x78, 0xd3, 0x3b, 0x1a, 0x24, 0xe3, 0x95, 0x71, 0xf7, 0x48,
@@ -22,7 +35,7 @@ static pb_byte_t MOCK_VCSEC_MESSAGE[177] = {
     0xcc, 0xe3, 0xd5, 0x1a, 0x6f, 0x3c, 0x2a, 0xee, 0xa8, 0x91, 0x36, 0x44, 0xa7, 0x05, 0x84};
 
 // Mock received message from INFOTAINMENT (from main.cpp)
-static pb_byte_t MOCK_INFOTAINMENT_MESSAGE[177] = {
+static const pb_byte_t MOCK_INFOTAINMENT_MESSAGE[K_MOCK_MESSAGE_SIZE] = {
     0x32, 0x12, 0x12, 0x10, 0x8f, 0x3d, 0x24, 0x4b, 0x50, 0xb0, 0x7a, 0x98, 0x42, 0xca, 0xc1, 0x08, 0xc9, 0x28,
     0xb5, 0xe7, 0x3a, 0x02, 0x08, 0x03, 0x7a, 0x5e, 0x08, 0x01, 0x12, 0x41, 0x04, 0xc7, 0xa1, 0xf4, 0x71, 0x38,
     0x48, 0x6a, 0xa4, 0x72, 0x99, 0x71, 0x49, 0x48, 0x78, 0xd3, 0x3b, 0x1a, 0x24, 0xe3, 0x95, 0x71, 0xf7, 0x48,
@@ -37,27 +50,28 @@ static pb_byte_t MOCK_INFOTAINMENT_MESSAGE[177] = {
 class MessageParsingTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    client = std::make_unique<TeslaBLE::Client>();
-    client->set_vin(TestConstants::TEST_VIN);
+    client_ = std::make_unique<Client>();
+    client_->set_vin(TestConstants::TEST_VIN);
 
     // Load private key for testing
     auto status =
-        client->load_private_key(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
-                                 strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
-    ASSERT_EQ(status, TeslaBLEStatus::OK) << "Failed to load private key for testing";
+        client_->load_private_key(reinterpret_cast<const unsigned char *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                  strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+    ASSERT_EQ(status, TeslaBLE_Status_E_OK) << "Failed to load private key for testing";
   }
 
-  void TearDown() override { client.reset(); }
+  void TearDown() override { client_.reset(); }
 
-  std::unique_ptr<TeslaBLE::Client> client;
+  std::unique_ptr<Client> client_;
 };
 
 TEST_F(MessageParsingTest, ParseValidVCSECUniversalMessage) {
+  auto vcsec_message = copy_mock_message(MOCK_VCSEC_MESSAGE);
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
 
-  auto result = client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
+  auto result = client_->parse_universal_message(vcsec_message.data(), vcsec_message.size(), &received_message);
 
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Parsing valid VCSEC universal message should succeed";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Parsing valid VCSEC universal message should succeed";
 
   // Basic validation of parsed message
   EXPECT_TRUE(received_message.has_to_destination) << "Message should have to_destination";
@@ -65,12 +79,13 @@ TEST_F(MessageParsingTest, ParseValidVCSECUniversalMessage) {
 }
 
 TEST_F(MessageParsingTest, ParseValidInfotainmentUniversalMessage) {
+  auto infotainment_message = copy_mock_message(MOCK_INFOTAINMENT_MESSAGE);
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
 
   auto result =
-      client->parse_universal_message(MOCK_INFOTAINMENT_MESSAGE, sizeof(MOCK_INFOTAINMENT_MESSAGE), &received_message);
+      client_->parse_universal_message(infotainment_message.data(), infotainment_message.size(), &received_message);
 
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Parsing valid Infotainment universal message should succeed";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Parsing valid Infotainment universal message should succeed";
 
   // Basic validation of parsed message
   EXPECT_TRUE(received_message.has_to_destination) << "Message should have to_destination";
@@ -82,30 +97,30 @@ TEST_F(MessageParsingTest, ParseInvalidUniversalMessage) {
 
   // Test with invalid data
   pb_byte_t invalid_data[] = {0x00, 0x01, 0x02, 0x03};
-  auto result = client->parse_universal_message(invalid_data, sizeof(invalid_data), &received_message);
+  auto result = client_->parse_universal_message(invalid_data, sizeof(invalid_data), &received_message);
 
-  EXPECT_NE(result, TeslaBLEStatus::OK) << "Parsing invalid universal message should fail";
+  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "Parsing invalid universal message should fail";
 }
 
 TEST_F(MessageParsingTest, ParseEmptyUniversalMessage) {
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
 
-  auto result = client->parse_universal_message(nullptr, 0, &received_message);
-  EXPECT_NE(result, TeslaBLEStatus::OK) << "Parsing empty/null universal message should fail";
+  auto result = client_->parse_universal_message(nullptr, 0, &received_message);
+  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "Parsing empty/null universal message should fail";
 }
 
 TEST_F(MessageParsingTest, ParseSessionInfoFromVCSECMessage) {
   // First parse the universal message
+  auto vcsec_message = copy_mock_message(MOCK_VCSEC_MESSAGE);
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-  auto parse_result =
-      client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
-  ASSERT_EQ(parse_result, TeslaBLEStatus::OK) << "Failed to parse universal message";
+  auto parse_result = client_->parse_universal_message(vcsec_message.data(), vcsec_message.size(), &received_message);
+  ASSERT_EQ(parse_result, TeslaBLE_Status_E_OK) << "Failed to parse universal message";
 
   // Now parse the session info
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  auto session_result = client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
+  auto session_result = client_->parse_payload_session_info(&received_message.payload.session_info, &session_info);
 
-  EXPECT_EQ(session_result, TeslaBLEStatus::OK) << "Parsing session info from VCSEC message should succeed";
+  EXPECT_EQ(session_result, TeslaBLE_Status_E_OK) << "Parsing session info from VCSEC message should succeed";
 
   // Basic validation
   EXPECT_GT(session_info.publicKey.size, 0) << "Session info should have a public key";
@@ -114,16 +129,17 @@ TEST_F(MessageParsingTest, ParseSessionInfoFromVCSECMessage) {
 
 TEST_F(MessageParsingTest, ParseSessionInfoFromInfotainmentMessage) {
   // First parse the universal message
+  auto infotainment_message = copy_mock_message(MOCK_INFOTAINMENT_MESSAGE);
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
   auto parse_result =
-      client->parse_universal_message(MOCK_INFOTAINMENT_MESSAGE, sizeof(MOCK_INFOTAINMENT_MESSAGE), &received_message);
-  ASSERT_EQ(parse_result, TeslaBLEStatus::OK) << "Failed to parse universal message";
+      client_->parse_universal_message(infotainment_message.data(), infotainment_message.size(), &received_message);
+  ASSERT_EQ(parse_result, TeslaBLE_Status_E_OK) << "Failed to parse universal message";
 
   // Now parse the session info
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  auto session_result = client->parse_payload_session_info(&received_message.payload.session_info, &session_info);
+  auto session_result = client_->parse_payload_session_info(&received_message.payload.session_info, &session_info);
 
-  EXPECT_EQ(session_result, TeslaBLEStatus::OK) << "Parsing session info from Infotainment message should succeed";
+  EXPECT_EQ(session_result, TeslaBLE_Status_E_OK) << "Parsing session info from Infotainment message should succeed";
 
   // Basic validation
   EXPECT_GT(session_info.publicKey.size, 0) << "Session info should have a public key";
@@ -131,22 +147,23 @@ TEST_F(MessageParsingTest, ParseSessionInfoFromInfotainmentMessage) {
 }
 
 TEST_F(MessageParsingTest, ParseMessageWithNullOutput) {
-  auto result = client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), nullptr);
+  auto vcsec_message = copy_mock_message(MOCK_VCSEC_MESSAGE);
+  auto result = client_->parse_universal_message(vcsec_message.data(), vcsec_message.size(), nullptr);
 
-  EXPECT_NE(result, TeslaBLEStatus::OK) << "Parsing message with null output should fail";
+  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "Parsing message with null output should fail";
 }
 
 TEST_F(MessageParsingTest, ParseSessionInfoWithNullOutput) {
   // First parse a valid universal message
+  auto vcsec_message = copy_mock_message(MOCK_VCSEC_MESSAGE);
   UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-  auto parse_result =
-      client->parse_universal_message(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE), &received_message);
-  ASSERT_EQ(parse_result, TeslaBLEStatus::OK) << "Failed to parse universal message";
+  auto parse_result = client_->parse_universal_message(vcsec_message.data(), vcsec_message.size(), &received_message);
+  ASSERT_EQ(parse_result, TeslaBLE_Status_E_OK) << "Failed to parse universal message";
 
   // Try to parse session info with null output
-  auto session_result = client->parse_payload_session_info(&received_message.payload.session_info, nullptr);
+  auto session_result = client_->parse_payload_session_info(&received_message.payload.session_info, nullptr);
 
-  EXPECT_NE(session_result, TeslaBLEStatus::OK) << "Parsing session info with null output should fail";
+  EXPECT_NE(session_result, TeslaBLE_Status_E_OK) << "Parsing session info with null output should fail";
 }
 
 TEST_F(MessageParsingTest, ParsePayloadCarServerResponsePlaintext) {
@@ -165,12 +182,12 @@ TEST_F(MessageParsingTest, ParsePayloadCarServerResponsePlaintext) {
   CarServer_Response parsed_response = CarServer_Response_init_default;
   Signatures_SignatureData signature_data = Signatures_SignatureData_init_default;
 
-  auto result = client->parse_payload_car_server_response(&input_buffer, &signature_data,
-                                                          0,  // which_sub_sigData = 0 means plaintext
-                                                          UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE,
-                                                          &parsed_response);
+  auto result = client_->parse_payload_car_server_response(&input_buffer, &signature_data,
+                                                           0,  // which_sub_sigData = 0 means plaintext
+                                                           UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE, 0,
+                                                           &parsed_response);
 
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "Parsing plaintext CarServer response should succeed";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Parsing plaintext CarServer response should succeed";
   EXPECT_TRUE(parsed_response.has_actionStatus) << "Parsed response should have action status";
   EXPECT_EQ(parsed_response.actionStatus.result, CarServer_OperationStatus_E_OPERATIONSTATUS_OK)
       << "Action status should be OK";
@@ -186,12 +203,12 @@ TEST_F(MessageParsingTest, ParsePayloadCarServerResponseInvalidData) {
   CarServer_Response parsed_response = CarServer_Response_init_default;
   Signatures_SignatureData signature_data = Signatures_SignatureData_init_default;
 
-  auto result = client->parse_payload_car_server_response(&input_buffer, &signature_data,
-                                                          0,  // plaintext
-                                                          UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE,
-                                                          &parsed_response);
+  auto result = client_->parse_payload_car_server_response(&input_buffer, &signature_data,
+                                                           0,  // plaintext
+                                                           UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE, 0,
+                                                           &parsed_response);
 
-  EXPECT_NE(result, TeslaBLEStatus::OK) << "Parsing invalid CarServer response data should fail";
+  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "Parsing invalid CarServer response data should fail";
 }
 
 TEST_F(MessageParsingTest, ParsePayloadCarServerResponseEdgeCases) {
@@ -204,9 +221,10 @@ TEST_F(MessageParsingTest, ParsePayloadCarServerResponseEdgeCases) {
   invalid_buffer.size = sizeof(invalid_data);
   memcpy(invalid_buffer.bytes, invalid_data, sizeof(invalid_data));
 
-  auto result = client->parse_payload_car_server_response(
-      &invalid_buffer, &signature_data, 0, UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE, &parsed_response);
-  EXPECT_NE(result, TeslaBLEStatus::OK) << "Parsing with invalid protobuf data should fail";
+  auto result = client_->parse_payload_car_server_response(&invalid_buffer, &signature_data, 0,
+                                                           UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE, 0,
+                                                           &parsed_response);
+  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "Parsing with invalid protobuf data should fail";
 
   // Test with truncated valid data
   UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t truncated_buffer;
@@ -214,7 +232,8 @@ TEST_F(MessageParsingTest, ParsePayloadCarServerResponseEdgeCases) {
   truncated_buffer.size = sizeof(truncated_data);
   memcpy(truncated_buffer.bytes, truncated_data, sizeof(truncated_data));
 
-  result = client->parse_payload_car_server_response(
-      &truncated_buffer, &signature_data, 0, UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE, &parsed_response);
-  EXPECT_NE(result, TeslaBLEStatus::OK) << "Parsing with truncated data should fail";
+  result = client_->parse_payload_car_server_response(&truncated_buffer, &signature_data, 0,
+                                                      UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE, 0,
+                                                      &parsed_response);
+  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "Parsing with truncated data should fail";
 }

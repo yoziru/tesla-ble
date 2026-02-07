@@ -3,5 +3,5 @@ project(simple)
 
 set(CMAKE_CXX_STANDARD 23)
 add_subdirectory(../../ TeslaBLE)
-add_executable(simple main.cpp log.cpp)
+add_executable(simple main.cpp)
 target_link_libraries(simple PRIVATE TeslaBLE)

@@ -35,14 +35,14 @@ set(TEST_FILES
     test_message_parsing.cpp
     test_protocol_authentication.cpp
     test_protocol_edge_cases.cpp
-    test_protocol_failures.cpp
+    test_protocol_compliance.cpp
     test_protocol_handshake.cpp
     test_protocol_vectors.cpp
     test_session_management.cpp
     test_session_recovery.cpp
     test_tb_utils.cpp
-    test_vin_utils.cpp
     test_vehicle.cpp
+    test_vin_utils.cpp
 )
 
 # Individual test executables for granular testing

@@ -14,8 +14,8 @@ TEST_F(VINUtilsTest, GetVINAdvertisementNameGeneratesValidFormat) {
   EXPECT_EQ(name[17], 'C');
 
   // Middle 16 chars should be valid hex
-  for (int i = 1; i < 17; i++) {
-    EXPECT_TRUE(isxdigit(name[i]));
+  for (int i = 1; i < 17; ++i) {
+    EXPECT_TRUE(isxdigit(static_cast<unsigned char>(name[i])));
   }
 }
 

@@ -6,16 +6,7 @@
 
 using namespace TeslaBLE;
 
-class TBUtilsTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    // Setup code if needed
-  }
-
-  void TearDown() override {
-    // Cleanup code if needed
-  }
-};
+class TBUtilsTest : public ::testing::Test {};
 
 // Test the main function in tb_utils.cpp: pb_encode_fields
 TEST_F(TBUtilsTest, PbEncodeFieldsValidMessage) {
@@ -32,7 +23,7 @@ TEST_F(TBUtilsTest, PbEncodeFieldsValidMessage) {
 
   auto result = pb_encode_fields(output_buffer, &output_length, VCSEC_UnsignedMessage_fields, &unsigned_message);
 
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "pb_encode_fields should succeed for valid message";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "pb_encode_fields should succeed for valid message";
   EXPECT_GT(output_length, 0) << "Encoded message should have non-zero length";
   EXPECT_LE(output_length, sizeof(output_buffer)) << "Encoded message should fit in buffer";
 }
@@ -44,19 +35,19 @@ TEST_F(TBUtilsTest, PbEncodeFieldsNullPointers) {
 
   // Test with null output buffer
   auto result = pb_encode_fields(nullptr, &output_length, VCSEC_InformationRequest_fields, &info_request);
-  EXPECT_NE(result, TeslaBLEStatus::OK) << "pb_encode_fields should fail with null output buffer";
+  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "pb_encode_fields should fail with null output buffer";
 
   // Test with null output length
   result = pb_encode_fields(output_buffer, nullptr, VCSEC_InformationRequest_fields, &info_request);
-  EXPECT_NE(result, TeslaBLEStatus::OK) << "pb_encode_fields should fail with null output length";
+  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "pb_encode_fields should fail with null output length";
 
   // Test with null fields
   result = pb_encode_fields(output_buffer, &output_length, nullptr, &info_request);
-  EXPECT_NE(result, TeslaBLEStatus::OK) << "pb_encode_fields should fail with null fields";
+  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "pb_encode_fields should fail with null fields";
 
   // Test with null source struct
   result = pb_encode_fields(output_buffer, &output_length, VCSEC_InformationRequest_fields, nullptr);
-  EXPECT_NE(result, TeslaBLEStatus::OK) << "pb_encode_fields should fail with null source struct";
+  EXPECT_NE(result, TeslaBLE_Status_E_OK) << "pb_encode_fields should fail with null source struct";
 }
 
 TEST_F(TBUtilsTest, PbEncodeFieldsUniversalMessage) {
@@ -73,7 +64,7 @@ TEST_F(TBUtilsTest, PbEncodeFieldsUniversalMessage) {
   auto result =
       pb_encode_fields(output_buffer, &output_length, UniversalMessage_RoutableMessage_fields, &routable_message);
 
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "pb_encode_fields should succeed for UniversalMessage";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "pb_encode_fields should succeed for UniversalMessage";
   EXPECT_GT(output_length, 0) << "Encoded UniversalMessage should have non-zero length";
   EXPECT_GE(output_length, sizeof(TestConstants::EXPECTED_CLIENT_PUBLIC_KEY))
       << "Encoded message should be at least as large as public key";
@@ -95,7 +86,7 @@ TEST_F(TBUtilsTest, PbEncodeFieldsBufferTooSmall) {
   size_t required_length;
   auto result = pb_encode_fields(buffer, &required_length, VCSEC_UnsignedMessage_fields, &unsigned_message);
 
-  EXPECT_EQ(result, TeslaBLEStatus::OK) << "pb_encode_fields should succeed for valid message";
+  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "pb_encode_fields should succeed for valid message";
   EXPECT_GT(required_length, 0) << "Required size should be greater than 0";
   EXPECT_LE(required_length, sizeof(buffer)) << "Required size should not exceed buffer size";
 }

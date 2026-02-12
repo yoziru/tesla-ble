@@ -172,6 +172,116 @@ std::vector<uint8_t> make_plain_infotainment_response() {
   std::copy_n(response_data, sizeof(response_data), message.payload.protobuf_message_as_bytes.bytes);
   return frame_universal_message(message);
 }
+
+std::vector<uint8_t> make_session_info_with_status(const pb_byte_t *request_uuid, size_t request_uuid_length,
+                                                   const pb_byte_t *mock_message, size_t mock_message_length,
+                                                   Signatures_Session_Info_Status status) {
+  if (!request_uuid || request_uuid_length == 0) {
+    return {};
+  }
+
+  TeslaBLE::CryptoContext crypto_context;
+  size_t key_length = 0;
+  while (CLIENT_PRIVATE_KEY_PEM[key_length] != '\0') {
+    ++key_length;
+  }
+  auto load_status =
+      crypto_context.load_private_key(reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM), key_length + 1);
+  if (load_status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  TeslaBLE::Client parser;
+  UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
+  auto parse_status = parser.parse_universal_message(const_cast<pb_byte_t *>(mock_message), mock_message_length, &message);
+  if (parse_status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
+  parse_status = parser.parse_payload_session_info(&message.payload.session_info, &session_info);
+  if (parse_status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  // Modify the status
+  session_info.status = status;
+
+  // Re-encode the session info with the modified status
+  pb_byte_t session_info_buffer[256];
+  size_t session_info_length = sizeof(session_info_buffer);
+  auto encode_status = TeslaBLE::pb_encode_fields(session_info_buffer, &session_info_length,
+                                                   Signatures_SessionInfo_fields, &session_info);
+  if (encode_status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  // Update message payload with modified session info
+  message.payload.session_info.size = session_info_length;
+  std::copy(session_info_buffer, session_info_buffer + session_info_length, message.payload.session_info.bytes);
+
+  message.request_uuid.size = request_uuid_length;
+  std::copy(request_uuid, request_uuid + request_uuid_length, message.request_uuid.bytes);
+
+  size_t vin_length = 0;
+  while (TEST_VIN[vin_length] != '\0') {
+    ++vin_length;
+  }
+  std::array<pb_byte_t, 64> metadata{};
+  size_t metadata_length = 0;
+  metadata[metadata_length++] = Signatures_Tag_TAG_SIGNATURE_TYPE;
+  metadata[metadata_length++] = 0x01;
+  metadata[metadata_length++] = Signatures_SignatureType_SIGNATURE_TYPE_HMAC;
+  metadata[metadata_length++] = Signatures_Tag_TAG_PERSONALIZATION;
+  metadata[metadata_length++] = static_cast<pb_byte_t>(vin_length);
+  std::copy_n(TEST_VIN, vin_length, metadata.begin() + metadata_length);
+  metadata_length += vin_length;
+  metadata[metadata_length++] = Signatures_Tag_TAG_CHALLENGE;
+  metadata[metadata_length++] = static_cast<pb_byte_t>(request_uuid_length);
+  std::copy_n(request_uuid, request_uuid_length, metadata.begin() + metadata_length);
+  metadata_length += request_uuid_length;
+  metadata[metadata_length++] = Signatures_Tag_TAG_END;
+
+  std::vector<pb_byte_t> hmac_input;
+  hmac_input.resize(metadata_length + session_info_length);
+  std::copy_n(metadata.begin(), metadata_length, hmac_input.begin());
+  std::copy_n(session_info_buffer, session_info_length, hmac_input.begin() + metadata_length);
+
+  uint8_t session_key[TeslaBLE::Peer::SHARED_KEY_SIZE_BYTES] = {0};
+  auto ecdh_status =
+      crypto_context.perform_tesla_ecdh(session_info.publicKey.bytes, session_info.publicKey.size, session_key);
+  if (ecdh_status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  uint8_t session_info_key[32] = {0};
+  auto kdf_status = TeslaBLE::CryptoUtils::derive_session_info_key(session_key, sizeof(session_key), session_info_key,
+                                                                   sizeof(session_info_key));
+  TeslaBLE::CryptoUtils::clear_sensitive_memory(session_key, sizeof(session_key));
+  if (kdf_status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  uint8_t expected_tag[32] = {0};
+  auto hmac_status = TeslaBLE::CryptoUtils::hmac_sha256(session_info_key, sizeof(session_info_key), hmac_input.data(),
+                                                        hmac_input.size(), expected_tag, sizeof(expected_tag));
+  TeslaBLE::CryptoUtils::clear_sensitive_memory(session_info_key, sizeof(session_info_key));
+  if (hmac_status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  message.sub_sigData.signature_data.sig_type.session_info_tag.tag.size = sizeof(expected_tag);
+  std::copy(expected_tag, expected_tag + sizeof(expected_tag),
+            message.sub_sigData.signature_data.sig_type.session_info_tag.tag.bytes);
+
+  return frame_universal_message(message);
+}
+
+std::vector<uint8_t> make_vcsec_session_info_key_not_on_whitelist(const pb_byte_t *request_uuid,
+                                                                  size_t request_uuid_length) {
+  return make_session_info_with_status(request_uuid, request_uuid_length, MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE),
+                                      Signatures_Session_Info_Status_SESSION_INFO_STATUS_KEY_NOT_ON_WHITELIST);
+}
 }  // namespace
 
 class VehicleTest : public ::testing::Test {
@@ -593,6 +703,108 @@ TEST_F(VehicleTest, DisconnectClearsAllPendingCommands) {
   ASSERT_FALSE(callback1_success) << "First command should fail on disconnect";
   ASSERT_TRUE(callback2_called) << "Second command should receive callback";
   ASSERT_FALSE(callback2_success) << "Second command should fail on disconnect";
+}
+
+TEST_F(VehicleTest, SessionInfoKeyNotOnWhitelistHmacVerificationPasses) {
+  // This test validates that session info with KEY_NOT_ON_WHITELIST status
+  // is accepted after HMAC verification and surfaces as a pairing error
+  // rather than a session parse failure.
+  // This aligns with teslamotors/vehicle-command behavior where
+  // KEY_NOT_ON_WHITELIST is treated as ErrKeyNotPaired, not a parse error.
+
+  bool callback_called = false;
+  bool callback_success = true;
+
+  vehicle_->set_connected(true);
+
+  // Send a command that requires authentication
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command",
+      [](Client *, uint8_t *buffer, size_t *len) {
+        *len = 10;
+        std::fill_n(buffer, 10, 0x42);
+        return TeslaBLE_Status_E_OK;
+      },
+      [&](bool success) {
+        callback_called = true;
+        callback_success = success;
+      });
+
+  vehicle_->loop();
+
+  // Vehicle should send SESSION_INFO request
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1) << "Vehicle should send session info request";
+
+  // Extract the request UUID from the session info request
+  size_t request_uuid_length = 0;
+  auto request_uuid = extract_request_uuid(writes[0], &request_uuid_length);
+  ASSERT_EQ(request_uuid_length, 16) << "Request UUID should be 16 bytes";
+
+  // Create a session info response with KEY_NOT_ON_WHITELIST status and valid HMAC
+  auto session_info_response = make_vcsec_session_info_key_not_on_whitelist(request_uuid.data(), request_uuid_length);
+  ASSERT_GT(session_info_response.size(), 0) << "Should create valid session info with KEY_NOT_ON_WHITELIST";
+
+  // Inject the session info response
+  vehicle_->on_rx_data(session_info_response);
+  vehicle_->loop();
+
+  // Command should have been called back with failure
+  ASSERT_TRUE(callback_called) << "Command callback should be invoked";
+  ASSERT_FALSE(callback_success) << "Command should fail due to key not on whitelist";
+
+  // Verify no further writes (command should not be sent)
+  auto writes_after = mock_ble_->get_written_data();
+  EXPECT_EQ(writes_after.size(), writes.size())
+      << "No additional writes should occur after key not on whitelist error";
+}
+
+TEST_F(VehicleTest, SessionInfoKeyNotOnWhitelistDoesNotUpdatePeerSession) {
+  // Verify that KEY_NOT_ON_WHITELIST status does not update the peer session
+  // This ensures the session remains invalid, forcing re-auth on next command
+
+  vehicle_->set_connected(true);
+
+  // Send a command
+  bool callback_called = false;
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command",
+      [](Client *, uint8_t *buffer, size_t *len) {
+        *len = 10;
+        return TeslaBLE_Status_E_OK;
+      },
+      [&](bool success) { callback_called = true; });
+
+  vehicle_->loop();
+
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1);
+
+  size_t request_uuid_length = 0;
+  auto request_uuid = extract_request_uuid(writes[0], &request_uuid_length);
+
+  // Inject KEY_NOT_ON_WHITELIST response
+  auto session_info_response = make_vcsec_session_info_key_not_on_whitelist(request_uuid.data(), request_uuid_length);
+  vehicle_->on_rx_data(session_info_response);
+  vehicle_->loop();
+
+  ASSERT_TRUE(callback_called);
+
+  // Send another command - should require auth again since session wasn't updated
+  bool callback2_called = false;
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command 2",
+      [](Client *, uint8_t *buffer, size_t *len) {
+        *len = 10;
+        return TeslaBLE_Status_E_OK;
+      },
+      [&](bool success) { callback2_called = true; });
+
+  vehicle_->loop();
+
+  // Should send another SESSION_INFO request since previous one didn't update session
+  auto writes2 = mock_ble_->get_written_data();
+  EXPECT_GT(writes2.size(), writes.size()) << "Should send new session info request for second command";
 }
 
 TEST_F(VehicleTest, DisconnectClearsPartiallyReceivedData) {

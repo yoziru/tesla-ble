@@ -193,7 +193,8 @@ std::vector<uint8_t> make_session_info_with_status(const pb_byte_t *request_uuid
 
   TeslaBLE::Client parser;
   UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
-  auto parse_status = parser.parse_universal_message(const_cast<pb_byte_t *>(mock_message), mock_message_length, &message);
+  auto parse_status =
+      parser.parse_universal_message(const_cast<pb_byte_t *>(mock_message), mock_message_length, &message);
   if (parse_status != TeslaBLE_Status_E_OK) {
     return {};
   }
@@ -211,7 +212,7 @@ std::vector<uint8_t> make_session_info_with_status(const pb_byte_t *request_uuid
   pb_byte_t session_info_buffer[256];
   size_t session_info_length = sizeof(session_info_buffer);
   auto encode_status = TeslaBLE::pb_encode_fields(session_info_buffer, &session_info_length,
-                                                   Signatures_SessionInfo_fields, &session_info);
+                                                  Signatures_SessionInfo_fields, &session_info);
   if (encode_status != TeslaBLE_Status_E_OK) {
     return {};
   }
@@ -279,8 +280,9 @@ std::vector<uint8_t> make_session_info_with_status(const pb_byte_t *request_uuid
 
 std::vector<uint8_t> make_vcsec_session_info_key_not_on_whitelist(const pb_byte_t *request_uuid,
                                                                   size_t request_uuid_length) {
-  return make_session_info_with_status(request_uuid, request_uuid_length, MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE),
-                                      Signatures_Session_Info_Status_SESSION_INFO_STATUS_KEY_NOT_ON_WHITELIST);
+  return make_session_info_with_status(request_uuid, request_uuid_length, MOCK_VCSEC_MESSAGE,
+                                       sizeof(MOCK_VCSEC_MESSAGE),
+                                       Signatures_Session_Info_Status_SESSION_INFO_STATUS_KEY_NOT_ON_WHITELIST);
 }
 }  // namespace
 
@@ -755,8 +757,7 @@ TEST_F(VehicleTest, SessionInfoKeyNotOnWhitelistHmacVerificationPasses) {
 
   // Verify no further writes (command should not be sent)
   auto writes_after = mock_ble_->get_written_data();
-  EXPECT_EQ(writes_after.size(), writes.size())
-      << "No additional writes should occur after key not on whitelist error";
+  EXPECT_EQ(writes_after.size(), writes.size()) << "No additional writes should occur after key not on whitelist error";
 }
 
 TEST_F(VehicleTest, SessionInfoKeyNotOnWhitelistDoesNotUpdatePeerSession) {

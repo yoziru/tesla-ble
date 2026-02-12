@@ -1,0 +1,5 @@
+if(EXISTS "/home/runner/work/tesla-ble/tesla-ble/_codeql_build_dir/tests/test_ad_buffer_construction[1]_tests.cmake")
+  include("/home/runner/work/tesla-ble/tesla-ble/_codeql_build_dir/tests/test_ad_buffer_construction[1]_tests.cmake")
+else()
+  add_test(test_ad_buffer_construction_NOT_BUILT test_ad_buffer_construction_NOT_BUILT)
+endif()

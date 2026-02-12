@@ -1,0 +1,5 @@
+if(EXISTS "/home/runner/work/tesla-ble/tesla-ble/_codeql_build_dir/tests/test_vin_utils[1]_tests.cmake")
+  include("/home/runner/work/tesla-ble/tesla-ble/_codeql_build_dir/tests/test_vin_utils[1]_tests.cmake")
+else()
+  add_test(test_vin_utils_NOT_BUILT test_vin_utils_NOT_BUILT)
+endif()

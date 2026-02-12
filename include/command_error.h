@@ -86,6 +86,11 @@ class CommandError {
                                           Outcome::DEFINITELY_FAILED);
   }
 
+  static std::unique_ptr<CommandError> key_not_paired(const std::string &domain) {
+    return std::make_unique<CommandError>(domain + " key not on whitelist - pairing required", Severity::PERMANENT,
+                                          Outcome::DEFINITELY_FAILED);
+  }
+
   // Builder pattern for more flexible error creation
   class Builder {
    public:

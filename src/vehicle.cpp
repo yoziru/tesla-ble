@@ -608,8 +608,8 @@ void TeslaBLE::Vehicle::handle_session_info_message_(const UniversalMessage_Rout
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
   int result = client_->parse_payload_session_info(
       const_cast<UniversalMessage_RoutableMessage_session_info_t *>(&msg.payload.session_info), &session_info);
-  if (result != 0 || session_info.status != Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK) {
-    fail_auth("Failed to parse valid session info (result=%d, status=%d)", result, session_info.status);
+  if (result != 0) {
+    fail_auth("Failed to parse session info (result=%d)", result);
     return;
   }
 
@@ -640,6 +640,22 @@ void TeslaBLE::Vehicle::handle_session_info_message_(const UniversalMessage_Rout
 
   LOG_DEBUG("Parsed session info successfully for %s", domain_to_string(domain));
   log_session_info(TESLA_LOG_TAG, &session_info);
+
+  // Check session info status after HMAC verification
+  // This allows KEY_NOT_ON_WHITELIST to be surfaced as a pairing error rather than a parse failure
+  if (session_info.status != Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK) {
+    if (session_info.status == Signatures_Session_Info_Status_SESSION_INFO_STATUS_KEY_NOT_ON_WHITELIST) {
+      LOG_WARNING("Key not on whitelist for %s - pairing required", domain_to_string(domain));
+      auto cmd = peek_command_();
+      if (cmd) {
+        mark_command_failed_(cmd, CommandError::key_not_paired(domain_to_string(domain)));
+      }
+    } else {
+      fail_auth("Session info has invalid status for %s: %d", domain_to_string(domain), session_info.status);
+    }
+    return;
+  }
+
   auto *peer = client_->get_peer(domain);
   if (peer && peer->update_session(&session_info) == 0) {
     LOG_INFO("Session updated for %s", domain_to_string(domain));

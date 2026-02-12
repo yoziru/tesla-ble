@@ -1,5 +1,0 @@
-if(EXISTS "/home/runner/work/tesla-ble/tesla-ble/_codeql_build_dir/tests/test_protocol_handshake[1]_tests.cmake")
-  include("/home/runner/work/tesla-ble/tesla-ble/_codeql_build_dir/tests/test_protocol_handshake[1]_tests.cmake")
-else()
-  add_test(test_protocol_handshake_NOT_BUILT test_protocol_handshake_NOT_BUILT)
-endif()

@@ -1,5 +1,0 @@
-if(EXISTS "/home/runner/work/tesla-ble/tesla-ble/_codeql_build_dir/tests/test_session_management[1]_tests.cmake")
-  include("/home/runner/work/tesla-ble/tesla-ble/_codeql_build_dir/tests/test_session_management[1]_tests.cmake")
-else()
-  add_test(test_session_management_NOT_BUILT test_session_management_NOT_BUILT)
-endif()

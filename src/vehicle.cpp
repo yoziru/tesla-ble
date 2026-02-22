@@ -641,18 +641,16 @@ void TeslaBLE::Vehicle::handle_session_info_message_(const UniversalMessage_Rout
   LOG_DEBUG("Parsed session info successfully for %s", domain_to_string(domain));
   log_session_info(TESLA_LOG_TAG, &session_info);
 
-  // Check session info status after HMAC verification
-  // This allows KEY_NOT_ON_WHITELIST to be surfaced as a pairing error rather than a parse failure
   if (session_info.status != Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK) {
-    if (session_info.status == Signatures_Session_Info_Status_SESSION_INFO_STATUS_KEY_NOT_ON_WHITELIST) {
-      LOG_WARNING("Key not on whitelist for %s - pairing required", domain_to_string(domain));
-      auto cmd = peek_command_();
-      if (cmd) {
-        mark_command_failed_(cmd, CommandError::key_not_paired(domain_to_string(domain)));
-      }
-    } else {
-      fail_auth("Session info has invalid status for %s: %d", domain_to_string(domain), session_info.status);
+    LOG_WARNING("Session info status not OK for %s: %d", domain_to_string(domain), session_info.status);
+    auto cmd = peek_command_();
+    if (cmd) {
+      mark_command_failed_(
+          cmd, session_info.status == Signatures_Session_Info_Status_SESSION_INFO_STATUS_KEY_NOT_ON_WHITELIST
+                   ? CommandError::key_not_paired(domain_to_string(domain))
+                   : CommandError::authentication_failed(domain_to_string(domain), false));
     }
+    handle_authentication_response_(domain, false);
     return;
   }
 

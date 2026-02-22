@@ -181,12 +181,8 @@ std::vector<uint8_t> make_session_info_with_status(const pb_byte_t *request_uuid
   }
 
   TeslaBLE::CryptoContext crypto_context;
-  size_t key_length = 0;
-  while (CLIENT_PRIVATE_KEY_PEM[key_length] != '\0') {
-    ++key_length;
-  }
-  auto load_status =
-      crypto_context.load_private_key(reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM), key_length + 1);
+  auto load_status = crypto_context.load_private_key(reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM),
+                                                     strlen(CLIENT_PRIVATE_KEY_PEM) + 1);
   if (load_status != TeslaBLE_Status_E_OK) {
     return {};
   }
@@ -224,10 +220,7 @@ std::vector<uint8_t> make_session_info_with_status(const pb_byte_t *request_uuid
   message.request_uuid.size = request_uuid_length;
   std::copy(request_uuid, request_uuid + request_uuid_length, message.request_uuid.bytes);
 
-  size_t vin_length = 0;
-  while (TEST_VIN[vin_length] != '\0') {
-    ++vin_length;
-  }
+  size_t vin_length = strlen(TEST_VIN);
   std::array<pb_byte_t, 64> metadata{};
   size_t metadata_length = 0;
   metadata[metadata_length++] = Signatures_Tag_TAG_SIGNATURE_TYPE;

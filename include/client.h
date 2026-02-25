@@ -50,6 +50,7 @@ class Client {
   int create_private_key();
   int load_private_key(const uint8_t *private_key_buffer, size_t private_key_length);
   int get_private_key(pb_byte_t *output_buffer, size_t output_buffer_length, size_t *output_length);
+  bool has_private_key() const;
 
   // Message building
   int build_white_list_message(Keys_Role role, VCSEC_KeyFormFactor form_factor, pb_byte_t *output_buffer,

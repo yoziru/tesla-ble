@@ -156,8 +156,7 @@ void TeslaBLE::Vehicle::process_command_queue_() {
       break;
     case CommandState::WAITING_FOR_RESPONSE: {
       auto tx_duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - command->last_tx_at);
-      const auto timeout =
-          (command->name == "Whitelist Add Key") ? COMMAND_TIMEOUT : CLOCK_SYNC_MAX_LATENCY;
+      const auto timeout = (command->name == "Whitelist Add Key") ? COMMAND_TIMEOUT : CLOCK_SYNC_MAX_LATENCY;
       if (tx_duration > timeout) {
         if (command->name == "Wake" && is_vehicle_awake_) {
           LOG_INFO("Wake response timeout but vehicle is awake - proceeding");

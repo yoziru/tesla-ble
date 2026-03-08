@@ -248,6 +248,7 @@ class Vehicle {
   void send_infotainment_poll_(const std::string &name, int32_t data_type, bool force_wake = false);
   void initiate_auth_for_domain_(const std::shared_ptr<Command> &command, UniversalMessage_Domain domain,
                                  CommandState waiting_state, const std::string &domain_name);
+  bool persist_private_key_();
   template<typename T> void send_infotainment_action_with_value_(const std::string &name, int32_t action_tag, T value) {
     send_command(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, name,
                  [action_tag, value](Client *client, uint8_t *buff, size_t *len) {

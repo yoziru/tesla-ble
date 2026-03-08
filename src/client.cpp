@@ -97,6 +97,8 @@ int Client::get_private_key(pb_byte_t *output_buffer, size_t output_buffer_lengt
   return crypto_context_.get_private_key(output_buffer, output_buffer_length, output_length);
 }
 
+bool Client::has_private_key() const { return crypto_context_.is_private_key_initialized(); }
+
 int Client::generate_public_key_data_() {
   // Set the buffer size to maximum capacity before calling generate_public_key
   public_key_size_ = public_key_.size();

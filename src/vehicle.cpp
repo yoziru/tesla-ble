@@ -156,7 +156,8 @@ void TeslaBLE::Vehicle::process_command_queue_() {
       break;
     case CommandState::WAITING_FOR_RESPONSE: {
       auto tx_duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - command->last_tx_at);
-      if (tx_duration > CLOCK_SYNC_MAX_LATENCY) {
+      const auto timeout = (command->name == "Whitelist Add Key") ? COMMAND_TIMEOUT : CLOCK_SYNC_MAX_LATENCY;
+      if (tx_duration > timeout) {
         if (command->name == "Wake" && is_vehicle_awake_) {
           LOG_INFO("Wake response timeout but vehicle is awake - proceeding");
           mark_command_completed_(command);
@@ -181,6 +182,15 @@ std::shared_ptr<TeslaBLE::Command> TeslaBLE::Vehicle::peek_command_() const {
 
 void TeslaBLE::Vehicle::process_idle_command_(const std::shared_ptr<Command> &command) {
   command->started_at = std::chrono::steady_clock::now();
+
+  // Pairing starts with an untrusted key, so VCSEC session auth will return
+  // KEY_NOT_ON_WHITELIST. This command must be sent without prior session auth.
+  if (command->name == "Whitelist Add Key") {
+    LOG_INFO("Bypassing session auth for Whitelist Add Key");
+    command->state = CommandState::READY;
+    return;
+  }
+
   switch (command->domain) {
     case UniversalMessage_Domain_DOMAIN_BROADCAST:
       command->state = CommandState::READY;
@@ -1216,11 +1226,48 @@ void TeslaBLE::Vehicle::close_windows() {
 // Pairing and Key Management
 // =============================================================================
 
+bool TeslaBLE::Vehicle::persist_private_key_() {
+  if (!client_ || !storage_adapter_) {
+    LOG_ERROR("Client or storage adapter unavailable");
+    return false;
+  }
+
+  std::array<uint8_t, 2048> key_buf{};
+  size_t key_len = 0;
+  if (client_->get_private_key(key_buf.data(), key_buf.size(), &key_len) != 0) {
+    LOG_ERROR("Failed to export private key");
+    return false;
+  }
+
+  if (key_len == 0 || key_len > key_buf.size()) {
+    LOG_ERROR("Invalid private key length: %zu", key_len);
+    return false;
+  }
+
+  std::vector<uint8_t> key_vec(key_buf.begin(), key_buf.begin() + key_len);
+  if (!storage_adapter_->save("private_key", key_vec)) {
+    LOG_ERROR("Failed to save private key to storage");
+    return false;
+  }
+
+  return true;
+}
+
 void TeslaBLE::Vehicle::pair(Keys_Role role) {
   LOG_INFO("Initiating pairing sequence...");
-  if (client_->create_private_key() != 0) {
-    LOG_WARNING("Could not check/create private key, proceeding anyway");
+  if (!client_->has_private_key()) {
+    LOG_INFO("No private key loaded, creating a new one");
+    if (client_->create_private_key() != 0) {
+      LOG_ERROR("Failed to create private key for pairing");
+      return;
+    }
   }
+
+  if (!persist_private_key_()) {
+    LOG_ERROR("Cannot start pairing without persisted private key");
+    return;
+  }
+
   send_command(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Whitelist Add Key",
                [role_copy = role](Client *client, uint8_t *buf, size_t *len) {
                  return client->build_white_list_message(role_copy, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_NFC_CARD, buf,
@@ -1230,23 +1277,17 @@ void TeslaBLE::Vehicle::pair(Keys_Role role) {
 
 void TeslaBLE::Vehicle::regenerate_key() {
   LOG_INFO("Regenerating private key...");
-  if (client_->create_private_key() == 0) {
-    // NOLINTNEXTLINE(readability-math-missing-parentheses) - macro from external library
-    uint8_t key_buf[MBEDTLS_ECP_MAX_PT_LEN];
-    size_t key_len = 0;
-    size_t buf_len = sizeof(key_buf);
-    if (client_->get_private_key(key_buf, buf_len, &key_len) == 0) {
-      std::vector<uint8_t> key_vec(key_buf, key_buf + key_len);
-      if (storage_adapter_->save("private_key", key_vec)) {
-        LOG_INFO("New private key saved to storage");
-      } else {
-        LOG_ERROR("Failed to save new private key");
-      }
-    } else {
-      LOG_ERROR("Failed to create private key");
-    }
+  if (client_->create_private_key() != 0) {
+    LOG_ERROR("Failed to create private key");
+    return;
   }
-}  // namespace TeslaBLE
+
+  if (persist_private_key_()) {
+    LOG_INFO("New private key saved to storage");
+  } else {
+    LOG_ERROR("Failed to save new private key");
+  }
+}
 
 void TeslaBLE::Vehicle::handle_signed_message_error_(const UniversalMessage_RoutableMessage &msg,
                                                      bool &has_session_error) {

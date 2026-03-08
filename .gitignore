@@ -2,6 +2,7 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=intellij,c++,cmake,platformio,visualstudiocode
 .vscode
 build/
+build-pr-full/
 test.md
 test.py
 .DS_Store

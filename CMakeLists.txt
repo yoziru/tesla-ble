@@ -109,10 +109,12 @@ else()
     # ============================================================================
     
     cmake_minimum_required(VERSION 3.22)
-    
+
     include(FetchContent)
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" TESLABLE_VERSION)
+    string(STRIP "${TESLABLE_VERSION}" TESLABLE_VERSION)
     project(TeslaBLE
-            VERSION 5.0.1
+            VERSION ${TESLABLE_VERSION}
             DESCRIPTION "CPP Tesla BLE Library"
             LANGUAGES CXX C
     )

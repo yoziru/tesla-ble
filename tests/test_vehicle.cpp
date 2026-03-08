@@ -5,12 +5,15 @@
 #include "tb_utils.h"
 #include "test_constants.h"
 
+#include <pb_decode.h>
+
 #include <algorithm>
 #include <array>
 #include <cstring>
 #include <vector>
 
 using TeslaBLE::Command;
+using TeslaBLE::CommandState;
 using TeslaBLE::TeslaBLE_Status_E_OK;
 using TeslaBLE::Vehicle;
 using TeslaBLE::Client;
@@ -276,6 +279,60 @@ std::vector<uint8_t> make_vcsec_session_info_key_not_on_whitelist(const pb_byte_
   return make_session_info_with_status(request_uuid, request_uuid_length, MOCK_VCSEC_MESSAGE,
                                        sizeof(MOCK_VCSEC_MESSAGE),
                                        Signatures_Session_Info_Status_SESSION_INFO_STATUS_KEY_NOT_ON_WHITELIST);
+}
+
+bool parse_whitelist_message(const std::vector<uint8_t> &frame, VCSEC_PermissionChange *permissions,
+                             VCSEC_KeyFormFactor *form_factor, VCSEC_SignatureType *signature_type) {
+  if (frame.size() <= 2) {
+    return false;
+  }
+
+  VCSEC_ToVCSECMessage vcsec_message = VCSEC_ToVCSECMessage_init_default;
+  pb_istream_t vcsec_stream = pb_istream_from_buffer(frame.data() + 2, frame.size() - 2);
+  if (!pb_decode(&vcsec_stream, VCSEC_ToVCSECMessage_fields, &vcsec_message) || !vcsec_message.has_signedMessage) {
+    return false;
+  }
+
+  if (signature_type) {
+    *signature_type = vcsec_message.signedMessage.signatureType;
+  }
+
+  VCSEC_UnsignedMessage unsigned_message = VCSEC_UnsignedMessage_init_default;
+  pb_istream_t payload_stream = pb_istream_from_buffer(vcsec_message.signedMessage.protobufMessageAsBytes.bytes,
+                                                       vcsec_message.signedMessage.protobufMessageAsBytes.size);
+  if (!pb_decode(&payload_stream, VCSEC_UnsignedMessage_fields, &unsigned_message) ||
+      unsigned_message.which_sub_message != VCSEC_UnsignedMessage_WhitelistOperation_tag) {
+    return false;
+  }
+
+  const auto &whitelist = unsigned_message.sub_message.WhitelistOperation;
+  if (whitelist.which_sub_message != VCSEC_WhitelistOperation_addKeyToWhitelistAndAddPermissions_tag) {
+    return false;
+  }
+
+  if (permissions) {
+    *permissions = whitelist.sub_message.addKeyToWhitelistAndAddPermissions;
+  }
+  if (form_factor) {
+    *form_factor = whitelist.metadataForKey.keyFormFactor;
+  }
+
+  return true;
+}
+
+std::vector<uint8_t> derive_public_key_from_private_key(const std::vector<uint8_t> &private_key) {
+  TeslaBLE::CryptoContext crypto_context;
+  if (crypto_context.load_private_key(private_key.data(), private_key.size()) != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  std::array<pb_byte_t, 128> public_key{};
+  size_t public_key_length = public_key.size();
+  if (crypto_context.generate_public_key(public_key.data(), &public_key_length) != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  return {public_key.begin(), public_key.begin() + public_key_length};
 }
 }  // namespace
 
@@ -852,6 +909,66 @@ TEST_F(VehicleTest, MultipleDisconnectsOnlyCallbackOnce) {
   vehicle_->set_connected(false);
 
   EXPECT_EQ(callback_count, 1) << "Callback should only be invoked once";
+}
+
+TEST(VehiclePairingTest, PairPersistsGeneratedKeyAndSendsDirectWhitelistRequest) {
+  auto ble = std::make_shared<MockBleAdapter>();
+  auto storage = std::make_shared<MockStorageAdapter>();
+  auto vehicle = std::make_shared<Vehicle>(ble, storage);
+
+  vehicle->set_vin(TEST_VIN);
+  vehicle->set_connected(true);
+  vehicle->pair(Keys_Role_ROLE_DRIVER);
+
+  std::vector<uint8_t> stored_key;
+  ASSERT_TRUE(storage->load("private_key", stored_key)) << "Pairing should persist the generated private key";
+  ASSERT_FALSE(stored_key.empty()) << "Persisted private key should not be empty";
+
+  auto expected_public_key = derive_public_key_from_private_key(stored_key);
+  ASSERT_FALSE(expected_public_key.empty()) << "Persisted private key should produce a public key";
+
+  vehicle->loop();
+  vehicle->loop();
+
+  const auto &writes = ble->get_written_data();
+  ASSERT_EQ(writes.size(), 1U) << "Pairing should send one direct whitelist request without a session auth handshake";
+
+  VCSEC_PermissionChange permissions = VCSEC_PermissionChange_init_default;
+  VCSEC_KeyFormFactor form_factor = VCSEC_KeyFormFactor_KEY_FORM_FACTOR_UNKNOWN;
+  VCSEC_SignatureType signature_type = VCSEC_SignatureType_SIGNATURE_TYPE_NONE;
+  ASSERT_TRUE(parse_whitelist_message(writes.front(), &permissions, &form_factor, &signature_type))
+      << "First pairing write should be a VCSEC whitelist command";
+
+  EXPECT_EQ(signature_type, VCSEC_SignatureType_SIGNATURE_TYPE_PRESENT_KEY);
+  EXPECT_EQ(form_factor, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_NFC_CARD);
+  EXPECT_EQ(permissions.keyRole, Keys_Role_ROLE_DRIVER);
+  ASSERT_EQ(permissions.key.PublicKeyRaw.size, expected_public_key.size());
+  EXPECT_TRUE(std::equal(expected_public_key.begin(), expected_public_key.end(), permissions.key.PublicKeyRaw.bytes));
+}
+
+TEST_F(VehicleTest, PairingWhitelistRequestUsesCommandTimeout) {
+  vehicle_->set_connected(true);
+  vehicle_->pair();
+  vehicle_->loop();
+
+  auto &command_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
+  ASSERT_FALSE(command_queue.empty()) << "Pairing command should remain pending while waiting for a response";
+
+  auto command = command_queue.front();
+  ASSERT_NE(command, nullptr);
+  ASSERT_EQ(command->name, "Whitelist Add Key");
+
+  command->state = CommandState::WAITING_FOR_RESPONSE;
+  command->retry_count = 0;
+  command->started_at = std::chrono::steady_clock::now() - Vehicle::CLOCK_SYNC_MAX_LATENCY - std::chrono::seconds(1);
+  command->last_tx_at = command->started_at;
+
+  mock_ble_->clear_written_data();
+  vehicle_->loop();
+
+  EXPECT_EQ(command->retry_count, 0) << "Whitelist pairing should not retry at the normal clock sync timeout";
+  EXPECT_EQ(command->state, CommandState::WAITING_FOR_RESPONSE);
+  EXPECT_TRUE(mock_ble_->get_written_data().empty()) << "No retry write should occur before command timeout";
 }
 
 // ============================================================================

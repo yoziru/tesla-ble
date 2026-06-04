@@ -46,8 +46,8 @@ TEST_F(ClientTest, BuildUniversalMessageUpdatesLastRequestUuid) {
   pb_byte_t buffer[512];
   size_t length = sizeof(buffer);
 
-  auto result = client_->build_universal_message_with_payload(
-      payload, 1, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, buffer, &length, false);
+  auto result = client_->build_universal_message_with_payload(payload, 1, UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+                                                              buffer, &length, false);
   ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "build_universal_message_with_payload should succeed";
 
   UniversalMessage_RoutableMessage parsed = UniversalMessage_RoutableMessage_init_default;

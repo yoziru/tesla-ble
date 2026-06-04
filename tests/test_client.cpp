@@ -41,6 +41,31 @@ TEST_F(ClientTest, BuildWhiteListMessage) {
   EXPECT_LE(whitelist_message_length, sizeof(whitelist_message_buffer)) << "Message should fit in buffer";
 }
 
+TEST_F(ClientTest, BuildUniversalMessageUpdatesLastRequestUuid) {
+  pb_byte_t payload[] = {0x01};
+  pb_byte_t buffer[512];
+  size_t length = sizeof(buffer);
+
+  auto result = client_->build_universal_message_with_payload(
+      payload, 1, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, buffer, &length, false);
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "build_universal_message_with_payload should succeed";
+
+  UniversalMessage_RoutableMessage parsed = UniversalMessage_RoutableMessage_init_default;
+  result = client_->parse_universal_message(buffer, length, &parsed);
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "parse_universal_message should succeed";
+
+  pb_byte_t stored_uuid[16] = {};
+  size_t stored_uuid_len = sizeof(stored_uuid);
+  if (client_->get_last_request_uuid(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, stored_uuid, &stored_uuid_len)) {
+    EXPECT_EQ(stored_uuid_len, 16u);
+    EXPECT_EQ(memcmp(parsed.uuid.bytes, stored_uuid, 16), 0)
+        << "get_last_request_uuid must return the UUID from the last built message";
+  } else {
+    FAIL() << "build_universal_message_with_payload must update last_request_uuid "
+              "(was not stored — error-recovery session_info HMAC verification would fail)";
+  }
+}
+
 TEST_F(ClientTest, BuildWhiteListMessageInvalidRole) {
   unsigned char whitelist_message_buffer[VCSEC_ToVCSECMessage_size];
   size_t whitelist_message_length;

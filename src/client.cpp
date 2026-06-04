@@ -524,6 +524,14 @@ int Client::build_universal_message_with_payload(pb_byte_t *payload, size_t payl
   UniversalMessage_RoutableMessage universal_message = UniversalMessage_RoutableMessage_init_default;
   prepare_routable_message_(universal_message, domain);
 
+  if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) {
+    std::copy(universal_message.uuid.bytes, universal_message.uuid.bytes + 16, last_request_uuid_vcsec_.begin());
+    last_request_uuid_vcsec_length_ = universal_message.uuid.size;
+  } else if (domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
+    std::copy(universal_message.uuid.bytes, universal_message.uuid.bytes + 16, last_request_uuid_infotainment_.begin());
+    last_request_uuid_infotainment_length_ = universal_message.uuid.size;
+  }
+
   LOG_DEBUG("Building message for domain: %s", domain_to_string(domain));
   auto *session = get_peer(domain);
   universal_message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;

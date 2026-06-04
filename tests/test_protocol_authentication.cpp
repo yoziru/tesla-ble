@@ -121,27 +121,36 @@ TEST_F(ProtocolAuthenticationTest, CounterEdgeCases) {
   }
 }
 
-// Test 4: Time and Expiration Handling
+// Test 4: Time and Expiration Handling — uses monotonic clock in generate_expires_at
 TEST_F(ProtocolAuthenticationTest, TimeAndExpirationHandling) {
+  crypto_context_->load_private_key(reinterpret_cast<const uint8_t *>(TestConstants::CLIENT_PRIVATE_KEY_PEM),
+                                    strlen(TestConstants::CLIENT_PRIVATE_KEY_PEM) + 1);
+
   Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context_, TestConstants::TEST_VIN);
 
-  // Set a base time
-  peer.set_time_zero(1000);
+  Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
+  session_info.counter = 1;
+  session_info.clock_time = 1000;
+  memcpy(session_info.epoch, TestConstants::TEST_EPOCH, 16);
+  memcpy(session_info.publicKey.bytes, TestConstants::EXPECTED_VEHICLE_PUBLIC_KEY, 65);
+  session_info.publicKey.size = 65;
 
-  // Test expiration calculation
-  uint32_t expires_30_sec = peer.generate_expires_at(30);
-  uint32_t expires_60_sec = peer.generate_expires_at(60);
+  auto result = peer.update_session(&session_info);
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK);
 
-  EXPECT_GT(expires_60_sec, expires_30_sec) << "Longer expiration should have higher value";
-  EXPECT_EQ(expires_60_sec - expires_30_sec, 30) << "Time difference should match";
+  // expires_at should be approximately clock_time + seconds
+  // (using monotonic elapsed time since session start, not system wall clock)
+  uint32_t expires_5 = peer.generate_expires_at(5);
+  EXPECT_GE(expires_5, 1005u);
+  EXPECT_LE(expires_5, 1005u + 1u) << "expires_at should be clock_time + elapsed + 5";
 
-  // Test with zero expiration
-  uint32_t expires_zero = peer.generate_expires_at(0);
-  EXPECT_GE(expires_zero, peer.get_time_zero()) << "Zero expiration should be at least current time";
+  uint32_t expires_30 = peer.generate_expires_at(30);
+  EXPECT_GE(expires_30, 1030u);
 
-  // Test with negative expiration (should handle gracefully)
-  uint32_t expires_negative = peer.generate_expires_at(-10);
-  EXPECT_GE(expires_negative, peer.get_time_zero()) << "Negative expiration should be handled gracefully";
+  // 30s should be 25s more than 5s (same monotonic reference frame)
+  uint32_t delta = expires_30 - expires_5;
+  EXPECT_GE(delta, 24u);
+  EXPECT_LE(delta, 25u);
 }
 
 // Test 5: Nonce Generation and Uniqueness

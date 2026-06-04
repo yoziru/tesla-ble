@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <mutex>
 #include <memory>
@@ -166,6 +167,7 @@ class Peer {
   uint32_t counter_ = 0;
   uint32_t time_zero_ = 0;
   uint32_t clock_time_ = 0;  // Last received clock_time (like signer.go setTime)
+  std::chrono::steady_clock::time_point session_start_monotonic_{};
 
   // Cryptographic context
   std::shared_ptr<CryptoContext> crypto_context_;

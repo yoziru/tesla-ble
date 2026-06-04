@@ -152,6 +152,8 @@ class Client {
 
   void generate_uuid_(pb_byte_t uuid[16]);
 
+  void store_last_request_uuid_(UniversalMessage_Domain domain, const pb_byte_t *uuid, pb_size_t uuid_size);
+
   int generate_public_key_data_();
   int generate_key_id_();
 

@@ -524,6 +524,8 @@ int Client::build_universal_message_with_payload(pb_byte_t *payload, size_t payl
   UniversalMessage_RoutableMessage universal_message = UniversalMessage_RoutableMessage_init_default;
   prepare_routable_message_(universal_message, domain);
 
+  store_last_request_uuid_(domain, universal_message.uuid.bytes, universal_message.uuid.size);
+
   LOG_DEBUG("Building message for domain: %s", domain_to_string(domain));
   auto *session = get_peer(domain);
   universal_message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
@@ -641,13 +643,7 @@ int Client::build_session_info_request_message(UniversalMessage_Domain domain, p
   UniversalMessage_RoutableMessage universal_message = UniversalMessage_RoutableMessage_init_default;
   prepare_routable_message_(universal_message, domain);
 
-  if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) {
-    std::copy(universal_message.uuid.bytes, universal_message.uuid.bytes + 16, last_request_uuid_vcsec_.begin());
-    last_request_uuid_vcsec_length_ = universal_message.uuid.size;
-  } else if (domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
-    std::copy(universal_message.uuid.bytes, universal_message.uuid.bytes + 16, last_request_uuid_infotainment_.begin());
-    last_request_uuid_infotainment_length_ = universal_message.uuid.size;
-  }
+  store_last_request_uuid_(domain, universal_message.uuid.bytes, universal_message.uuid.size);
 
   universal_message.which_payload = UniversalMessage_RoutableMessage_session_info_request_tag;
   UniversalMessage_SessionInfoRequest session_info_request = UniversalMessage_SessionInfoRequest_init_default;
@@ -942,6 +938,16 @@ void Client::generate_uuid_(pb_byte_t uuid[16]) {
     for (int i = 0; i < 16; i++) {
       uuid[i] = arc4random() % 256;
     }
+  }
+}
+
+void Client::store_last_request_uuid_(UniversalMessage_Domain domain, const pb_byte_t *uuid, pb_size_t uuid_size) {
+  if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) {
+    std::copy(uuid, uuid + uuid_size, last_request_uuid_vcsec_.begin());
+    last_request_uuid_vcsec_length_ = uuid_size;
+  } else if (domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
+    std::copy(uuid, uuid + uuid_size, last_request_uuid_infotainment_.begin());
+    last_request_uuid_infotainment_length_ = uuid_size;
   }
 }
 

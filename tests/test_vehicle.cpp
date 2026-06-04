@@ -13,6 +13,7 @@
 #include <vector>
 
 using TeslaBLE::Command;
+using TeslaBLE::CommandError;
 using TeslaBLE::CommandState;
 using TeslaBLE::TeslaBLE_Status_E_OK;
 using TeslaBLE::Vehicle;
@@ -333,6 +334,29 @@ std::vector<uint8_t> derive_public_key_from_private_key(const std::vector<uint8_
   }
 
   return {public_key.begin(), public_key.begin() + public_key_length};
+}
+
+std::vector<uint8_t> make_session_info_no_hmac_tag(UniversalMessage_Domain domain) {
+  TeslaBLE::Client parser;
+  UniversalMessage_RoutableMessage mock_msg = UniversalMessage_RoutableMessage_init_default;
+  auto status = parser.parse_universal_message(const_cast<pb_byte_t *>(MOCK_VCSEC_MESSAGE), sizeof(MOCK_VCSEC_MESSAGE),
+                                               &mock_msg);
+  if (status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  UniversalMessage_RoutableMessage response = UniversalMessage_RoutableMessage_init_default;
+
+  response.has_from_destination = true;
+  response.from_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;
+  response.from_destination.sub_destination.domain = domain;
+
+  response.which_payload = UniversalMessage_RoutableMessage_session_info_tag;
+  std::copy_n(mock_msg.payload.session_info.bytes, mock_msg.payload.session_info.size,
+              response.payload.session_info.bytes);
+  response.payload.session_info.size = mock_msg.payload.session_info.size;
+
+  return frame_universal_message(response);
 }
 }  // namespace
 
@@ -1095,6 +1119,136 @@ TEST_F(VehicleTest, ErrorTimeExpiredTriggersSessionResetAndReAuth) {
   // the dummy command body; the recovery itself is the important part)
   auto final_writes = mock_ble_->get_written_data();
   ASSERT_GT(final_writes.size(), recovery_writes.size()) << "Command should be re-sent after session recovery";
+}
+
+// ============================================================================
+// Session Info HMAC Tag Handling Tests (Issue #164)
+// ============================================================================
+
+TEST_F(VehicleTest, MissingSessionInfoHmacTagFailsAuthGracefully) {
+  bool callback_called = false;
+  std::unique_ptr<CommandError> captured_error;
+
+  vehicle_->set_connected(true);
+
+  vehicle_->send_command(
+      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command",
+      [](Client *, uint8_t *buffer, size_t *len) {
+        *len = 4;
+        std::fill_n(buffer, 4, 0x42);
+        return TeslaBLE_Status_E_OK;
+      },
+      [&](std::unique_ptr<CommandError> error) {
+        callback_called = true;
+        if (error) {
+          captured_error = std::move(error);
+        }
+      });
+
+  vehicle_->loop();
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1) << "Should send session info request";
+  mock_ble_->clear_written_data();
+
+  auto no_hmac_resp = make_session_info_no_hmac_tag(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  ASSERT_FALSE(no_hmac_resp.empty()) << "Should build no-HMAC session info response";
+
+  vehicle_->on_rx_data(no_hmac_resp);
+  vehicle_->loop();
+
+  ASSERT_TRUE(callback_called) << "Command callback should be invoked";
+  ASSERT_NE(captured_error, nullptr) << "Command should fail with error";
+  EXPECT_TRUE(captured_error->message().find("authentication failed") != std::string::npos)
+      << "Error should indicate auth failure: " << captured_error->message();
+
+  EXPECT_TRUE(mock_ble_->get_written_data().empty())
+      << "No additional writes should occur after auth failure";
+}
+
+TEST_F(VehicleTest, MissingSessionInfoHmacTagDoesNotBlockSubsequentCommands) {
+  bool first_callback_called = false;
+
+  vehicle_->set_connected(true);
+
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "First Command",
+      [](Client *, uint8_t *buffer, size_t *len) {
+        *len = 4;
+        std::fill_n(buffer, 4, 0x42);
+        return TeslaBLE_Status_E_OK;
+      },
+      [&](bool) { first_callback_called = true; });
+
+  vehicle_->loop();
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1);
+  mock_ble_->clear_written_data();
+
+  auto no_hmac_resp = make_session_info_no_hmac_tag(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  ASSERT_FALSE(no_hmac_resp.empty());
+  vehicle_->on_rx_data(no_hmac_resp);
+  vehicle_->loop();
+  ASSERT_TRUE(first_callback_called) << "First command should fail";
+
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Second Command",
+      [](Client *, uint8_t *buffer, size_t *len) {
+        *len = 4;
+        std::fill_n(buffer, 4, 0x42);
+        return TeslaBLE_Status_E_OK;
+      },
+      nullptr);
+
+  vehicle_->loop();
+  writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1)
+      << "Second command should send a new session info request";
+  size_t second_uuid_len = 0;
+  auto second_uuid = extract_request_uuid(writes.back(), &second_uuid_len);
+  ASSERT_EQ(second_uuid_len, 16);
+
+  auto valid_session = make_vcsec_session_info_with_valid_hmac(second_uuid.data(), second_uuid_len);
+  ASSERT_FALSE(valid_session.empty());
+  mock_ble_->clear_written_data();
+  vehicle_->on_rx_data(valid_session);
+  vehicle_->loop();
+
+  auto writes_after = mock_ble_->get_written_data();
+  ASSERT_GE(writes_after.size(), 1) << "Second command should be sent after valid auth";
+}
+
+TEST_F(VehicleTest, PairingBypassesAuthEvenWhenVcsecAuthIsFailing) {
+  vehicle_->set_connected(true);
+
+  bool poll_failed = false;
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "VCSEC Poll",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_vcsec_information_request_message(
+            VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS, buff, len);
+      },
+      [&](bool success) { poll_failed = !success; });
+
+  vehicle_->loop();
+  mock_ble_->clear_written_data();
+
+  auto no_hmac_resp = make_session_info_no_hmac_tag(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  ASSERT_FALSE(no_hmac_resp.empty());
+  vehicle_->on_rx_data(no_hmac_resp);
+  vehicle_->loop();
+  ASSERT_TRUE(poll_failed) << "VCSEC poll should fail due to missing HMAC tag";
+
+  vehicle_->pair();
+
+  vehicle_->loop();
+  vehicle_->loop();
+
+  const auto &writes = mock_ble_->get_written_data();
+  ASSERT_EQ(writes.size(), 1U)
+      << "Pairing should send one direct whitelist request without any session auth handshake";
+  VCSEC_SignatureType signature_type = VCSEC_SignatureType_SIGNATURE_TYPE_NONE;
+  ASSERT_TRUE(parse_whitelist_message(writes.front(), nullptr, nullptr, &signature_type));
+  EXPECT_EQ(signature_type, VCSEC_SignatureType_SIGNATURE_TYPE_PRESENT_KEY);
 }
 
 // ============================================================================

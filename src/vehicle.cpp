@@ -1312,7 +1312,9 @@ void TeslaBLE::Vehicle::handle_signed_message_error_(const UniversalMessage_Rout
       case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_TIME_EXPIRED:
       case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INCORRECT_EPOCH:
       case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_TOKEN_OR_COUNTER:
-        LOG_INFO("Session sync required for %s (%s)", domain_to_string(domain), message_fault_to_string(fault));
+        LOG_INFO("Session sync required for %s (%s) - resetting session", domain_to_string(domain),
+                 message_fault_to_string(fault));
+        peer->reset();
         has_session_error = true;
         break;
       case UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_SIGNATURE:

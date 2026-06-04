@@ -628,25 +628,42 @@ TEST_F(VehicleTest, ReceivingEmptyDataDoesNotCrash) {
   EXPECT_NO_THROW(vehicle_->on_rx_data(empty_data));
 }
 
-TEST_F(VehicleTest, ReceivingValidSessionInfoUpdatesState) {
-  // First, send a command to initiate auth
-  vehicle_->vcsec_poll();
+TEST_F(VehicleTest, ReceivingValidSessionInfoCompletesAuth) {
+  vehicle_->set_connected(true);
+
+  bool callback_called = false;
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test",
+      [](Client *, uint8_t *buffer, size_t *len) {
+        *len = 4;
+        std::fill_n(buffer, 4, 0x42);
+        return TeslaBLE_Status_E_OK;
+      },
+      [&](bool) { callback_called = true; });
+
   vehicle_->loop();
 
-  mock_ble_->clear_written_data();
+  // Extract the request UUID from the session info request
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1);
+  size_t request_uuid_length = 0;
+  auto request_uuid = extract_request_uuid(writes[0], &request_uuid_length);
+  ASSERT_EQ(request_uuid_length, 16);
 
-  // Inject valid session info response
-  std::vector<uint8_t> rx_data;
-  rx_data.push_back(0x00);
-  rx_data.push_back(177);
-  rx_data.insert(rx_data.end(), MOCK_VCSEC_MESSAGE, MOCK_VCSEC_MESSAGE + 177);
+  // Build a valid session info response with matching HMAC
+  auto session_resp = make_vcsec_session_info_with_valid_hmac(request_uuid.data(), request_uuid_length);
+  ASSERT_GT(session_resp.size(), 0);
 
-  vehicle_->on_rx_data(rx_data);
+  vehicle_->on_rx_data(session_resp);
   vehicle_->loop();
 
-  // After receiving session info, the next step should proceed
-  // (either send command or transition to next state)
-  // The fact that loop() processes without crash indicates success
+  // Auth should complete and command should be sent
+  auto writes_after = mock_ble_->get_written_data();
+  EXPECT_GT(writes_after.size(), writes.size()) << "Command should be sent after successful auth";
+
+  // Verify no crash on disconnect after successful auth
+  EXPECT_NO_THROW(vehicle_->set_connected(false));
+  EXPECT_TRUE(callback_called) << "Disconnect should invoke callback";
 }
 
 TEST_F(VehicleTest, RecoverySkipsCorruptPrefix) {
@@ -659,8 +676,8 @@ TEST_F(VehicleTest, RecoverySkipsCorruptPrefix) {
   std::vector<uint8_t> framed;
   framed.insert(framed.end(), prefix.begin(), prefix.end());
   framed.push_back(0x00);
-  framed.push_back(177);
-  framed.insert(framed.end(), MOCK_VCSEC_MESSAGE, MOCK_VCSEC_MESSAGE + 177);
+  framed.push_back(sizeof(MOCK_VCSEC_MESSAGE));
+  framed.insert(framed.end(), MOCK_VCSEC_MESSAGE, MOCK_VCSEC_MESSAGE + sizeof(MOCK_VCSEC_MESSAGE));
 
   vehicle_->on_rx_data(framed);
   vehicle_->loop();

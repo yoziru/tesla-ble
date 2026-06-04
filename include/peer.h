@@ -67,7 +67,6 @@ class Peer {
   void clear_shared_secret();
 
   // Getters
-  uint32_t get_time_zero() const { return time_zero_; }
   uint32_t get_counter() const;
   const pb_byte_t *get_epoch() const { return epoch_.data(); }
   UniversalMessage_Domain get_domain() const { return domain_; }
@@ -80,7 +79,6 @@ class Peer {
   void set_counter(uint32_t counter);
   void increment_counter();
   int set_epoch(const pb_byte_t *epoch);
-  void set_time_zero(uint32_t time_zero) { time_zero_ = time_zero; }
   void set_vin(const std::string &vin) { vin_ = vin; }
 
   // Session operations
@@ -165,7 +163,6 @@ class Peer {
   // Epoch and timing
   std::array<pb_byte_t, EPOCH_SIZE_BYTES> epoch_{};
   uint32_t counter_ = 0;
-  uint32_t time_zero_ = 0;
   uint32_t clock_time_ = 0;  // Last received clock_time (like signer.go setTime)
   std::chrono::steady_clock::time_point session_start_monotonic_{};
 

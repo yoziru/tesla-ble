@@ -28,7 +28,6 @@
 #include <mbedtls/pk.h>
 #include <mbedtls/sha1.h>
 
-#include <chrono>
 #include <cinttypes>
 #include <cstring>
 
@@ -79,7 +78,6 @@ void Peer::clear_shared_secret() {
 
   counter_ = 0;
   clock_time_ = 0;
-  time_zero_ = 0;
   session_start_monotonic_ = std::chrono::steady_clock::time_point{};
 
   response_window_.reset();
@@ -237,10 +235,6 @@ int Peer::update_session(Signatures_SessionInfo *session_info) {
     }
     clock_time_ = session_info->clock_time;
     session_start_monotonic_ = std::chrono::steady_clock::now();
-
-    uint32_t generated_at = std::time(nullptr);
-    uint32_t time_zero = generated_at - session_info->clock_time;
-    set_time_zero(time_zero);
   } else {
     LOG_DEBUG("Session info not newer - skipping update");
   }
@@ -257,7 +251,7 @@ int Peer::update_session(Signatures_SessionInfo *session_info) {
     }
   }
 
-  LOG_DEBUG("Updated session: counter=%d, clock_time=%d, time_zero=%d", counter_, session_info->clock_time, time_zero_);
+  LOG_DEBUG("Updated session: counter=%d, clock_time=%d", counter_, session_info->clock_time);
 
   // Successful update clears error state and restores session validity
   // This matches Go's UpdateSessionInfo behavior where successful updates restore session
@@ -286,9 +280,6 @@ int Peer::force_update_session(Signatures_SessionInfo *session_info) {
   set_counter(session_info->counter);
   clock_time_ = session_info->clock_time;
   session_start_monotonic_ = std::chrono::steady_clock::now();
-  uint32_t generated_at = std::time(nullptr);
-  uint32_t time_zero = generated_at - session_info->clock_time;
-  set_time_zero(time_zero);
 
   if (session_info->publicKey.size > 0) {
     LOG_DEBUG("Deriving shared secret from session info public key (force update)");
@@ -302,7 +293,7 @@ int Peer::force_update_session(Signatures_SessionInfo *session_info) {
   is_valid_ = true;
   has_shared_secret_ = true;
 
-  LOG_INFO("Force updated session: counter=%u, clock_time=%u, time_zero=%u", counter_, clock_time_, time_zero_);
+  LOG_INFO("Force updated session: counter=%u, clock_time=%u", counter_, clock_time_);
   return TeslaBLE_Status_E_OK;
 }
 

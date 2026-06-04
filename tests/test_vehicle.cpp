@@ -972,6 +972,115 @@ TEST_F(VehicleTest, PairingWhitelistRequestUsesCommandTimeout) {
 }
 
 // ============================================================================
+// Session Recovery: ERROR_TIME_EXPIRED triggers peer reset and re-auth
+// ============================================================================
+
+// Helper: build a signed message error response with ERROR_TIME_EXPIRED fault
+// and embedded session_info bytes from a pre-parsed mock message.
+static std::vector<uint8_t> make_error_time_expired_message(UniversalMessage_Domain domain) {
+  // Parse the mock VCSEC message to extract the raw session_info protobuf bytes
+  TeslaBLE::Client parser;
+  UniversalMessage_RoutableMessage mock_msg = UniversalMessage_RoutableMessage_init_default;
+  auto status = parser.parse_universal_message(const_cast<pb_byte_t *>(MOCK_VCSEC_MESSAGE), sizeof(MOCK_VCSEC_MESSAGE),
+                                               &mock_msg);
+  if (status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  UniversalMessage_RoutableMessage error_msg = UniversalMessage_RoutableMessage_init_default;
+
+  // Set origin domain (vehicle is responding)
+  error_msg.has_from_destination = true;
+  error_msg.from_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;
+  error_msg.from_destination.sub_destination.domain = domain;
+
+  // Signal an ERROR_TIME_EXPIRED fault
+  error_msg.has_signedMessageStatus = true;
+  error_msg.signedMessageStatus.operation_status = UniversalMessage_OperationStatus_E_OPERATIONSTATUS_ERROR;
+  error_msg.signedMessageStatus.signed_message_fault = UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_TIME_EXPIRED;
+
+  // Embed the raw session_info bytes (re-use from mock message)
+  // The HMAC will not verify (wrong UUID), but that's fine —
+  // the peer was already reset so the command retries with fresh auth.
+  error_msg.which_payload = UniversalMessage_RoutableMessage_session_info_tag;
+  std::copy_n(mock_msg.payload.session_info.bytes, mock_msg.payload.session_info.size,
+              error_msg.payload.session_info.bytes);
+  error_msg.payload.session_info.size = mock_msg.payload.session_info.size;
+
+  return frame_universal_message(error_msg);
+}
+
+TEST_F(VehicleTest, ErrorTimeExpiredTriggersSessionResetAndReAuth) {
+  // Desired behaviour: when the vehicle indicates the session has expired,
+  // the client recovers by re-establishing the session — without a restart.
+  //
+  // This verifies that ERROR_TIME_EXPIRED resets the peer (so subsequent
+  // retries go through fresh authentication) rather than leaving the stale
+  // session in place where retries would keep failing.
+
+  vehicle_->set_connected(true);
+
+  // Send a VCSEC poll command
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Poll",
+      [](Client *, uint8_t *buffer, size_t *len) {
+        *len = 4;
+        std::fill_n(buffer, 4, 0x42);
+        return TeslaBLE_Status_E_OK;
+      },
+      nullptr,
+      false);  // poll commands don't require wake
+
+  vehicle_->loop();
+
+  // Step 1 — initial auth: vehicle sends session info request
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1) << "Should send session info request";
+  size_t req_uuid_len = 0;
+  auto req_uuid = extract_request_uuid(writes[0], &req_uuid_len);
+  ASSERT_EQ(req_uuid_len, 16);
+
+  // Step 2 — establish session with valid HMAC response
+  auto session_resp = make_vcsec_session_info_with_valid_hmac(req_uuid.data(), req_uuid_len);
+  ASSERT_GT(session_resp.size(), 0);
+  vehicle_->on_rx_data(session_resp);
+  vehicle_->loop();
+
+  // Step 3 — command should be sent (encrypted, now that session is valid)
+  auto writes_before = mock_ble_->get_written_data();
+  ASSERT_GT(writes_before.size(), writes.size()) << "Should send command after auth";
+
+  // Step 4 — inject ERROR_TIME_EXPIRED response
+  auto error_frame = make_error_time_expired_message(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  ASSERT_GT(error_frame.size(), 0) << "Should build error message";
+
+  mock_ble_->clear_written_data();
+  vehicle_->on_rx_data(error_frame);
+  vehicle_->loop();
+
+  // Step 5 — recovery: must send a NEW session info request
+  // (proving the peer was reset on ERROR_TIME_EXPIRED)
+  auto recovery_writes = mock_ble_->get_written_data();
+  ASSERT_GE(recovery_writes.size(), 1) << "Should send new session info request after ERROR_TIME_EXPIRED";
+
+  size_t recovery_uuid_len = 0;
+  auto recovery_uuid = extract_request_uuid(recovery_writes[0], &recovery_uuid_len);
+  ASSERT_EQ(recovery_uuid_len, 16) << "Recovery should start with fresh session info request";
+
+  // Step 6 — complete recovery with valid HMAC response for the new request
+  auto recovery_session_resp = make_vcsec_session_info_with_valid_hmac(recovery_uuid.data(), recovery_uuid_len);
+  ASSERT_GT(recovery_session_resp.size(), 0);
+  vehicle_->on_rx_data(recovery_session_resp);
+  vehicle_->loop();
+
+  // Step 7 — command retried and sent after recovery
+  // (callback won't fire here because we don't inject a response for
+  // the dummy command body; the recovery itself is the important part)
+  auto final_writes = mock_ble_->get_written_data();
+  ASSERT_GT(final_writes.size(), recovery_writes.size()) << "Command should be re-sent after session recovery";
+}
+
+// ============================================================================
 // Command Struct Tests
 // ============================================================================
 

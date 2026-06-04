@@ -31,6 +31,13 @@
 #include <cstdlib>
 #include <cstring>
 
+namespace {
+// Per-message expiry in seconds (protocol anti-replay window).
+// Must be long enough for BLE transmission + clock drift between
+// ESP32 and vehicle, but short enough to limit replay attacks.
+constexpr int EXPIRES_AT_SECONDS = 5;
+}  // namespace
+
 namespace TeslaBLE {
 Client::Client() { initialize_peers_(); }
 
@@ -542,7 +549,7 @@ int Client::build_universal_message_with_payload(pb_byte_t *payload, size_t payl
     pb_byte_t signature[16];  // AES-GCM tag
     std::vector<pb_byte_t> encrypted_payload(payload_length);
     size_t encrypted_output_length = 0;
-    uint32_t expires_at = session->generate_expires_at(5);
+    uint32_t expires_at = session->generate_expires_at(EXPIRES_AT_SECONDS);
     const pb_byte_t *epoch = session->get_epoch();
 
     // Construct AD buffer for encryption (max 62 bytes for request: Type(3) + Domain(3) + VIN(19) +

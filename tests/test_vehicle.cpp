@@ -358,6 +358,41 @@ std::vector<uint8_t> make_session_info_no_hmac_tag(UniversalMessage_Domain domai
 
   return frame_universal_message(response);
 }
+
+std::vector<uint8_t> make_vcsec_vehicle_status_awake_message() {
+  VCSEC_FromVCSECMessage vcsec_message = VCSEC_FromVCSECMessage_init_default;
+  vcsec_message.which_sub_message = VCSEC_FromVCSECMessage_vehicleStatus_tag;
+
+  auto &status = vcsec_message.sub_message.vehicleStatus;
+  status.has_closureStatuses = true;
+  status.closureStatuses.chargePort = VCSEC_ClosureState_E_CLOSURESTATE_OPEN;
+  status.vehicleLockState = VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_LOCKED;
+  status.vehicleSleepStatus = VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_AWAKE;
+  status.userPresence = VCSEC_UserPresence_E_VEHICLE_USER_PRESENCE_NOT_PRESENT;
+
+  pb_byte_t vcsec_buffer[256];
+  size_t vcsec_length = sizeof(vcsec_buffer);
+  auto status_code =
+      TeslaBLE::pb_encode_fields(vcsec_buffer, &vcsec_length, VCSEC_FromVCSECMessage_fields, &vcsec_message);
+  if (status_code != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
+  message.has_to_destination = true;
+  message.to_destination.which_sub_destination = UniversalMessage_Destination_routing_address_tag;
+  message.to_destination.sub_destination.routing_address.size = 16;
+
+  message.has_from_destination = true;
+  message.from_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;
+  message.from_destination.sub_destination.domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
+
+  message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
+  message.payload.protobuf_message_as_bytes.size = vcsec_length;
+  std::copy_n(vcsec_buffer, vcsec_length, message.payload.protobuf_message_as_bytes.bytes);
+
+  return frame_universal_message(message);
+}
 }  // namespace
 
 class VehicleTest : public ::testing::Test {
@@ -1012,6 +1047,69 @@ TEST_F(VehicleTest, PairingWhitelistRequestUsesCommandTimeout) {
   EXPECT_TRUE(mock_ble_->get_written_data().empty()) << "No retry write should occur before command timeout";
 }
 
+TEST_F(VehicleTest, InfotainmentWakeTransitionResetsCommandTimeoutBudget) {
+  vehicle_->set_connected(true);
+
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Infotainment Poll",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      },
+      nullptr, true);
+
+  vehicle_->loop();
+
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1) << "Should send initial VCSEC session info request";
+  size_t vcsec_request_uuid_length = 0;
+  auto vcsec_request_uuid = extract_request_uuid(writes.front(), &vcsec_request_uuid_length);
+  ASSERT_EQ(vcsec_request_uuid_length, vcsec_request_uuid.size());
+
+  auto vcsec_session = make_vcsec_session_info_with_valid_hmac(vcsec_request_uuid.data(), vcsec_request_uuid_length);
+  ASSERT_FALSE(vcsec_session.empty()) << "Should build VCSEC session response";
+  vehicle_->on_rx_data(vcsec_session);
+  vehicle_->loop();
+
+  auto &command_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
+  ASSERT_FALSE(command_queue.empty()) << "Infotainment command should be pending";
+
+  auto command = command_queue.front();
+  ASSERT_NE(command, nullptr);
+  ASSERT_EQ(command->domain, UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+  ASSERT_EQ(command->state, CommandState::AUTH_RESPONSE_WAITING);
+
+  // Simulate most of the total command budget being spent before an awake status arrives.
+  command->started_at = std::chrono::steady_clock::now() - Vehicle::COMMAND_TIMEOUT + std::chrono::seconds(1);
+
+  mock_ble_->clear_written_data();
+
+  auto awake_status = make_vcsec_vehicle_status_awake_message();
+  ASSERT_FALSE(awake_status.empty()) << "Should build VCSEC vehicle status wake message";
+  vehicle_->on_rx_data(awake_status);
+  vehicle_->loop();
+
+  ASSERT_FALSE(command_queue.empty()) << "Command should not time out immediately after wake confirmation";
+  EXPECT_EQ(command->state, CommandState::AUTH_RESPONSE_WAITING)
+      << "Wake confirmation should advance directly into infotainment session auth";
+
+  writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1) << "Vehicle should send infotainment session info request after wake transition";
+
+  size_t request_uuid_length = 0;
+  auto request_uuid = extract_request_uuid(writes.back(), &request_uuid_length);
+  ASSERT_EQ(request_uuid_length, request_uuid.size());
+
+  auto infotainment_session = make_infotainment_session_info_with_valid_hmac(request_uuid.data(), request_uuid_length);
+  ASSERT_FALSE(infotainment_session.empty()) << "Should build infotainment session response";
+  vehicle_->on_rx_data(infotainment_session);
+  vehicle_->loop();
+
+  ASSERT_FALSE(command_queue.empty()) << "Command should still be pending until the poll response arrives";
+  EXPECT_EQ(command->state, CommandState::WAITING_FOR_RESPONSE)
+      << "Successful session info response should allow the poll to be sent instead of timing out";
+}
+
 // ============================================================================
 // Session Recovery: ERROR_TIME_EXPIRED triggers peer reset and re-auth
 // ============================================================================
@@ -1161,8 +1259,7 @@ TEST_F(VehicleTest, MissingSessionInfoHmacTagFailsAuthGracefully) {
   EXPECT_TRUE(captured_error->message().find("authentication failed") != std::string::npos)
       << "Error should indicate auth failure: " << captured_error->message();
 
-  EXPECT_TRUE(mock_ble_->get_written_data().empty())
-      << "No additional writes should occur after auth failure";
+  EXPECT_TRUE(mock_ble_->get_written_data().empty()) << "No additional writes should occur after auth failure";
 }
 
 TEST_F(VehicleTest, MissingSessionInfoHmacTagDoesNotBlockSubsequentCommands) {
@@ -1201,8 +1298,7 @@ TEST_F(VehicleTest, MissingSessionInfoHmacTagDoesNotBlockSubsequentCommands) {
 
   vehicle_->loop();
   writes = mock_ble_->get_written_data();
-  ASSERT_GE(writes.size(), 1)
-      << "Second command should send a new session info request";
+  ASSERT_GE(writes.size(), 1) << "Second command should send a new session info request";
   size_t second_uuid_len = 0;
   auto second_uuid = extract_request_uuid(writes.back(), &second_uuid_len);
   ASSERT_EQ(second_uuid_len, 16);
@@ -1244,8 +1340,7 @@ TEST_F(VehicleTest, PairingBypassesAuthEvenWhenVcsecAuthIsFailing) {
   vehicle_->loop();
 
   const auto &writes = mock_ble_->get_written_data();
-  ASSERT_EQ(writes.size(), 1U)
-      << "Pairing should send one direct whitelist request without any session auth handshake";
+  ASSERT_EQ(writes.size(), 1U) << "Pairing should send one direct whitelist request without any session auth handshake";
   VCSEC_SignatureType signature_type = VCSEC_SignatureType_SIGNATURE_TYPE_NONE;
   ASSERT_TRUE(parse_whitelist_message(writes.front(), nullptr, nullptr, &signature_type));
   EXPECT_EQ(signature_type, VCSEC_SignatureType_SIGNATURE_TYPE_PRESENT_KEY);

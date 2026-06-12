@@ -917,6 +917,8 @@ void TeslaBLE::Vehicle::handle_vehicle_status_command_update_(const std::shared_
         LOG_INFO("Vehicle is awake");
         if (cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
           LOG_DEBUG("Transitioning infotainment command to auth state after wake");
+          // Restart the command timeout budget now that wake succeeded and infotainment auth can begin.
+          cmd->started_at = std::chrono::steady_clock::now();
           cmd->current_auth_domain = UniversalMessage_Domain_DOMAIN_INFOTAINMENT;
           cmd->state = CommandState::AUTHENTICATING;
         } else {

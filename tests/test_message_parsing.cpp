@@ -7,6 +7,7 @@
 #include <array>
 #include <ranges>
 #include <cstring>
+#include "tb_utils.h"
 #include "test_constants.h"
 
 using namespace TeslaBLE;
@@ -236,4 +237,37 @@ TEST_F(MessageParsingTest, ParsePayloadCarServerResponseEdgeCases) {
                                                       UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE, 0,
                                                       &parsed_response);
   EXPECT_NE(result, TeslaBLE_Status_E_OK) << "Parsing with truncated data should fail";
+}
+
+TEST_F(MessageParsingTest, ParsePayloadCarServerResponseChargeLimitReasonOneof) {
+  CarServer_Response response = CarServer_Response_init_default;
+  response.which_response_msg = CarServer_Response_vehicleData_tag;
+  response.response_msg.vehicleData.has_charge_state = true;
+
+  auto &charge_state = response.response_msg.vehicleData.charge_state;
+  charge_state.which_optional_charge_limit_reason = CarServer_ChargeState_charge_limit_reason_tag;
+  charge_state.optional_charge_limit_reason.charge_limit_reason =
+      CarServer_ChargeState_ChargeLimitReason_ChargeLimitReasonEvse;
+
+  pb_byte_t encoded_response[512];
+  size_t encoded_length = sizeof(encoded_response);
+  auto encode_status = pb_encode_fields(encoded_response, &encoded_length, CarServer_Response_fields, &response);
+  ASSERT_EQ(encode_status, TeslaBLE_Status_E_OK) << "Encoding CarServer response should succeed";
+
+  UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t input_buffer;
+  input_buffer.size = encoded_length;
+  memcpy(input_buffer.bytes, encoded_response, encoded_length);
+
+  CarServer_Response parsed_response = CarServer_Response_init_default;
+  Signatures_SignatureData signature_data = Signatures_SignatureData_init_default;
+  auto parse_status = client_->parse_payload_car_server_response(
+      &input_buffer, &signature_data, 0, UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE, 0, &parsed_response);
+
+  ASSERT_EQ(parse_status, TeslaBLE_Status_E_OK) << "Parsing CarServer response should succeed";
+  ASSERT_EQ(parsed_response.which_response_msg, CarServer_Response_vehicleData_tag);
+  ASSERT_TRUE(parsed_response.response_msg.vehicleData.has_charge_state);
+  EXPECT_EQ(parsed_response.response_msg.vehicleData.charge_state.which_optional_charge_limit_reason,
+            CarServer_ChargeState_charge_limit_reason_tag);
+  EXPECT_EQ(parsed_response.response_msg.vehicleData.charge_state.optional_charge_limit_reason.charge_limit_reason,
+            CarServer_ChargeState_ChargeLimitReason_ChargeLimitReasonEvse);
 }

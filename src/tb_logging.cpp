@@ -613,6 +613,87 @@ void log_charge_state(const char *tag, const CarServer_ChargeState &charge_state
   if (charge_state.which_optional_minutes_to_full_charge) {
     LOG_DEBUG("Minutes to Full: %ld", charge_state.optional_minutes_to_full_charge.minutes_to_full_charge);
   }
+
+  if (charge_state.which_optional_minutes_to_charge_limit) {
+    LOG_DEBUG("Minutes to Charge Limit: %ld", charge_state.optional_minutes_to_charge_limit.minutes_to_charge_limit);
+  }
+
+  if (charge_state.which_optional_charger_voltage) {
+    LOG_DEBUG("Charger Voltage: %ld", charge_state.optional_charger_voltage.charger_voltage);
+  }
+
+  if (charge_state.which_optional_charger_pilot_current) {
+    LOG_DEBUG("Charger Pilot Current: %ld", charge_state.optional_charger_pilot_current.charger_pilot_current);
+  }
+
+  if (charge_state.which_optional_charger_actual_current) {
+    LOG_DEBUG("Charger Actual Current: %ld", charge_state.optional_charger_actual_current.charger_actual_current);
+  }
+
+  if (charge_state.which_optional_charge_current_request) {
+    LOG_DEBUG("Charge Current Request: %ld", charge_state.optional_charge_current_request.charge_current_request);
+  }
+
+  if (charge_state.which_optional_charge_current_request_max) {
+    LOG_DEBUG("Charge Current Request Max: %ld",
+              charge_state.optional_charge_current_request_max.charge_current_request_max);
+  }
+
+  if (charge_state.which_optional_user_charge_enable_request) {
+    LOG_DEBUG("User Charge Enable Request: %s",
+              charge_state.optional_user_charge_enable_request.user_charge_enable_request ? "true" : "false");
+  }
+
+  if (charge_state.which_optional_charge_enable_request) {
+    LOG_DEBUG("Charge Enable Request: %s",
+              charge_state.optional_charge_enable_request.charge_enable_request ? "true" : "false");
+  }
+
+  if (charge_state.which_optional_charge_port_door_open) {
+    LOG_DEBUG("Charge Port Door Open: %s",
+              charge_state.optional_charge_port_door_open.charge_port_door_open ? "true" : "false");
+  }
+
+  if (charge_state.which_optional_charge_port_cold_weather_mode) {
+    LOG_DEBUG("Charge Port Cold Weather Mode: %s",
+              charge_state.optional_charge_port_cold_weather_mode.charge_port_cold_weather_mode ? "true" : "false");
+  }
+
+  if (charge_state.which_optional_charge_cable_unlatched) {
+    LOG_DEBUG("Charge Cable Unlatched: %s",
+              charge_state.optional_charge_cable_unlatched.charge_cable_unlatched ? "true" : "false");
+  }
+
+  if (charge_state.which_optional_charger_phases) {
+    LOG_DEBUG("Charger Phases: %ld", charge_state.optional_charger_phases.charger_phases);
+  }
+
+  if (charge_state.which_optional_charge_port_color) {
+    LOG_DEBUG("Charge Port Color: %d", charge_state.optional_charge_port_color.charge_port_color);
+  }
+
+  if (charge_state.which_optional_charge_limit_reason) {
+    LOG_DEBUG("Charge Limit Reason: %d", charge_state.optional_charge_limit_reason.charge_limit_reason);
+  }
+
+  if (charge_state.has_managed_charging_state) {
+    LOG_DEBUG("Managed Charging State present");
+    if (charge_state.managed_charging_state.has_charge_on_solar_state) {
+      LOG_DEBUG("Charge On Solar State: %d", charge_state.managed_charging_state.charge_on_solar_state.which_state);
+    }
+    if (charge_state.managed_charging_state.which_optional_minutes_to_lower_limit) {
+      LOG_DEBUG("Managed Charging Minutes to Lower Limit: %ld",
+                charge_state.managed_charging_state.optional_minutes_to_lower_limit.minutes_to_lower_limit);
+    }
+  }
+
+  if (charge_state.which_optional_outlet_state) {
+    LOG_DEBUG("Outlet State: %d", charge_state.optional_outlet_state.outlet_state);
+  }
+
+  if (charge_state.which_optional_power_feed_state) {
+    LOG_DEBUG("Power Feed State: %d", charge_state.optional_power_feed_state.power_feed_state);
+  }
 }
 
 void log_carserver_response(const char *tag, const CarServer_Response *msg) {

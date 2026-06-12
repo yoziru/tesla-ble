@@ -177,6 +177,38 @@ std::vector<uint8_t> make_plain_infotainment_response() {
   return frame_universal_message(message);
 }
 
+std::vector<uint8_t> make_plain_infotainment_action_error_response(const char *reason) {
+  CarServer_Response response = CarServer_Response_init_default;
+  response.has_actionStatus = true;
+  response.actionStatus.result = CarServer_OperationStatus_E_OPERATIONSTATUS_ERROR;
+
+  if (reason && reason[0] != '\0') {
+    response.actionStatus.has_result_reason = true;
+    response.actionStatus.result_reason.which_reason = CarServer_ResultReason_plain_text_tag;
+    std::strncpy(response.actionStatus.result_reason.reason.plain_text, reason,
+                 sizeof(response.actionStatus.result_reason.reason.plain_text) - 1);
+    response.actionStatus.result_reason.reason
+        .plain_text[sizeof(response.actionStatus.result_reason.reason.plain_text) - 1] = '\0';
+  }
+
+  pb_byte_t response_buffer[256];
+  size_t response_length = sizeof(response_buffer);
+  auto encode_status =
+      TeslaBLE::pb_encode_fields(response_buffer, &response_length, CarServer_Response_fields, &response);
+  if (encode_status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
+  message.has_from_destination = true;
+  message.from_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;
+  message.from_destination.sub_destination.domain = UniversalMessage_Domain_DOMAIN_INFOTAINMENT;
+  message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
+  message.payload.protobuf_message_as_bytes.size = response_length;
+  std::copy_n(response_buffer, response_length, message.payload.protobuf_message_as_bytes.bytes);
+  return frame_universal_message(message);
+}
+
 std::vector<uint8_t> make_session_info_with_status(const pb_byte_t *request_uuid, size_t request_uuid_length,
                                                    const pb_byte_t *mock_message, size_t mock_message_length,
                                                    Signatures_Session_Info_Status status) {
@@ -532,6 +564,62 @@ TEST_F(VehicleTest, InfotainmentPollCompletesOnResponse) {
 
   ASSERT_TRUE(callback_called) << "Infotainment command should complete after response";
   ASSERT_TRUE(callback_success) << "Infotainment command should report success";
+}
+
+TEST_F(VehicleTest, InfotainmentActionFailureSurfacesPlainTextReason) {
+  vehicle_->set_connected(true);
+
+  bool callback_called = false;
+  std::unique_ptr<CommandError> captured_error;
+
+  vehicle_->send_command(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Climate On",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        bool enabled = true;
+        return client->build_car_server_vehicle_action_message(buff, len, CarServer_VehicleAction_hvacAutoAction_tag,
+                                                               &enabled);
+      },
+      [&](std::unique_ptr<CommandError> error) {
+        callback_called = true;
+        captured_error = std::move(error);
+      },
+      true);
+
+  vehicle_->loop();
+  auto initial_writes = mock_ble_->get_written_data();
+  ASSERT_GE(initial_writes.size(), 1);
+  size_t request_uuid_length = 0;
+  auto request_uuid = extract_request_uuid(initial_writes.front(), &request_uuid_length);
+  ASSERT_EQ(request_uuid_length, request_uuid.size());
+
+  auto vcsec_session = make_vcsec_session_info_with_valid_hmac(request_uuid.data(), request_uuid_length);
+  ASSERT_FALSE(vcsec_session.empty());
+  vehicle_->on_rx_data(vcsec_session);
+  vehicle_->loop();
+
+  auto info_writes = mock_ble_->get_written_data();
+  ASSERT_GE(info_writes.size(), 2);
+  size_t infotainment_request_uuid_length = 0;
+  auto infotainment_request_uuid = extract_request_uuid(info_writes.back(), &infotainment_request_uuid_length);
+  ASSERT_EQ(infotainment_request_uuid_length, infotainment_request_uuid.size());
+
+  auto infotainment_session = make_infotainment_session_info_with_valid_hmac(infotainment_request_uuid.data(),
+                                                                             infotainment_request_uuid_length);
+  ASSERT_FALSE(infotainment_session.empty());
+  vehicle_->on_rx_data(infotainment_session);
+  vehicle_->loop();
+
+  auto action_error_frame = make_plain_infotainment_action_error_response("climate keeper unavailable");
+  ASSERT_FALSE(action_error_frame.empty());
+  vehicle_->on_rx_data(action_error_frame);
+  vehicle_->loop();
+
+  ASSERT_TRUE(callback_called) << "Infotainment action should complete with failure";
+  ASSERT_NE(captured_error, nullptr) << "Infotainment action should surface an error";
+  EXPECT_FALSE(captured_error->is_temporary()) << "CarServer action failures should be permanent";
+  EXPECT_FALSE(captured_error->may_have_succeeded()) << "CarServer action failures should be definite failures";
+  EXPECT_TRUE(captured_error->message().find("climate keeper unavailable") != std::string::npos)
+      << "Error should include the vehicle-provided action failure reason: " << captured_error->message();
 }
 
 // ============================================================================

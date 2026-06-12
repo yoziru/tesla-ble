@@ -22,6 +22,24 @@
 
 namespace TeslaBLE {
 
+namespace {
+
+std::unique_ptr<CommandError> build_carserver_action_error(const CarServer_ActionStatus &status) {
+  std::string message = "Infotainment action failed";
+  if (status.has_result_reason && status.result_reason.which_reason == CarServer_ResultReason_plain_text_tag) {
+    message += ": ";
+    message += status.result_reason.reason.plain_text;
+  }
+
+  return CommandError::create()
+      .with_message(message)
+      .with_severity(CommandError::Severity::PERMANENT)
+      .with_outcome(CommandError::Outcome::DEFINITELY_FAILED)
+      .build();
+}
+
+}  // namespace
+
 Vehicle::Vehicle(const std::shared_ptr<BleAdapter> &ble, const std::shared_ptr<StorageAdapter> &storage)
     : ble_adapter_(ble),
       storage_adapter_(storage),
@@ -816,7 +834,7 @@ void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_Routabl
         mark_command_completed_(cmd);
       } else {
         LOG_ERROR("CarServer Action Failed");
-        mark_command_failed_(cmd, CommandError::authentication_failed("Infotainment action"));
+        mark_command_failed_(cmd, build_carserver_action_error(response.actionStatus));
       }
     } else if (response.which_response_msg == CarServer_Response_vehicleData_tag) {
       mark_command_completed_(cmd);

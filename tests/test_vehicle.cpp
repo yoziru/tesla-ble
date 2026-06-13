@@ -1456,10 +1456,10 @@ TEST(CommandStructTest, RequiresWakeCanBeSetFalse) {
 
 // ============================================================================
 // Internal Helper Tests (for regression testing specific fixes)
-// These test internal behavior but are necessary for regression coverage
+// These tests verify internal invariants that prevent data corruption.
 // ============================================================================
 
-// Friend test helper to access protected members for regression tests
+// Friend test helper exposing protected members for regression testing
 class VehicleTestHelper : public Vehicle {
  public:
   using Vehicle::get_expected_message_length;
@@ -1470,16 +1470,86 @@ class VehicleTestHelper : public Vehicle {
   void set_buffer(const std::vector<uint8_t> &data) { rx_buffer_ = data; }
 };
 
-TEST(VehicleInternalTest, ExpectedLengthIncludesHeader) {
-  // Regression test: message length calculation must include 2-byte header
-  // This prevents "End of stream" parsing bugs
-  auto b = std::make_shared<MockBleAdapter>();
-  auto s = std::make_shared<MockStorageAdapter>();
-  VehicleTestHelper v(b, s);
+class VehicleInternalTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    mock_ble_ = std::make_shared<MockBleAdapter>();
+    mock_storage_ = std::make_shared<MockStorageAdapter>();
 
-  std::vector<uint8_t> data = {0x00, 0x0A};  // Length field = 10
-  v.set_buffer(data);
+    size_t key_length = 0;
+    while (CLIENT_PRIVATE_KEY_PEM[key_length] != '\0') ++key_length;
+    std::vector<uint8_t> key(
+        reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM),
+        reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM) + key_length + 1);
+    mock_storage_->set_data("private_key", key);
 
-  // Total expected length should be payload (10) + header (2) = 12
-  EXPECT_EQ(v.get_expected_message_length(), 12);
+    vehicle_ = std::make_shared<VehicleTestHelper>(mock_ble_, mock_storage_);
+    vehicle_->set_vin(TEST_VIN);
+    vehicle_->set_connected(true);
+    vehicle_->set_awake(true);
+  }
+
+  std::shared_ptr<MockBleAdapter> mock_ble_;
+  std::shared_ptr<MockStorageAdapter> mock_storage_;
+  std::shared_ptr<VehicleTestHelper> vehicle_;
+};
+
+TEST_F(VehicleInternalTest, ExpectedLengthIncludesHeader) {
+  std::vector<uint8_t> data = {0x00, 0x0A};
+  vehicle_->set_buffer(data);
+
+  EXPECT_EQ(vehicle_->get_expected_message_length(), 12);
+}
+
+TEST_F(VehicleInternalTest, CommandCompletesAfterTimeoutWithPartialData) {
+  bool completed = false;
+  bool success = false;
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Test Command",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      },
+      [&](bool ok) { completed = true; success = ok; }, true);
+
+  vehicle_->loop();
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1);
+  size_t uuid_len = 0;
+  auto uuid = extract_request_uuid(writes.front(), &uuid_len);
+  ASSERT_EQ(uuid_len, uuid.size());
+
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), uuid_len));
+  vehicle_->loop();
+
+  writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 2);
+  uuid = extract_request_uuid(writes.back(), &uuid_len);
+  ASSERT_EQ(uuid_len, uuid.size());
+  vehicle_->on_rx_data(make_infotainment_session_info_with_valid_hmac(uuid.data(), uuid_len));
+  vehicle_->loop();
+
+  auto &cmd_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(
+      vehicle_->get_command_queue_for_testing());
+  ASSERT_FALSE(cmd_queue.empty());
+  auto cmd = cmd_queue.front();
+  ASSERT_EQ(cmd->state, CommandState::WAITING_FOR_RESPONSE);
+
+  vehicle_->on_rx_data({0xFF});
+  ASSERT_FALSE(vehicle_->rx_buffer_.empty());
+
+  cmd->retry_count = 0;
+  cmd->last_tx_at = std::chrono::steady_clock::now() - std::chrono::seconds(5);
+  mock_ble_->clear_written_data();
+  vehicle_->loop();
+
+  EXPECT_TRUE(vehicle_->rx_buffer_.empty());
+  EXPECT_EQ(cmd->state, CommandState::READY);
+
+  vehicle_->loop();
+  vehicle_->on_rx_data(make_plain_infotainment_response());
+  vehicle_->loop();
+
+  ASSERT_TRUE(completed);
+  ASSERT_TRUE(success);
 }

@@ -164,7 +164,7 @@ class Vehicle {
   static constexpr auto AUTH_RESPONSE_TIMEOUT =
       std::chrono::seconds(25);  // Time to wait for auth responses (VCSEC/Infotainment)
   static constexpr auto CLOCK_SYNC_MAX_LATENCY =
-      std::chrono::seconds(4);  // Max allowed clock sync error (from Go impl)
+      std::chrono::seconds(4);  // Max age for stale session info responses (from Go impl)
   static constexpr auto TRANSPORT_RETRY_INTERVAL =
       std::chrono::seconds(1);  // Transport-layer retry interval (from Go impl)
 

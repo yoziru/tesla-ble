@@ -1477,10 +1477,10 @@ class VehicleInternalTest : public ::testing::Test {
     mock_storage_ = std::make_shared<MockStorageAdapter>();
 
     size_t key_length = 0;
-    while (CLIENT_PRIVATE_KEY_PEM[key_length] != '\0') ++key_length;
-    std::vector<uint8_t> key(
-        reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM),
-        reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM) + key_length + 1);
+    while (CLIENT_PRIVATE_KEY_PEM[key_length] != '\0')
+      ++key_length;
+    std::vector<uint8_t> key(reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM),
+                             reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM) + key_length + 1);
     mock_storage_->set_data("private_key", key);
 
     vehicle_ = std::make_shared<VehicleTestHelper>(mock_ble_, mock_storage_);
@@ -1510,7 +1510,11 @@ TEST_F(VehicleInternalTest, CommandCompletesAfterTimeoutWithPartialData) {
         return client->build_car_server_get_vehicle_data_message(buff, len,
                                                                  CarServer_GetVehicleData_getChargeState_tag);
       },
-      [&](bool ok) { completed = true; success = ok; }, true);
+      [&](bool ok) {
+        completed = true;
+        success = ok;
+      },
+      true);
 
   vehicle_->loop();
   auto writes = mock_ble_->get_written_data();
@@ -1529,8 +1533,7 @@ TEST_F(VehicleInternalTest, CommandCompletesAfterTimeoutWithPartialData) {
   vehicle_->on_rx_data(make_infotainment_session_info_with_valid_hmac(uuid.data(), uuid_len));
   vehicle_->loop();
 
-  auto &cmd_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(
-      vehicle_->get_command_queue_for_testing());
+  auto &cmd_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
   ASSERT_FALSE(cmd_queue.empty());
   auto cmd = cmd_queue.front();
   ASSERT_EQ(cmd->state, CommandState::WAITING_FOR_RESPONSE);

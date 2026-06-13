@@ -1,4 +1,4 @@
-version: "5.0.4"
+version: "5.0.5"
 description: "C++ library for Tesla BLE API communication"
 url: "https://github.com/yoziru/tesla-ble"
 dependencies:

@@ -291,6 +291,7 @@ void TeslaBLE::Vehicle::handle_auth_timeout_common_(const std::shared_ptr<Comman
     mark_command_failed_(command, CommandError::session_stale("connection"));
     return;
   }
+  rx_buffer_.clear();
   command->state = retry_state;
 }
 
@@ -411,6 +412,7 @@ void TeslaBLE::Vehicle::retry_command(const std::shared_ptr<Command> &command) {
     }
   }
 
+  rx_buffer_.clear();
   command->retry_count++;
   LOG_DEBUG("Retrying command: %s (attempt %d/%d)", command->name.c_str(), command->retry_count, MAX_RETRIES + 1);
 
@@ -882,6 +884,7 @@ void TeslaBLE::Vehicle::reset_all_sessions_and_connection_() {
   }
   clear_stored_session_(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
   clear_stored_session_(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+  rx_buffer_.clear();
   set_connected(false);
 }
 

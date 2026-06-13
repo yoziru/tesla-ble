@@ -515,6 +515,7 @@ TEST_F(VehicleTest, InfotainmentPollWithForceWakeSendsData) {
 
 TEST_F(VehicleTest, InfotainmentPollCompletesOnResponse) {
   vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Awake);
 
   bool callback_called = false;
   bool callback_success = false;
@@ -568,6 +569,7 @@ TEST_F(VehicleTest, InfotainmentPollCompletesOnResponse) {
 
 TEST_F(VehicleTest, InfotainmentActionFailureSurfacesPlainTextReason) {
   vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Awake);
 
   bool callback_called = false;
   std::unique_ptr<CommandError> captured_error;
@@ -633,6 +635,7 @@ TEST_F(VehicleTest, InfotainmentPollSkippedWhenAsleepByDefault) {
   // Verify default behavior: vehicle starts in asleep state (no VCSEC status received)
   // and infotainment polls without force_wake should be skipped
   vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Asleep);
 
   bool poll_callback_called = false;
   bool poll_success = false;
@@ -651,9 +654,9 @@ TEST_F(VehicleTest, InfotainmentPollSkippedWhenAsleepByDefault) {
   );
   vehicle_->loop();
 
-  // Poll should be skipped (no BLE writes) but callback invoked with success
+  // Poll should be skipped (no BLE writes) but callback invoked with compatible_success()
   ASSERT_TRUE(poll_callback_called) << "Callback should be invoked for skipped poll";
-  ASSERT_TRUE(poll_success) << "Skipped poll should report success (no-op)";
+  ASSERT_TRUE(poll_success) << "Skipped poll should report compatible_success (no-op)";
 
   auto writes = mock_ble_->get_written_data();
   EXPECT_EQ(writes.size(), 0) << "Poll should be skipped when vehicle is asleep";
@@ -842,6 +845,7 @@ TEST_F(VehicleTest, InfotainmentPollWithoutForceWakeSkipsWhenAsleep) {
 
   // Send poll that doesn't require wake
   vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Asleep);
   vehicle_->send_command_bool(
       UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Infotainment Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
@@ -1435,6 +1439,333 @@ TEST_F(VehicleTest, PairingBypassesAuthEvenWhenVcsecAuthIsFailing) {
 }
 
 // ============================================================================
+// Wake Policy Regression Tests (4.1)
+// ============================================================================
+
+TEST_F(VehicleTest, NoWakeSkipSkipsWhenVehicleAsleep) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Asleep);
+
+  bool callback_called = false;
+  bool callback_success = false;
+
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "NoWakeSkip Poll",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      },
+      [&](bool success) {
+        callback_called = true;
+        callback_success = success;
+      },
+      TeslaBLE::WakePolicy::NoWakeSkip);
+
+  vehicle_->loop();
+
+  ASSERT_TRUE(callback_called) << "NoWakeSkip should invoke callback immediately";
+  ASSERT_TRUE(callback_success) << "NoWakeSkip should report compatible_success for skipped";
+  auto writes = mock_ble_->get_written_data();
+  EXPECT_EQ(writes.size(), 0) << "NoWakeSkip should not send BLE data when asleep";
+}
+
+TEST_F(VehicleTest, NoWakeFailWhenVehicleAsleep) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Asleep);
+
+  bool callback_called = false;
+  bool callback_success = true;
+
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "NoWakeFail Poll",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      },
+      [&](bool success) {
+        callback_called = true;
+        callback_success = success;
+      },
+      TeslaBLE::WakePolicy::NoWakeFail);
+
+  vehicle_->loop();
+
+  ASSERT_TRUE(callback_called) << "NoWakeFail should invoke callback immediately";
+  ASSERT_FALSE(callback_success) << "NoWakeFail should report failure for asleep vehicle";
+  auto writes = mock_ble_->get_written_data();
+  EXPECT_EQ(writes.size(), 0) << "NoWakeFail should not send BLE data when asleep";
+}
+
+TEST_F(VehicleTest, WakeIfNeededProceedsWhenAwake) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Awake);
+
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "WakeIfNeeded Poll",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      },
+      nullptr, TeslaBLE::WakePolicy::WakeIfNeeded);
+
+  vehicle_->loop();
+
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1) << "WakeIfNeeded with awake vehicle should start auth";
+}
+
+TEST_F(VehicleTest, WakeIfNeededTriggersWakeWhenAsleep) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Asleep);
+
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "WakeIfNeeded Asleep",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      },
+      nullptr, TeslaBLE::WakePolicy::WakeIfNeeded);
+
+  vehicle_->loop();
+
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1) << "WakeIfNeeded with asleep vehicle should send VCSEC auth before wake";
+}
+
+TEST_F(VehicleTest, WakePolicyRichOutcomeCallbackDistinguishesSkipped) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Asleep);
+
+  bool callback_called = false;
+  TeslaBLE::OperationOutcome captured_outcome = TeslaBLE::OperationOutcome::Failed;
+  TeslaBLE::OperationTerminalReason captured_reason = TeslaBLE::OperationTerminalReason::None;
+
+  vehicle_->send_command_result(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Result Poll",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      },
+      [&](TeslaBLE::OperationResult result) {
+        callback_called = true;
+        captured_outcome = result.outcome();
+        captured_reason = result.reason();
+      },
+      TeslaBLE::WakePolicy::NoWakeSkip);
+
+  vehicle_->loop();
+
+  ASSERT_TRUE(callback_called) << "Rich callback should be invoked";
+  EXPECT_EQ(captured_outcome, TeslaBLE::OperationOutcome::Skipped);
+  EXPECT_EQ(captured_reason, TeslaBLE::OperationTerminalReason::VehicleAsleep);
+}
+
+TEST_F(VehicleTest, WakePolicyRichOutcomeCallbackDistinguishesFailed) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Asleep);
+
+  bool callback_called = false;
+  TeslaBLE::OperationOutcome captured_outcome = TeslaBLE::OperationOutcome::Success;
+
+  vehicle_->send_command_result(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Fail Poll",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      },
+      [&](TeslaBLE::OperationResult result) {
+        callback_called = true;
+        captured_outcome = result.outcome();
+      },
+      TeslaBLE::WakePolicy::NoWakeFail);
+
+  vehicle_->loop();
+
+  ASSERT_TRUE(callback_called) << "Rich callback should be invoked";
+  EXPECT_EQ(captured_outcome, TeslaBLE::OperationOutcome::Failed);
+}
+
+// ============================================================================
+// Step-Specific Timeout Regression Tests (4.2)
+// ============================================================================
+
+TEST_F(VehicleTest, WakePhaseTimeoutDoesNotConsumeFinalResponseBudget) {
+  vehicle_->set_connected(true);
+
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Post-Wake Poll",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      },
+      nullptr, true);
+
+  vehicle_->loop();
+
+  // Establish VCSEC session
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1);
+  size_t vcsec_uuid_len = 0;
+  auto vcsec_uuid = extract_request_uuid(writes.front(), &vcsec_uuid_len);
+  ASSERT_EQ(vcsec_uuid_len, vcsec_uuid.size());
+  auto vcsec_session = make_vcsec_session_info_with_valid_hmac(vcsec_uuid.data(), vcsec_uuid_len);
+  ASSERT_FALSE(vcsec_session.empty());
+  vehicle_->on_rx_data(vcsec_session);
+  vehicle_->loop();
+
+  // At this point, sleep state is Unknown and WakeIfNeeded initiates wake.
+  // Simulate the wake phase timing out without a response.
+  auto &command_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
+  ASSERT_FALSE(command_queue.empty());
+  auto command = command_queue.front();
+  ASSERT_NE(command, nullptr);
+
+  // Command should be in AUTH_RESPONSE_WAITING for the wake phase
+  EXPECT_EQ(command->state, TeslaBLE::CommandState::AUTH_RESPONSE_WAITING);
+  EXPECT_EQ(command->phase, TeslaBLE::OperationPhase::EnsuringAwake);
+
+  // Advance time to exhaust wake-phase timeout but leave total command budget untouched.
+  // Wake timeout is measured from last_tx_at (when wake command was actually sent).
+  command->last_tx_at =
+      std::chrono::steady_clock::now() - TeslaBLE::Vehicle::AUTH_RESPONSE_TIMEOUT - std::chrono::seconds(1);
+  mock_ble_->clear_written_data();
+  vehicle_->loop();
+
+  // Wake timeout should trigger retry (state back to IDLE), not command failure
+  EXPECT_EQ(command->state, TeslaBLE::CommandState::IDLE) << "Wake timeout should trigger retry, not command failure";
+  ASSERT_FALSE(command_queue.empty()) << "Command should remain in queue after retry (not finalized)";
+}
+
+TEST_F(VehicleTest, AuthPhaseTimeoutIndependentFromFinalResponseTimeout) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Awake);
+
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Auth Timeout Poll",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      },
+      nullptr, true);
+
+  vehicle_->loop();
+
+  // Auth request should be sent
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1);
+  mock_ble_->clear_written_data();
+
+  auto &command_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
+  ASSERT_FALSE(command_queue.empty());
+  auto command = command_queue.front();
+
+  EXPECT_EQ(command->phase, TeslaBLE::OperationPhase::EnsuringVcsecSession);
+
+  // Advance time past auth timeout
+  command->phase_started_at =
+      std::chrono::steady_clock::now() - TeslaBLE::Vehicle::AUTH_RESPONSE_TIMEOUT - std::chrono::seconds(1);
+  vehicle_->loop();
+
+  // Auth timeout should trigger retry, not final command failure
+  ASSERT_FALSE(command_queue.empty()) << "Command should remain in queue after auth retry";
+  EXPECT_NE(command->state, TeslaBLE::CommandState::FAILED) << "Auth phase timeout should retry, not fail the command";
+}
+
+// ============================================================================
+// Wrapper Outcome Distinction Tests (4.3)
+// ============================================================================
+
+TEST_F(VehicleTest, WrapperCanObserveSkippedOutcomeWithoutInspectingInternals) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Asleep);
+
+  TeslaBLE::OperationOutcome outcome = TeslaBLE::OperationOutcome::Failed;
+  TeslaBLE::OperationTerminalReason reason = TeslaBLE::OperationTerminalReason::None;
+  const TeslaBLE::CommandError *err = nullptr;
+
+  vehicle_->send_command_result(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Wrapper Poll",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      },
+      [&](TeslaBLE::OperationResult result) {
+        outcome = result.outcome();
+        reason = result.reason();
+        err = result.error();
+      },
+      TeslaBLE::WakePolicy::NoWakeSkip);
+
+  vehicle_->loop();
+
+  EXPECT_EQ(outcome, TeslaBLE::OperationOutcome::Skipped);
+  EXPECT_EQ(reason, TeslaBLE::OperationTerminalReason::VehicleAsleep);
+  EXPECT_EQ(err, nullptr) << "Skipped operations should not carry an error";
+}
+
+TEST_F(VehicleTest, WrapperCanObservePhaseTransitions) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Awake);
+
+  std::vector<TeslaBLE::OperationPhase> phases;
+  TeslaBLE::OperationOutcome outcome = TeslaBLE::OperationOutcome::Failed;
+
+  vehicle_->send_command_result(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Phase Observed Poll",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      },
+      [&](TeslaBLE::OperationResult result) { outcome = result.outcome(); }, TeslaBLE::WakePolicy::WakeIfNeeded,
+      [&](TeslaBLE::OperationPhase phase) { phases.push_back(phase); });
+
+  vehicle_->loop();
+
+  ASSERT_GE(phases.size(), 1) << "Phase callback should fire at least once";
+  EXPECT_EQ(phases.front(), TeslaBLE::OperationPhase::Queued) << "First phase should be Queued";
+
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1);
+  size_t vcsec_uuid_len = 0;
+  auto vcsec_uuid = extract_request_uuid(writes.front(), &vcsec_uuid_len);
+  ASSERT_EQ(vcsec_uuid_len, vcsec_uuid.size());
+  auto vcsec_session = make_vcsec_session_info_with_valid_hmac(vcsec_uuid.data(), vcsec_uuid_len);
+  ASSERT_FALSE(vcsec_session.empty());
+  vehicle_->on_rx_data(vcsec_session);
+  vehicle_->loop();
+
+  ASSERT_GE(phases.size(), 2) << "Should see Queued → EnsuringVcsecSession → EnsuringInfotainmentSession phases";
+  EXPECT_EQ(phases[1], TeslaBLE::OperationPhase::EnsuringVcsecSession);
+}
+
+TEST_F(VehicleTest, WrapperCompatibleSuccessPreservesExistingBoolSemantics) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::Asleep);
+
+  bool callback_called = false;
+  bool callback_success = false;
+
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Compat Poll",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_get_vehicle_data_message(buff, len,
+                                                                 CarServer_GetVehicleData_getChargeState_tag);
+      },
+      [&](bool success) {
+        callback_called = true;
+        callback_success = success;
+      },
+      TeslaBLE::WakePolicy::NoWakeSkip);
+
+  vehicle_->loop();
+
+  ASSERT_TRUE(callback_called);
+  ASSERT_TRUE(callback_success) << "compatible_success should be true for skipped operations";
+  auto writes = mock_ble_->get_written_data();
+  EXPECT_EQ(writes.size(), 0) << "No BLE writes should occur for skipped NoWakeSkip";
+}
+
+// ============================================================================
 // Command Struct Tests
 // ============================================================================
 
@@ -1443,15 +1774,16 @@ TEST(CommandStructTest, DefaultRequiresWakeIsTrue) {
       UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Test Command",
       [](Client *, uint8_t *, size_t *) { return TeslaBLE_Status_E_OK; }, nullptr);
 
-  ASSERT_TRUE(cmd.requires_wake) << "Commands should default to requiring wake for safety";
+  ASSERT_EQ(cmd.wake_policy, TeslaBLE::WakePolicy::WakeIfNeeded)
+      << "Commands should default to requiring wake for safety";
 }
 
 TEST(CommandStructTest, RequiresWakeCanBeSetFalse) {
   Command cmd(
       UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Test Poll",
-      [](Client *, uint8_t *, size_t *) { return TeslaBLE_Status_E_OK; }, nullptr, false);
+      [](Client *, uint8_t *, size_t *) { return TeslaBLE_Status_E_OK; }, nullptr, TeslaBLE::WakePolicy::NoWakeSkip);
 
-  ASSERT_FALSE(cmd.requires_wake);
+  ASSERT_EQ(cmd.wake_policy, TeslaBLE::WakePolicy::NoWakeSkip);
 }
 
 // ============================================================================

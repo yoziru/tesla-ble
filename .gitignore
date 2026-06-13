@@ -1,6 +1,8 @@
 # Created by https://www.toptal.com/developers/gitignore/api/intellij,c++,cmake,platformio,visualstudiocode
 # Edit at https://www.toptal.com/developers/gitignore?templates=intellij,c++,cmake,platformio,visualstudiocode
 .vscode
+.opencode
+openspec
 build/
 build-pr-full/
 test.md

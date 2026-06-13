@@ -19,6 +19,78 @@ namespace TeslaBLE {
 
 class Client;
 
+enum class SleepState {
+  Unknown,
+  Asleep,
+  Awake,
+};
+
+enum class WakePolicy {
+  NoWakeSkip,
+  NoWakeFail,
+  WakeIfNeeded,
+};
+
+enum class OperationPhase {
+  Queued,
+  EnsuringVcsecSession,
+  EnsuringAwake,
+  EnsuringInfotainmentSession,
+  SendingRequest,
+  AwaitingResponse,
+  Terminal,
+};
+
+enum class OperationOutcome {
+  Success,
+  Skipped,
+  Failed,
+};
+
+enum class OperationTerminalReason {
+  None,
+  VehicleAsleep,
+};
+
+class OperationResult {
+ public:
+  static OperationResult success(OperationTerminalReason reason = OperationTerminalReason::None) {
+    return OperationResult(OperationOutcome::Success, reason, nullptr);
+  }
+
+  static OperationResult skipped(OperationTerminalReason reason) {
+    return OperationResult(OperationOutcome::Skipped, reason, nullptr);
+  }
+
+  static OperationResult failure(std::unique_ptr<CommandError> error,
+                                 OperationTerminalReason reason = OperationTerminalReason::None) {
+    return OperationResult(OperationOutcome::Failed, reason, std::move(error));
+  }
+
+  OperationResult(OperationResult &&) = default;
+  OperationResult &operator=(OperationResult &&) = default;
+
+  OperationResult(const OperationResult &) = delete;
+  OperationResult &operator=(const OperationResult &) = delete;
+
+  OperationOutcome outcome() const { return outcome_; }
+  OperationTerminalReason reason() const { return reason_; }
+  bool is_success() const { return outcome_ == OperationOutcome::Success; }
+  bool is_skipped() const { return outcome_ == OperationOutcome::Skipped; }
+  bool is_failure() const { return outcome_ == OperationOutcome::Failed; }
+  bool compatible_success() const { return outcome_ != OperationOutcome::Failed; }
+  const CommandError *error() const { return error_.get(); }
+  std::unique_ptr<CommandError> release_error() { return std::move(error_); }
+
+ private:
+  OperationResult(OperationOutcome outcome, OperationTerminalReason reason, std::unique_ptr<CommandError> error)
+      : outcome_(outcome), reason_(reason), error_(std::move(error)) {}
+
+  OperationOutcome outcome_;
+  OperationTerminalReason reason_;
+  std::unique_ptr<CommandError> error_;
+};
+
 enum class CommandState {
   IDLE,
   AUTHENTICATING,         // Unified auth initiation state
@@ -34,17 +106,23 @@ class Vehicle;
 struct Command;
 
 struct Command {
+  using OperationResultCallback = std::function<void(OperationResult)>;
+  using OperationPhaseCallback = std::function<void(OperationPhase)>;
+
   UniversalMessage_Domain domain;
   std::string name;
   // Builder function: takes Client pointer, output buffer, output length pointer. Returns status code (0 for success).
   std::function<int(Client *, uint8_t *, size_t *)> builder;
-  // Callback: rich error information instead of boolean
-  std::function<void(std::unique_ptr<CommandError>)> on_complete;
-  // Whether this command requires the vehicle to be awake (write commands = true, read/poll = false)
-  bool requires_wake = true;
+  OperationResultCallback on_complete;
+  OperationPhaseCallback on_phase_change;
+  WakePolicy wake_policy = WakePolicy::WakeIfNeeded;
 
   CommandState state = CommandState::IDLE;
+  OperationPhase phase = OperationPhase::Queued;
+  OperationOutcome outcome = OperationOutcome::Success;
+  OperationTerminalReason terminal_reason = OperationTerminalReason::None;
   std::chrono::steady_clock::time_point started_at;
+  std::chrono::steady_clock::time_point phase_started_at;
   std::chrono::steady_clock::time_point last_tx_at;
   uint8_t retry_count = 0;
 
@@ -59,14 +137,20 @@ struct Command {
   UniversalMessage_Domain current_auth_domain;
 
   Command(UniversalMessage_Domain d, std::string n, std::function<int(Client *, uint8_t *, size_t *)> b,
-          std::function<void(std::unique_ptr<CommandError>)> cb = nullptr, bool wake = true)
+          OperationResultCallback cb = nullptr, WakePolicy wake = WakePolicy::WakeIfNeeded,
+          OperationPhaseCallback phase_cb = nullptr)
       : domain(d),
         name(std::move(n)),
         builder(std::move(b)),
         on_complete(std::move(cb)),
-        requires_wake(wake),
+        on_phase_change(std::move(phase_cb)),
+        wake_policy(wake),
         current_auth_domain(d) {
     started_at = std::chrono::steady_clock::now();
+    phase_started_at = started_at;
+    if (on_phase_change) {
+      on_phase_change(phase);
+    }
   }
 };
 
@@ -78,13 +162,28 @@ class Vehicle {
 
   void on_rx_data(const std::vector<uint8_t> &data);
 
+  // Legacy overloads: bool requires_wake maps to WakePolicy::NoWakeSkip (false) or WakeIfNeeded (true).
+  // The rich-error callback receives nullptr for both success and skipped outcomes; to distinguish
+  // them use send_command_result() with OperationResultCallback instead.
   void send_command(UniversalMessage_Domain domain, const std::string &name,
                     std::function<int(Client *, uint8_t *, size_t *)> builder,
                     std::function<void(std::unique_ptr<CommandError>)> on_complete = nullptr,
                     bool requires_wake = true);
+  void send_command(UniversalMessage_Domain domain, const std::string &name,
+                    std::function<int(Client *, uint8_t *, size_t *)> builder,
+                    std::function<void(std::unique_ptr<CommandError>)> on_complete, WakePolicy wake_policy);
   void send_command_bool(UniversalMessage_Domain domain, const std::string &name,
                          std::function<int(Client *, uint8_t *, size_t *)> builder,
                          const std::function<void(bool)> &on_complete = nullptr, bool requires_wake = true);
+  void send_command_bool(UniversalMessage_Domain domain, const std::string &name,
+                         std::function<int(Client *, uint8_t *, size_t *)> builder,
+                         const std::function<void(bool)> &on_complete, WakePolicy wake_policy);
+  // Primary API for richer phase and outcome semantics.
+  void send_command_result(UniversalMessage_Domain domain, const std::string &name,
+                           std::function<int(Client *, uint8_t *, size_t *)> builder,
+                           Command::OperationResultCallback on_complete,
+                           WakePolicy wake_policy = WakePolicy::WakeIfNeeded,
+                           Command::OperationPhaseCallback on_phase_change = nullptr);
 
   void set_vehicle_status_callback(std::function<void(const VCSEC_VehicleStatus &)> cb) {
     vehicle_status_callback_ = std::move(cb);
@@ -108,11 +207,17 @@ class Vehicle {
   void wake();
   void vcsec_poll();
   void infotainment_poll(bool force_wake = false);
+  void infotainment_poll(WakePolicy wake_policy);
   void charge_state_poll(bool force_wake = false);
+  void charge_state_poll(WakePolicy wake_policy);
   void climate_state_poll(bool force_wake = false);
+  void climate_state_poll(WakePolicy wake_policy);
   void drive_state_poll(bool force_wake = false);
+  void drive_state_poll(WakePolicy wake_policy);
   void closures_state_poll(bool force_wake = false);
+  void closures_state_poll(WakePolicy wake_policy);
   void tire_pressure_poll(bool force_wake = false);
+  void tire_pressure_poll(WakePolicy wake_policy);
 
   void set_charging_state(bool enable);
   void set_charging_amps(int amps);
@@ -151,7 +256,9 @@ class Vehicle {
   bool is_connected() const { return is_connected_; }
   void set_connected(bool connected);
 
-  void set_awake(bool awake) { is_vehicle_awake_ = awake; }
+  void set_awake(bool awake) { sleep_state_ = awake ? SleepState::Awake : SleepState::Asleep; }
+  void set_sleep_state(SleepState state) { sleep_state_ = state; }
+  SleepState sleep_state() const { return sleep_state_; }
 
   void set_vin(const std::string &vin);
   using MessageCallback = std::function<void(const UniversalMessage_RoutableMessage &)>;
@@ -197,7 +304,7 @@ class Vehicle {
   std::function<void(const CarServer_ClosuresState &)> closures_state_callback_;
 
   bool is_connected_ = false;
-  bool is_vehicle_awake_ = false;  // From VCSEC sleep status (inverted: true unless explicitly ASLEEP)
+  SleepState sleep_state_ = SleepState::Unknown;
   bool recovery_attempted_ = false;
 
   static constexpr size_t FRAME_HEADER_SIZE = 2;
@@ -209,12 +316,18 @@ class Vehicle {
   void process_authenticating_command_(const std::shared_ptr<Command> &command);
   void process_auth_response_waiting_command_(const std::shared_ptr<Command> &command);
   void process_ready_command_(const std::shared_ptr<Command> &command);
+  void advance_infotainment_prerequisites_(const std::shared_ptr<Command> &command);
+  void resume_command_after_prerequisite_(const std::shared_ptr<Command> &command);
   void initiate_vcsec_auth_(const std::shared_ptr<Command> &command);
   void initiate_infotainment_auth_(const std::shared_ptr<Command> &command);
   void initiate_wake_sequence_(const std::shared_ptr<Command> &command);
+  void set_command_phase_(const std::shared_ptr<Command> &command, OperationPhase phase);
   void mark_command_failed_(const std::shared_ptr<Command> &command, std::unique_ptr<CommandError> error);
+  void mark_command_failed_(const std::shared_ptr<Command> &command, std::unique_ptr<CommandError> error,
+                            OperationTerminalReason reason);
   void mark_command_completed_(const std::shared_ptr<Command> &command);
-  void finalize_command_(const std::shared_ptr<Command> &command, std::unique_ptr<CommandError> error);
+  void mark_command_skipped_(const std::shared_ptr<Command> &command, OperationTerminalReason reason);
+  void finalize_command_(const std::shared_ptr<Command> &command, OperationResult result);
   bool is_domain_authenticated_(UniversalMessage_Domain domain);
   void handle_authentication_response_(UniversalMessage_Domain domain, bool success);
   void load_session_from_storage_(UniversalMessage_Domain domain);
@@ -226,6 +339,8 @@ class Vehicle {
   bool attempt_buffer_recovery_(int &msg_len);
   void log_timeout_message_(const std::string &message, const std::shared_ptr<Command> &command);
   void handle_vehicle_status_command_update_(const std::shared_ptr<Command> &cmd, const VCSEC_VehicleStatus &status);
+  bool is_vehicle_observed_awake_() const;
+  bool is_vehicle_observed_asleep_() const;
 
  public:
   void retry_command(const std::shared_ptr<Command> &command);
@@ -245,7 +360,7 @@ class Vehicle {
   void handle_infotainment_auth_timeout_(const std::shared_ptr<Command> &command);
   void handle_wake_response_timeout_(const std::shared_ptr<Command> &command);
   void handle_signed_message_error_(const UniversalMessage_RoutableMessage &msg, bool &has_session_error);
-  void send_infotainment_poll_(const std::string &name, int32_t data_type, bool force_wake = false);
+  void send_infotainment_poll_(const std::string &name, int32_t data_type, WakePolicy wake_policy);
   void initiate_auth_for_domain_(const std::shared_ptr<Command> &command, UniversalMessage_Domain domain,
                                  CommandState waiting_state, const std::string &domain_name);
   bool persist_private_key_();

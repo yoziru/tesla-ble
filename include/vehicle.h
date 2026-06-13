@@ -20,51 +20,51 @@ namespace TeslaBLE {
 class Client;
 
 enum class SleepState {
-  Unknown,
-  Asleep,
-  Awake,
+  UNKNOWN,
+  ASLEEP,
+  AWAKE,
 };
 
 enum class WakePolicy {
-  NoWakeSkip,
-  NoWakeFail,
-  WakeIfNeeded,
+  NO_WAKE_SKIP,
+  NO_WAKE_FAIL,
+  WAKE_IF_NEEDED,
 };
 
 enum class OperationPhase {
-  Queued,
-  EnsuringVcsecSession,
-  EnsuringAwake,
-  EnsuringInfotainmentSession,
-  SendingRequest,
-  AwaitingResponse,
-  Terminal,
+  QUEUED,
+  ENSURING_VCSEC_SESSION,
+  ENSURING_AWAKE,
+  ENSURING_INFOTAINMENT_SESSION,
+  SENDING_REQUEST,
+  AWAITING_RESPONSE,
+  TERMINAL,
 };
 
 enum class OperationOutcome {
-  Success,
-  Skipped,
-  Failed,
+  SUCCESS,
+  SKIPPED,
+  FAILED,
 };
 
 enum class OperationTerminalReason {
-  None,
-  VehicleAsleep,
+  NONE,
+  VEHICLE_ASLEEP,
 };
 
 class OperationResult {
  public:
-  static OperationResult success(OperationTerminalReason reason = OperationTerminalReason::None) {
-    return OperationResult(OperationOutcome::Success, reason, nullptr);
+  static OperationResult success(OperationTerminalReason reason = OperationTerminalReason::NONE) {
+    return OperationResult(OperationOutcome::SUCCESS, reason, nullptr);
   }
 
   static OperationResult skipped(OperationTerminalReason reason) {
-    return OperationResult(OperationOutcome::Skipped, reason, nullptr);
+    return OperationResult(OperationOutcome::SKIPPED, reason, nullptr);
   }
 
   static OperationResult failure(std::unique_ptr<CommandError> error,
-                                 OperationTerminalReason reason = OperationTerminalReason::None) {
-    return OperationResult(OperationOutcome::Failed, reason, std::move(error));
+                                 OperationTerminalReason reason = OperationTerminalReason::NONE) {
+    return OperationResult(OperationOutcome::FAILED, reason, std::move(error));
   }
 
   OperationResult(OperationResult &&) = default;
@@ -75,10 +75,10 @@ class OperationResult {
 
   OperationOutcome outcome() const { return outcome_; }
   OperationTerminalReason reason() const { return reason_; }
-  bool is_success() const { return outcome_ == OperationOutcome::Success; }
-  bool is_skipped() const { return outcome_ == OperationOutcome::Skipped; }
-  bool is_failure() const { return outcome_ == OperationOutcome::Failed; }
-  bool compatible_success() const { return outcome_ != OperationOutcome::Failed; }
+  bool is_success() const { return outcome_ == OperationOutcome::SUCCESS; }
+  bool is_skipped() const { return outcome_ == OperationOutcome::SKIPPED; }
+  bool is_failure() const { return outcome_ == OperationOutcome::FAILED; }
+  bool compatible_success() const { return outcome_ != OperationOutcome::FAILED; }
   const CommandError *error() const { return error_.get(); }
   std::unique_ptr<CommandError> release_error() { return std::move(error_); }
 
@@ -115,12 +115,12 @@ struct Command {
   std::function<int(Client *, uint8_t *, size_t *)> builder;
   OperationResultCallback on_complete;
   OperationPhaseCallback on_phase_change;
-  WakePolicy wake_policy = WakePolicy::WakeIfNeeded;
+  WakePolicy wake_policy = WakePolicy::WAKE_IF_NEEDED;
 
   CommandState state = CommandState::IDLE;
-  OperationPhase phase = OperationPhase::Queued;
-  OperationOutcome outcome = OperationOutcome::Success;
-  OperationTerminalReason terminal_reason = OperationTerminalReason::None;
+  OperationPhase phase = OperationPhase::QUEUED;
+  OperationOutcome outcome = OperationOutcome::SUCCESS;
+  OperationTerminalReason terminal_reason = OperationTerminalReason::NONE;
   std::chrono::steady_clock::time_point started_at;
   std::chrono::steady_clock::time_point phase_started_at;
   std::chrono::steady_clock::time_point last_tx_at;
@@ -137,7 +137,7 @@ struct Command {
   UniversalMessage_Domain current_auth_domain;
 
   Command(UniversalMessage_Domain d, std::string n, std::function<int(Client *, uint8_t *, size_t *)> b,
-          OperationResultCallback cb = nullptr, WakePolicy wake = WakePolicy::WakeIfNeeded,
+          OperationResultCallback cb = nullptr, WakePolicy wake = WakePolicy::WAKE_IF_NEEDED,
           OperationPhaseCallback phase_cb = nullptr)
       : domain(d),
         name(std::move(n)),
@@ -162,7 +162,7 @@ class Vehicle {
 
   void on_rx_data(const std::vector<uint8_t> &data);
 
-  // Legacy overloads: bool requires_wake maps to WakePolicy::NoWakeSkip (false) or WakeIfNeeded (true).
+  // Legacy overloads: bool requires_wake maps to WakePolicy::NO_WAKE_SKIP (false) or WakeIfNeeded (true).
   // The rich-error callback receives nullptr for both success and skipped outcomes; to distinguish
   // them use send_command_result() with OperationResultCallback instead.
   void send_command(UniversalMessage_Domain domain, const std::string &name,
@@ -182,7 +182,7 @@ class Vehicle {
   void send_command_result(UniversalMessage_Domain domain, const std::string &name,
                            std::function<int(Client *, uint8_t *, size_t *)> builder,
                            Command::OperationResultCallback on_complete,
-                           WakePolicy wake_policy = WakePolicy::WakeIfNeeded,
+                           WakePolicy wake_policy = WakePolicy::WAKE_IF_NEEDED,
                            Command::OperationPhaseCallback on_phase_change = nullptr);
 
   void set_vehicle_status_callback(std::function<void(const VCSEC_VehicleStatus &)> cb) {
@@ -256,7 +256,7 @@ class Vehicle {
   bool is_connected() const { return is_connected_; }
   void set_connected(bool connected);
 
-  void set_awake(bool awake) { sleep_state_ = awake ? SleepState::Awake : SleepState::Asleep; }
+  void set_awake(bool awake) { sleep_state_ = awake ? SleepState::AWAKE : SleepState::ASLEEP; }
   void set_sleep_state(SleepState state) { sleep_state_ = state; }
   SleepState sleep_state() const { return sleep_state_; }
 
@@ -304,7 +304,7 @@ class Vehicle {
   std::function<void(const CarServer_ClosuresState &)> closures_state_callback_;
 
   bool is_connected_ = false;
-  SleepState sleep_state_ = SleepState::Unknown;
+  SleepState sleep_state_ = SleepState::UNKNOWN;
   bool recovery_attempted_ = false;
 
   static constexpr size_t FRAME_HEADER_SIZE = 2;

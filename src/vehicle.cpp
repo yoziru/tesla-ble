@@ -25,7 +25,7 @@ namespace TeslaBLE {
 namespace {
 
 WakePolicy wake_policy_from_bool(bool requires_wake) {
-  return requires_wake ? WakePolicy::WakeIfNeeded : WakePolicy::NoWakeSkip;
+  return requires_wake ? WakePolicy::WAKE_IF_NEEDED : WakePolicy::NO_WAKE_SKIP;
 }
 
 std::unique_ptr<CommandError> build_carserver_action_error(const CarServer_ActionStatus &status) {
@@ -88,7 +88,7 @@ void TeslaBLE::Vehicle::set_connected(bool connected) {
       info_peer->reset();
     }
 
-    sleep_state_ = SleepState::Unknown;
+    sleep_state_ = SleepState::UNKNOWN;
 
     while (!command_queue_.empty()) {
       auto cmd = command_queue_.front();
@@ -278,12 +278,12 @@ void TeslaBLE::Vehicle::process_authenticating_command_(const std::shared_ptr<Co
     case UniversalMessage_Domain_DOMAIN_INFOTAINMENT:
       if (!is_domain_authenticated_(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)) {
         LOG_DEBUG("VCSEC auth required before Infotainment auth");
-        set_command_phase_(command, OperationPhase::EnsuringVcsecSession);
+        set_command_phase_(command, OperationPhase::ENSURING_VCSEC_SESSION);
         command->current_auth_domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
         initiate_auth_for_domain_(command, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
                                   CommandState::AUTH_RESPONSE_WAITING, "VCSEC");
       } else {
-        set_command_phase_(command, OperationPhase::EnsuringInfotainmentSession);
+        set_command_phase_(command, OperationPhase::ENSURING_INFOTAINMENT_SESSION);
         initiate_auth_for_domain_(command, UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
                                   CommandState::AUTH_RESPONSE_WAITING, "Infotainment");
       }
@@ -327,7 +327,7 @@ void TeslaBLE::Vehicle::handle_auth_timeout_common_(const std::shared_ptr<Comman
   auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(now - command->started_at);
   int attempt_level = std::min(command->retry_count / 2, 3);
   static constexpr std::array<int, 4> TIMEOUT_THRESHOLDS = {30, 60, 120, 300};
-  if (total_duration > std::chrono::seconds(TIMEOUT_THRESHOLDS[attempt_level])) {
+  if (total_duration > std::chrono::seconds(TIMEOUT_THRESHOLDS.at(attempt_level))) {
     LOG_ERROR("Connection validation failed: %s auth stuck for %lld seconds (level %d, retry %d)", domain_name.c_str(),
               (long long) total_duration.count(), attempt_level, command->retry_count);
     reset_all_sessions_and_connection_();
@@ -368,7 +368,7 @@ void TeslaBLE::Vehicle::initiate_auth_for_domain_(const std::shared_ptr<Command>
                                                   const std::string &domain_name) {
   if (is_domain_authenticated_(domain)) {
     if (command->domain == domain) {
-      set_command_phase_(command, OperationPhase::SendingRequest);
+      set_command_phase_(command, OperationPhase::SENDING_REQUEST);
       command->state = CommandState::READY;
     } else if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY &&
                command->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
@@ -395,31 +395,31 @@ void TeslaBLE::Vehicle::initiate_auth_for_domain_(const std::shared_ptr<Command>
 
 void TeslaBLE::Vehicle::initiate_vcsec_auth_(const std::shared_ptr<Command> &command) {
   command->current_auth_domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
-  set_command_phase_(command, OperationPhase::EnsuringVcsecSession);
+  set_command_phase_(command, OperationPhase::ENSURING_VCSEC_SESSION);
   initiate_auth_for_domain_(command, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
                             CommandState::AUTH_RESPONSE_WAITING, "VCSEC");
 }
 
 void TeslaBLE::Vehicle::initiate_infotainment_auth_(const std::shared_ptr<Command> &command) {
-  set_command_phase_(command, OperationPhase::Queued);
+  set_command_phase_(command, OperationPhase::QUEUED);
 
   switch (command->wake_policy) {
-    case WakePolicy::NoWakeSkip:
+    case WakePolicy::NO_WAKE_SKIP:
       if (is_vehicle_observed_asleep_()) {
         LOG_DEBUG("Vehicle asleep, skipping command with NoWakeSkip: %s", command->name.c_str());
-        mark_command_skipped_(command, OperationTerminalReason::VehicleAsleep);
+        mark_command_skipped_(command, OperationTerminalReason::VEHICLE_ASLEEP);
         return;
       }
       break;
-    case WakePolicy::NoWakeFail:
+    case WakePolicy::NO_WAKE_FAIL:
       if (is_vehicle_observed_asleep_()) {
         LOG_DEBUG("Vehicle asleep, failing command with NoWakeFail: %s", command->name.c_str());
         mark_command_failed_(command, CommandError::build_failed("vehicle asleep"),
-                             OperationTerminalReason::VehicleAsleep);
+                             OperationTerminalReason::VEHICLE_ASLEEP);
         return;
       }
       break;
-    case WakePolicy::WakeIfNeeded:
+    case WakePolicy::WAKE_IF_NEEDED:
       break;
   }
 
@@ -429,21 +429,21 @@ void TeslaBLE::Vehicle::initiate_infotainment_auth_(const std::shared_ptr<Comman
 void TeslaBLE::Vehicle::advance_infotainment_prerequisites_(const std::shared_ptr<Command> &command) {
   if (!is_domain_authenticated_(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)) {
     LOG_DEBUG("VCSEC auth required before Infotainment auth");
-    set_command_phase_(command, OperationPhase::EnsuringVcsecSession);
+    set_command_phase_(command, OperationPhase::ENSURING_VCSEC_SESSION);
     initiate_vcsec_auth_(command);
     return;
   }
 
-  if (!is_vehicle_observed_awake_() && command->wake_policy == WakePolicy::WakeIfNeeded) {
+  if (!is_vehicle_observed_awake_() && command->wake_policy == WakePolicy::WAKE_IF_NEEDED) {
     LOG_DEBUG("Vehicle is not awake and wake policy requires wake, initiating wake sequence");
-    set_command_phase_(command, OperationPhase::EnsuringAwake);
+    set_command_phase_(command, OperationPhase::ENSURING_AWAKE);
     command->current_auth_domain = UniversalMessage_Domain_DOMAIN_BROADCAST;
     command->state = CommandState::AUTHENTICATING;
     command->last_tx_at = std::chrono::steady_clock::time_point();
     return;
   }
 
-  set_command_phase_(command, OperationPhase::EnsuringInfotainmentSession);
+  set_command_phase_(command, OperationPhase::ENSURING_INFOTAINMENT_SESSION);
   initiate_auth_for_domain_(command, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, CommandState::AUTH_RESPONSE_WAITING,
                             "Infotainment");
 }
@@ -453,7 +453,7 @@ void TeslaBLE::Vehicle::resume_command_after_prerequisite_(const std::shared_ptr
 }
 
 void TeslaBLE::Vehicle::initiate_wake_sequence_(const std::shared_ptr<Command> &command) {
-  set_command_phase_(command, OperationPhase::EnsuringAwake);
+  set_command_phase_(command, OperationPhase::ENSURING_AWAKE);
   uint8_t buffer[256];
   size_t len = 256;
   if (client_->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, buffer, &len) == 0) {
@@ -510,7 +510,7 @@ void TeslaBLE::Vehicle::retry_command(const std::shared_ptr<Command> &command) {
             static_cast<long long>(backoff_delay.count()), command->name.c_str());
   command->last_tx_at = std::chrono::steady_clock::now() - backoff_delay + std::chrono::milliseconds(100);
 
-  set_command_phase_(command, OperationPhase::Queued);
+  set_command_phase_(command, OperationPhase::QUEUED);
   switch (command->state) {
     case CommandState::WAITING_FOR_RESPONSE:
       command->state = CommandState::READY;
@@ -523,7 +523,7 @@ void TeslaBLE::Vehicle::retry_command(const std::shared_ptr<Command> &command) {
 }
 
 void TeslaBLE::Vehicle::process_ready_command_(const std::shared_ptr<Command> &command) {
-  set_command_phase_(command, OperationPhase::SendingRequest);
+  set_command_phase_(command, OperationPhase::SENDING_REQUEST);
   uint8_t buffer[256];
   size_t len = 256;
   if (command->builder(client_.get(), buffer, &len) == 0) {
@@ -531,7 +531,7 @@ void TeslaBLE::Vehicle::process_ready_command_(const std::shared_ptr<Command> &c
     if (ble_adapter_->write(data)) {
       LOG_DEBUG("Sent command: %s (%zu bytes)", command->name.c_str(), data.size());
       command->state = CommandState::WAITING_FOR_RESPONSE;
-      set_command_phase_(command, OperationPhase::AwaitingResponse);
+      set_command_phase_(command, OperationPhase::AWAITING_RESPONSE);
       command->last_tx_at = std::chrono::steady_clock::now();
     } else {
       LOG_ERROR("Failed to write command data: %s", command->name.c_str());
@@ -567,7 +567,7 @@ void TeslaBLE::Vehicle::mark_command_failed_(const std::shared_ptr<Command> &com
 
 void TeslaBLE::Vehicle::mark_command_completed_(const std::shared_ptr<Command> &command) {
   command->state = CommandState::COMPLETED;
-  set_command_phase_(command, OperationPhase::Terminal);
+  set_command_phase_(command, OperationPhase::TERMINAL);
   auto now = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - command->started_at);
   LOG_INFO("[%s] Command completed successfully in %lld ms", command->name.c_str(), (long long) duration.count());
@@ -576,7 +576,7 @@ void TeslaBLE::Vehicle::mark_command_completed_(const std::shared_ptr<Command> &
 
 void TeslaBLE::Vehicle::mark_command_skipped_(const std::shared_ptr<Command> &command, OperationTerminalReason reason) {
   command->state = CommandState::COMPLETED;
-  set_command_phase_(command, OperationPhase::Terminal);
+  set_command_phase_(command, OperationPhase::TERMINAL);
   LOG_INFO("[%s] Command skipped (reason: %d)", command->name.c_str(), static_cast<int>(reason));
   finalize_command_(command, OperationResult::skipped(reason));
 }
@@ -600,9 +600,9 @@ void TeslaBLE::Vehicle::finalize_command_(const std::shared_ptr<Command> &comman
   }
 }
 
-bool Vehicle::is_vehicle_observed_awake_() const { return sleep_state_ == SleepState::Awake; }
+bool Vehicle::is_vehicle_observed_awake_() const { return sleep_state_ == SleepState::AWAKE; }
 
-bool Vehicle::is_vehicle_observed_asleep_() const { return sleep_state_ == SleepState::Asleep; }
+bool Vehicle::is_vehicle_observed_asleep_() const { return sleep_state_ == SleepState::ASLEEP; }
 
 bool Vehicle::is_domain_authenticated_(UniversalMessage_Domain domain) {
   auto *peer = client_->get_peer(domain);
@@ -630,7 +630,7 @@ bool Vehicle::is_message_complete() {
 int Vehicle::get_expected_message_length() {
   if (rx_buffer_.size() < FRAME_HEADER_SIZE)
     return 0;
-  return static_cast<int>((rx_buffer_[0] << 8) | rx_buffer_[1]) + FRAME_HEADER_SIZE;
+  return static_cast<int>((rx_buffer_.at(0) << 8) | rx_buffer_.at(1)) + FRAME_HEADER_SIZE;
 }
 
 void TeslaBLE::Vehicle::process_complete_message() {
@@ -880,8 +880,8 @@ void TeslaBLE::Vehicle::handle_vcsec_message_(const UniversalMessage_RoutableMes
       log_vehicle_status(TESLA_LOG_TAG, &vcsec_msg.sub_message.vehicleStatus);
       sleep_state_ = vcsec_msg.sub_message.vehicleStatus.vehicleSleepStatus !=
                              VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_ASLEEP
-                         ? SleepState::Awake
-                         : SleepState::Asleep;
+                         ? SleepState::AWAKE
+                         : SleepState::ASLEEP;
       if (vehicle_status_callback_) {
         vehicle_status_callback_(vcsec_msg.sub_message.vehicleStatus);
       }
@@ -970,7 +970,7 @@ void TeslaBLE::Vehicle::handle_authentication_response_(UniversalMessage_Domain 
       resume_command_after_prerequisite_(cmd);
       return;
     }
-    set_command_phase_(cmd, OperationPhase::SendingRequest);
+    set_command_phase_(cmd, OperationPhase::SENDING_REQUEST);
     cmd->state = CommandState::READY;
     return;
   }
@@ -1019,7 +1019,7 @@ bool Vehicle::attempt_buffer_recovery_(int &msg_len) {
 
   // Search for potential next valid message start
   for (size_t i = 1; i < rx_buffer_.size() - FRAME_HEADER_SIZE; i++) {
-    uint16_t potential_len = (rx_buffer_[i] << 8) | rx_buffer_[i + 1];
+    uint16_t potential_len = (rx_buffer_.at(i) << 8) | rx_buffer_.at(i + 1);
 
     // Valid length check: reasonable size and fits in buffer
     // Also check for corrupted length values (near max uint16)
@@ -1053,7 +1053,7 @@ void TeslaBLE::Vehicle::handle_vehicle_status_command_update_(const std::shared_
         if (cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
           LOG_DEBUG("Transitioning infotainment command to auth state after wake");
           // Restart the step timeout budget now that wake succeeded and infotainment auth can begin.
-          set_command_phase_(cmd, OperationPhase::EnsuringInfotainmentSession);
+          set_command_phase_(cmd, OperationPhase::ENSURING_INFOTAINMENT_SESSION);
           cmd->current_auth_domain = UniversalMessage_Domain_DOMAIN_INFOTAINMENT;
           cmd->state = CommandState::AUTHENTICATING;
         } else {

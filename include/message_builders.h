@@ -22,7 +22,7 @@ class VehicleActionBuilder {
    * @brief Get the map of builders for direct access
    * @return Reference to the builders map
    */
-  static const std::unordered_map<pb_size_t, BuilderFunction> &get_builders() { return BUILDERS; }
+  static const std::unordered_map<pb_size_t, BuilderFunction> &get_builders();
 
  private:
   // Builder functions for different action types
@@ -56,8 +56,7 @@ class VehicleActionBuilder {
   static int build_vehicle_control_schedule_software_update(CarServer_VehicleAction &action, const void *data);
   static int build_set_cabin_overheat_protection(CarServer_VehicleAction &action, const void *data);
 
-  // Map of action types to their builder functions
-  static const std::unordered_map<pb_size_t, BuilderFunction> BUILDERS;
+  // Map of action types to their builder functions - initialized lazily via get_builders()
 
   // Helper functions
   static int validate_input_parameters(const pb_byte_t *output_buffer, const size_t *output_length);

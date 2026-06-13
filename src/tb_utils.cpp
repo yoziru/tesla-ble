@@ -29,12 +29,13 @@ TeslaBLE_Status_E pb_encode_fields(pb_byte_t *output_buffer, size_t *output_leng
                                    const void *src_struct) {
   // Validate input parameters
   if (!output_buffer || !output_length || !fields || !src_struct) {
-    LOG_ERROR("pb_encode: Invalid parameters (buffer=%p, length=%p, fields=%p, struct=%p)", output_buffer,
-              output_length, fields, src_struct);
+    LOG_ERROR("pb_encode: Invalid parameters (buffer=%p, length=%p, fields=%p, struct=%p)", (void *) output_buffer,
+              (void *) output_length, (void *) fields, src_struct);
     return TeslaBLE_Status_E_ERROR_PB_ENCODING;
   }
 
-  pb_ostream_t unsigned_message_size_stream = {nullptr, 0, 0, 0, nullptr};
+  pb_ostream_t unsigned_message_size_stream = {
+      .callback = nullptr, .state = nullptr, .max_size = 0, .bytes_written = 0, .errmsg = nullptr};
   bool status_encode_length = pb_encode(&unsigned_message_size_stream, fields, src_struct);
   if (!status_encode_length) {
     LOG_ERROR("pb_encode: Failed to get encoded message size (err: %s)", PB_GET_ERROR(&unsigned_message_size_stream));

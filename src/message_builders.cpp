@@ -49,40 +49,42 @@ template<typename T> const T *require_data(const void *data, const char *message
 }
 }  // namespace
 
-// Initialize the static builder map
-const std::unordered_map<pb_size_t, VehicleActionBuilder::BuilderFunction> VehicleActionBuilder::BUILDERS = {
-    {CarServer_VehicleAction_chargingSetLimitAction_tag, build_charging_set_limit},
-    {CarServer_VehicleAction_chargingStartStopAction_tag, build_charging_start_stop},
-    {CarServer_VehicleAction_setChargingAmpsAction_tag, build_set_charging_amps},
-    {CarServer_VehicleAction_chargePortDoorOpen_tag, build_charge_port_door_open},
-    {CarServer_VehicleAction_chargePortDoorClose_tag, build_charge_port_door_close},
-    {CarServer_VehicleAction_scheduledChargingAction_tag, build_scheduled_charging},
-    {CarServer_VehicleAction_hvacAutoAction_tag, build_hvac_auto_action},
-    {CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag, build_hvac_steering_wheel_heater},
-    {CarServer_VehicleAction_vehicleControlFlashLightsAction_tag, build_vehicle_control_flash_lights},
-    {CarServer_VehicleAction_vehicleControlHonkHornAction_tag, build_vehicle_control_honk_horn},
-    {CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, build_vehicle_control_set_sentry_mode},
-    {CarServer_VehicleAction_vehicleControlCancelSoftwareUpdateAction_tag,
-     build_vehicle_control_cancel_software_update},
-    {CarServer_VehicleAction_vehicleControlResetValetPinAction_tag, build_vehicle_control_reset_valet_pin},
-    {CarServer_VehicleAction_vehicleControlResetPinToDriveAction_tag, build_vehicle_control_reset_pin_to_drive},
-    {CarServer_VehicleAction_drivingClearSpeedLimitPinAdminAction_tag, build_driving_clear_speed_limit_pin_admin},
-    {CarServer_VehicleAction_vehicleControlResetPinToDriveAdminAction_tag,
-     build_vehicle_control_reset_pin_to_drive_admin},
-    {CarServer_VehicleAction_mediaPlayAction_tag, build_media_play_action},
-    {CarServer_VehicleAction_mediaNextFavorite_tag, build_media_next_favorite},
-    {CarServer_VehicleAction_mediaPreviousFavorite_tag, build_media_previous_favorite},
-    {CarServer_VehicleAction_mediaNextTrack_tag, build_media_next_track},
-    {CarServer_VehicleAction_mediaPreviousTrack_tag, build_media_previous_track},
-    {CarServer_VehicleAction_ping_tag, build_ping_action},
-    {CarServer_VehicleAction_vehicleControlWindowAction_tag, build_vehicle_control_window_action},
-    {CarServer_VehicleAction_hvacSetPreconditioningMaxAction_tag, build_hvac_set_preconditioning_max},
-    {CarServer_VehicleAction_hvacTemperatureAdjustmentAction_tag, build_hvac_temperature_adjustment},
-    {CarServer_VehicleAction_hvacClimateKeeperAction_tag, build_hvac_climate_keeper},
-    {CarServer_VehicleAction_hvacBioweaponModeAction_tag, build_hvac_bioweapon_mode},
-    {CarServer_VehicleAction_vehicleControlScheduleSoftwareUpdateAction_tag,
-     build_vehicle_control_schedule_software_update},
-    {CarServer_VehicleAction_setCabinOverheatProtectionAction_tag, build_set_cabin_overheat_protection}};
+const std::unordered_map<pb_size_t, VehicleActionBuilder::BuilderFunction> &VehicleActionBuilder::get_builders() {
+  static const std::unordered_map<pb_size_t, BuilderFunction> BUILDERS = {
+      {CarServer_VehicleAction_chargingSetLimitAction_tag, build_charging_set_limit},
+      {CarServer_VehicleAction_chargingStartStopAction_tag, build_charging_start_stop},
+      {CarServer_VehicleAction_setChargingAmpsAction_tag, build_set_charging_amps},
+      {CarServer_VehicleAction_chargePortDoorOpen_tag, build_charge_port_door_open},
+      {CarServer_VehicleAction_chargePortDoorClose_tag, build_charge_port_door_close},
+      {CarServer_VehicleAction_scheduledChargingAction_tag, build_scheduled_charging},
+      {CarServer_VehicleAction_hvacAutoAction_tag, build_hvac_auto_action},
+      {CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag, build_hvac_steering_wheel_heater},
+      {CarServer_VehicleAction_vehicleControlFlashLightsAction_tag, build_vehicle_control_flash_lights},
+      {CarServer_VehicleAction_vehicleControlHonkHornAction_tag, build_vehicle_control_honk_horn},
+      {CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, build_vehicle_control_set_sentry_mode},
+      {CarServer_VehicleAction_vehicleControlCancelSoftwareUpdateAction_tag,
+       build_vehicle_control_cancel_software_update},
+      {CarServer_VehicleAction_vehicleControlResetValetPinAction_tag, build_vehicle_control_reset_valet_pin},
+      {CarServer_VehicleAction_vehicleControlResetPinToDriveAction_tag, build_vehicle_control_reset_pin_to_drive},
+      {CarServer_VehicleAction_drivingClearSpeedLimitPinAdminAction_tag, build_driving_clear_speed_limit_pin_admin},
+      {CarServer_VehicleAction_vehicleControlResetPinToDriveAdminAction_tag,
+       build_vehicle_control_reset_pin_to_drive_admin},
+      {CarServer_VehicleAction_mediaPlayAction_tag, build_media_play_action},
+      {CarServer_VehicleAction_mediaNextFavorite_tag, build_media_next_favorite},
+      {CarServer_VehicleAction_mediaPreviousFavorite_tag, build_media_previous_favorite},
+      {CarServer_VehicleAction_mediaNextTrack_tag, build_media_next_track},
+      {CarServer_VehicleAction_mediaPreviousTrack_tag, build_media_previous_track},
+      {CarServer_VehicleAction_ping_tag, build_ping_action},
+      {CarServer_VehicleAction_vehicleControlWindowAction_tag, build_vehicle_control_window_action},
+      {CarServer_VehicleAction_hvacSetPreconditioningMaxAction_tag, build_hvac_set_preconditioning_max},
+      {CarServer_VehicleAction_hvacTemperatureAdjustmentAction_tag, build_hvac_temperature_adjustment},
+      {CarServer_VehicleAction_hvacClimateKeeperAction_tag, build_hvac_climate_keeper},
+      {CarServer_VehicleAction_hvacBioweaponModeAction_tag, build_hvac_bioweapon_mode},
+      {CarServer_VehicleAction_vehicleControlScheduleSoftwareUpdateAction_tag,
+       build_vehicle_control_schedule_software_update},
+      {CarServer_VehicleAction_setCabinOverheatProtectionAction_tag, build_set_cabin_overheat_protection}};
+  return BUILDERS;
+}
 
 // Builder implementations
 int VehicleActionBuilder::build_charging_set_limit(CarServer_VehicleAction &action, const void *data) {

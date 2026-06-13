@@ -12,6 +12,7 @@ void set_log_callback(LogCallback callback) { g_log_callback = callback; }
 
 LogCallback get_log_callback() { return g_log_callback; }
 
+// NOLINTNEXTLINE(modernize-avoid-variadic-functions)
 void log_internal(LogLevel level, const char *tag, int line, const char *format, ...) {
   (void) line;  // Line number available for future use
 

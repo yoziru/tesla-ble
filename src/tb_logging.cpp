@@ -595,7 +595,7 @@ void log_charge_state(const char *tag, const CarServer_ChargeState &charge_state
   }
 
   if (charge_state.which_optional_battery_level) {
-    LOG_DEBUG("Battery Level: %ld%%", charge_state.optional_battery_level.battery_level);
+    LOG_DEBUG("Battery Level: %d%%", charge_state.optional_battery_level.battery_level);
   }
 
   if (charge_state.which_optional_battery_range) {
@@ -603,39 +603,39 @@ void log_charge_state(const char *tag, const CarServer_ChargeState &charge_state
   }
 
   if (charge_state.which_optional_charger_power) {
-    LOG_DEBUG("Charger Power: %ld", charge_state.optional_charger_power.charger_power);
+    LOG_DEBUG("Charger Power: %d", charge_state.optional_charger_power.charger_power);
   }
 
   if (charge_state.which_optional_charge_rate_mph) {
-    LOG_DEBUG("Charge Rate: %ld mph", charge_state.optional_charge_rate_mph.charge_rate_mph);
+    LOG_DEBUG("Charge Rate: %d mph", charge_state.optional_charge_rate_mph.charge_rate_mph);
   }
 
   if (charge_state.which_optional_minutes_to_full_charge) {
-    LOG_DEBUG("Minutes to Full: %ld", charge_state.optional_minutes_to_full_charge.minutes_to_full_charge);
+    LOG_DEBUG("Minutes to Full: %d", charge_state.optional_minutes_to_full_charge.minutes_to_full_charge);
   }
 
   if (charge_state.which_optional_minutes_to_charge_limit) {
-    LOG_DEBUG("Minutes to Charge Limit: %ld", charge_state.optional_minutes_to_charge_limit.minutes_to_charge_limit);
+    LOG_DEBUG("Minutes to Charge Limit: %d", charge_state.optional_minutes_to_charge_limit.minutes_to_charge_limit);
   }
 
   if (charge_state.which_optional_charger_voltage) {
-    LOG_DEBUG("Charger Voltage: %ld", charge_state.optional_charger_voltage.charger_voltage);
+    LOG_DEBUG("Charger Voltage: %d", charge_state.optional_charger_voltage.charger_voltage);
   }
 
   if (charge_state.which_optional_charger_pilot_current) {
-    LOG_DEBUG("Charger Pilot Current: %ld", charge_state.optional_charger_pilot_current.charger_pilot_current);
+    LOG_DEBUG("Charger Pilot Current: %d", charge_state.optional_charger_pilot_current.charger_pilot_current);
   }
 
   if (charge_state.which_optional_charger_actual_current) {
-    LOG_DEBUG("Charger Actual Current: %ld", charge_state.optional_charger_actual_current.charger_actual_current);
+    LOG_DEBUG("Charger Actual Current: %d", charge_state.optional_charger_actual_current.charger_actual_current);
   }
 
   if (charge_state.which_optional_charge_current_request) {
-    LOG_DEBUG("Charge Current Request: %ld", charge_state.optional_charge_current_request.charge_current_request);
+    LOG_DEBUG("Charge Current Request: %d", charge_state.optional_charge_current_request.charge_current_request);
   }
 
   if (charge_state.which_optional_charge_current_request_max) {
-    LOG_DEBUG("Charge Current Request Max: %ld",
+    LOG_DEBUG("Charge Current Request Max: %d",
               charge_state.optional_charge_current_request_max.charge_current_request_max);
   }
 
@@ -665,7 +665,7 @@ void log_charge_state(const char *tag, const CarServer_ChargeState &charge_state
   }
 
   if (charge_state.which_optional_charger_phases) {
-    LOG_DEBUG("Charger Phases: %ld", charge_state.optional_charger_phases.charger_phases);
+    LOG_DEBUG("Charger Phases: %d", charge_state.optional_charger_phases.charger_phases);
   }
 
   if (charge_state.which_optional_charge_port_color) {
@@ -682,7 +682,7 @@ void log_charge_state(const char *tag, const CarServer_ChargeState &charge_state
       LOG_DEBUG("Charge On Solar State: %d", charge_state.managed_charging_state.charge_on_solar_state.which_state);
     }
     if (charge_state.managed_charging_state.which_optional_minutes_to_lower_limit) {
-      LOG_DEBUG("Managed Charging Minutes to Lower Limit: %ld",
+      LOG_DEBUG("Managed Charging Minutes to Lower Limit: %d",
                 charge_state.managed_charging_state.optional_minutes_to_lower_limit.minutes_to_lower_limit);
     }
   }
@@ -796,7 +796,7 @@ void log_carserver_response(const char *tag, const CarServer_Response *msg) {
       break;
     case CarServer_Response_ping_tag:
       LOG_DEBUG("  ping:");
-      LOG_DEBUG("    ping: %ld", msg->response_msg.ping.ping_id);
+      LOG_DEBUG("    ping: %d", msg->response_msg.ping.ping_id);
       break;
     default:
       // do nothing

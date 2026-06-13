@@ -272,7 +272,8 @@ int Client::parse_universal_message(pb_byte_t *input_buffer, size_t input_buffer
                                     UniversalMessage_RoutableMessage *output) {
   // Validate input parameters
   if (input_buffer == nullptr || output == nullptr || input_buffer_length == 0) {
-    LOG_ERROR("Invalid parameters: input_buffer=%p, output=%p, length=%zu", input_buffer, output, input_buffer_length);
+    LOG_ERROR("Invalid parameters: input_buffer=%p, output=%p, length=%zu", (void *) input_buffer, (void *) output,
+              input_buffer_length);
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
@@ -306,7 +307,7 @@ int Client::parse_payload_session_info(UniversalMessage_RoutableMessage_session_
                                        Signatures_SessionInfo *output) {
   // Validate input parameters
   if (input_buffer == nullptr || output == nullptr) {
-    LOG_ERROR("Invalid parameters: input_buffer=%p, output=%p", input_buffer, output);
+    LOG_ERROR("Invalid parameters: input_buffer=%p, output=%p", (void *) input_buffer, (void *) output);
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 

@@ -10,7 +10,6 @@
 #include <esp_log.h>
 #endif
 
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables) - False positive on namespace
 namespace TeslaBLE {
 
 enum class LogLevel { ERROR, WARN, INFO, DEBUG, VERBOSE };
@@ -19,10 +18,11 @@ using LogCallback = void (*)(LogLevel level, const char *tag, int line, const ch
 
 void set_log_callback(LogCallback callback);
 LogCallback get_log_callback();
-void log_internal(LogLevel level, const char *tag, int line, const char *format, ...);
+
+void log_internal(LogLevel level, const char *tag, int line, const char *format, ...)
+    __attribute__((format(printf, 4, 5)));
 
 }  // namespace TeslaBLE
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 #define LOG_ERROR(format, ...) \
   TeslaBLE::log_internal(TeslaBLE::LogLevel::ERROR, TESLA_LOG_TAG, __LINE__, format __VA_OPT__(, ) __VA_ARGS__)

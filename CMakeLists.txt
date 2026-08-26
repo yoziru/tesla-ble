@@ -180,6 +180,17 @@ else()
     
     target_link_libraries(TeslaBLE PUBLIC mbedcrypto mbedtls mbedx509)
 
+    # Strict warnings for the library's own C++ sources. Scoped to this target and
+    # language so third-party deps (mbedtls, nanopb) and generated .pb.c files are
+    # unaffected. -Wno-format-nonliteral allows variadic log-forwarding helpers.
+    # Host ABIs still miss xtensa-only int32_t/long mismatches; use PRI macros
+    # from <cinttypes> for fixed-width values.
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(TeslaBLE PRIVATE
+            $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wformat=2 -Wno-format-nonliteral -Werror>
+        )
+    endif()
+
     set_target_properties(TeslaBLE PROPERTIES PUBLIC_HEADER "${TESLABLE_PUBLIC_HEADERS}")
     
     # Only build tests if this is the main project

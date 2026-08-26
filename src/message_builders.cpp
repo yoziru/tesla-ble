@@ -6,38 +6,9 @@
 #include "car_server.pb.h"
 #include "universal_message.pb.h"
 
-namespace TeslaBLE {
+#include <cinttypes>
 
-// Forward declarations of builder functions
-static int build_charging_set_limit(CarServer_VehicleAction &action, const void *data);
-static int build_charging_start_stop(CarServer_VehicleAction &action, const void *data);
-static int build_set_charging_amps(CarServer_VehicleAction &action, const void *data);
-static int build_charge_port_door_open(CarServer_VehicleAction &action, const void *data);
-static int build_charge_port_door_close(CarServer_VehicleAction &action, const void *data);
-static int build_scheduled_charging(CarServer_VehicleAction &action, const void *data);
-static int build_hvac_auto_action(CarServer_VehicleAction &action, const void *data);
-static int build_hvac_steering_wheel_heater(CarServer_VehicleAction &action, const void *data);
-static int build_vehicle_control_flash_lights(CarServer_VehicleAction &action, const void *data);
-static int build_vehicle_control_honk_horn(CarServer_VehicleAction &action, const void *data);
-static int build_vehicle_control_set_sentry_mode(CarServer_VehicleAction &action, const void *data);
-static int build_media_play_action(CarServer_VehicleAction &action, const void *data);
-static int build_media_next_favorite(CarServer_VehicleAction &action, const void *data);
-static int build_media_previous_favorite(CarServer_VehicleAction &action, const void *data);
-static int build_media_next_track(CarServer_VehicleAction &action, const void *data);
-static int build_media_previous_track(CarServer_VehicleAction &action, const void *data);
-static int build_ping_action(CarServer_VehicleAction &action, const void *data);
-static int build_vehicle_control_window_action(CarServer_VehicleAction &action, const void *data);
-static int build_hvac_set_preconditioning_max(CarServer_VehicleAction &action, const void *data);
-static int build_hvac_temperature_adjustment(CarServer_VehicleAction &action, const void *data);
-static int build_hvac_climate_keeper(CarServer_VehicleAction &action, const void *data);
-static int build_hvac_bioweapon_mode(CarServer_VehicleAction &action, const void *data);
-static int build_vehicle_control_schedule_software_update(CarServer_VehicleAction &action, const void *data);
-static int build_set_cabin_overheat_protection(CarServer_VehicleAction &action, const void *data);
-static int build_vehicle_control_cancel_software_update(CarServer_VehicleAction &action, const void *data);
-static int build_vehicle_control_reset_valet_pin(CarServer_VehicleAction &action, const void *data);
-static int build_vehicle_control_reset_pin_to_drive(CarServer_VehicleAction &action, const void *data);
-static int build_driving_clear_speed_limit_pin_admin(CarServer_VehicleAction &action, const void *data);
-static int build_vehicle_control_reset_pin_to_drive_admin(CarServer_VehicleAction &action, const void *data);
+namespace TeslaBLE {
 
 namespace {
 template<typename T> const T *require_data(const void *data, const char *message) {
@@ -95,7 +66,7 @@ int VehicleActionBuilder::build_charging_set_limit(CarServer_VehicleAction &acti
 
   int32_t percent = *percent_ptr;
   if (!ParameterValidator::is_valid_charging_limit(percent)) {
-    LOG_ERROR("Invalid charging limit percentage: %d (must be 50-100)", percent);
+    LOG_ERROR("Invalid charging limit percentage: %" PRId32 " (must be 50-100)", percent);
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
@@ -133,9 +104,9 @@ int VehicleActionBuilder::build_set_charging_amps(CarServer_VehicleAction &actio
   }
 
   int32_t amps = *amps_ptr;
-  LOG_DEBUG("Charging amps received: %d", amps);
+  LOG_DEBUG("Charging amps received: %" PRId32, amps);
   if (!ParameterValidator::is_valid_charging_amps(amps)) {
-    LOG_ERROR("Invalid charging amps value: %d (must be 0-80)", amps);
+    LOG_ERROR("Invalid charging amps value: %" PRId32 " (must be 0-80)", amps);
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 

@@ -27,6 +27,7 @@
 #include <pb_encode.h>
 
 #include <algorithm>
+#include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -133,7 +134,7 @@ const Peer *Client::get_peer(UniversalMessage_Domain domain) const {
     case UniversalMessage_Domain_DOMAIN_INFOTAINMENT:
       return session_infotainment_.get();
     default:
-      LOG_ERROR("Invalid domain: %d", domain);
+      LOG_ERROR("Invalid domain: %d", static_cast<int>(domain));
       return nullptr;
   }
 }
@@ -182,8 +183,8 @@ int Client::build_white_list_message(Keys_Role role, VCSEC_KeyFormFactor form_fa
 
   // Validate role parameter - Tesla protocol requires specific role values
   if (role < _Keys_Role_MIN || role > _Keys_Role_MAX) {
-    LOG_ERROR("[build_white_list_message] Invalid role value: %d (valid range: %d-%d)", role, _Keys_Role_MIN,
-              _Keys_Role_MAX);
+    LOG_ERROR("[build_white_list_message] Invalid role value: %d (valid range: %d-%d)", static_cast<int>(role),
+              static_cast<int>(_Keys_Role_MIN), static_cast<int>(_Keys_Role_MAX));
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
@@ -520,7 +521,7 @@ int Client::build_universal_message_with_payload(pb_byte_t *payload, size_t payl
                                                  UniversalMessage_Domain domain, pb_byte_t *output_buffer,
                                                  size_t *output_length, bool encrypt_payload) {
   LOG_DEBUG("[build_universal_message_with_payload] Called with payload=%p, payload_length=%zu, domain=%d", payload,
-            payload_length, domain);
+            payload_length, static_cast<int>(domain));
 
   // Reject empty or null payloads
   if (payload == nullptr || payload_length == 0) {
@@ -589,8 +590,6 @@ int Client::build_universal_message_with_payload(pb_byte_t *payload, size_t payl
     signature_data.signer_identity = signer_identity;
 
     // Set AES-GCM signature data
-    Signatures_AES_GCM_Personalized_Signature_Data aes_gcm_signature_data =
-        Signatures_AES_GCM_Personalized_Signature_Data_init_default;
     signature_data.which_sig_type = Signatures_SignatureData_AES_GCM_Personalized_data_tag;
     signature_data.sig_type.AES_GCM_Personalized_data.counter = session->get_counter();
     signature_data.sig_type.AES_GCM_Personalized_data.expires_at = expires_at;
@@ -816,7 +815,7 @@ int Client::build_car_server_vehicle_action_message(pb_byte_t *output_buffer, si
   const auto &builders = VehicleActionBuilder::get_builders();
   auto it = builders.find(which_vehicle_action);
   if (it == builders.end()) {
-    LOG_ERROR("Unsupported vehicle action type: %d", which_vehicle_action);
+    LOG_ERROR("Unsupported vehicle action type: %" PRId32, which_vehicle_action);
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 

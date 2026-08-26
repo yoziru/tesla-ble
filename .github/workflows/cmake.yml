@@ -85,7 +85,7 @@ jobs:
         if: matrix.check != 'format'
         uses: hendrikmuhs/ccache-action@v1.2.20
         with:
-          key: checks-${{ matrix.check }}-${{ runner.os }}-mbedtls-3.6.5
+          key: checks-${{ matrix.check }}-${{ runner.os }}-mbedtls-3.6.6
 
       - name: Set reusable strings
         if: matrix.check != 'format'

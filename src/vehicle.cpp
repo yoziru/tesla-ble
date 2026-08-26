@@ -798,7 +798,16 @@ void TeslaBLE::Vehicle::handle_session_info_message_(const UniversalMessage_Rout
   }
 
   auto *peer = client_->get_peer(domain);
-  if (peer && peer->update_session(&session_info) == 0) {
+  int update_result = peer ? peer->update_session(&session_info) : TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+  if (peer && update_result == TeslaBLE_Status_E_ERROR_COUNTER_REPLAY) {
+    // The vehicle reports a counter below ours (it lost counter state).
+    // Upstream signer.go always applies such updates, keeping
+    // max(local, reported); hard-rejecting strands the session with a counter
+    // the vehicle no longer acks. Resync to the vehicle's truth.
+    LOG_WARNING("Counter replay for %s - forcing session resync to vehicle counter", domain_to_string(domain));
+    update_result = peer->force_update_session(&session_info);
+  }
+  if (peer && update_result == TeslaBLE_Status_E_OK) {
     LOG_INFO("Session updated for %s", domain_to_string(domain));
     persist_session_(domain, msg.payload.session_info);
     handle_authentication_response_(domain, true);

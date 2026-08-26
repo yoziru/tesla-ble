@@ -719,6 +719,61 @@ TEST_F(VehicleTest, CounterReplaySessionInfoIsAppliedInsteadOfRejected) {
       << "Verified lower-counter session info should be applied and persisted";
 }
 
+namespace {
+std::vector<std::string> g_session_load_logs;
+void session_load_log_sink(TeslaBLE::LogLevel, const char *, int, const char *format, va_list args) {
+  char buffer[512];
+  vsnprintf(buffer, sizeof(buffer), format, args);
+  g_session_load_logs.emplace_back(buffer);
+}
+}  // namespace
+
+TEST_F(VehicleTest, StoredSessionWithFutureClockTimeIsNotRejected) {
+  // A device that reboots before its time source resyncs (e.g. HA-pushed
+  // time) runs with the system clock far behind the clock_time recorded in
+  // the stored session. Unsigned subtraction used to underflow there,
+  // rejecting EVERY stored session as "too old" until time synced again.
+  namespace sc = std::chrono;
+
+  Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
+  session_info.status = Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK;
+  session_info.clock_time = static_cast<uint32_t>(
+      sc::duration_cast<sc::seconds>(sc::system_clock::now().time_since_epoch()).count() + 1000000);
+  session_info.counter = 7;
+  std::memcpy(session_info.epoch, TeslaBLE::TestConstants::TEST_EPOCH, sizeof(session_info.epoch));
+  std::memcpy(session_info.publicKey.bytes, TeslaBLE::TestConstants::EXPECTED_VEHICLE_PUBLIC_KEY, 65);
+  session_info.publicKey.size = 65;
+
+  pb_byte_t blob[256];
+  size_t blob_length = sizeof(blob);
+  ASSERT_EQ(TeslaBLE::pb_encode_fields(blob, &blob_length, Signatures_SessionInfo_fields, &session_info),
+            TeslaBLE_Status_E_OK);
+  mock_storage_->set_data("session_vcsec", std::vector<uint8_t>(blob, blob + blob_length));
+
+  g_session_load_logs.clear();
+  TeslaBLE::set_log_callback(session_load_log_sink);
+
+  {
+    auto vehicle_with_stored_session = std::make_shared<Vehicle>(mock_ble_, mock_storage_);
+    (void) vehicle_with_stored_session;
+  }
+
+  TeslaBLE::set_log_callback(nullptr);
+
+  bool loaded = false;
+  bool rejected_as_too_old = false;
+  for (const auto &m : g_session_load_logs) {
+    if (m.find("Loaded session from storage") != std::string::npos) {
+      loaded = true;
+    }
+    if (m.find("is too old") != std::string::npos) {
+      rejected_as_too_old = true;
+    }
+  }
+  EXPECT_TRUE(loaded) << "Stored session should load when the local clock is behind session time";
+  EXPECT_FALSE(rejected_as_too_old) << "Backwards clock must not read as an ancient session";
+}
+
 TEST_F(VehicleTest, InfotainmentActionFailureSurfacesPlainTextReason) {
   vehicle_->set_connected(true);
   vehicle_->set_sleep_state(TeslaBLE::SleepState::AWAKE);

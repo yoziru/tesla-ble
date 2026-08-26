@@ -1133,7 +1133,7 @@ void TeslaBLE::Vehicle::load_session_from_storage_(UniversalMessage_Domain domai
   // Stale sessions cause crypto failures when vehicle's internal state changes
   uint32_t current_time = static_cast<uint32_t>(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
   uint32_t session_time = session_info.clock_time;
-  uint32_t session_age_seconds = current_time - session_time;
+  int64_t session_age_seconds = static_cast<int64_t>(current_time) - static_cast<int64_t>(session_time);
 
   // If session has no clock_time, check if it's from a previous run (be very conservative)
   if (session_time == 0) {
@@ -1142,15 +1142,19 @@ void TeslaBLE::Vehicle::load_session_from_storage_(UniversalMessage_Domain domai
     return;
   }
 
-  // Reject sessions older than 1 hour (3600 seconds)
-  if (session_age_seconds > 3600) {
-    LOG_WARNING("Stored session for %s is too old (%" PRIu32 " seconds) - rejecting to prevent crypto errors",
-                domain_to_string(domain), session_age_seconds);
+  // The local clock can sit behind the recorded session time after a reboot
+  // before the time source resyncs. That says nothing about staleness, so
+  // accept instead of letting unsigned subtraction underflow to a huge age.
+  if (session_age_seconds < 0) {
+    LOG_DEBUG("Session time for %s is ahead of the local clock - accepting", domain_to_string(domain));
+  } else if (session_age_seconds > 3600) {
+    LOG_WARNING("Stored session for %s is too old (%lld seconds) - rejecting to prevent crypto errors",
+                domain_to_string(domain), static_cast<long long>(session_age_seconds));
     return;
+  } else {
+    LOG_DEBUG("Session age validation passed for %s: %lld seconds old", domain_to_string(domain),
+              static_cast<long long>(session_age_seconds));
   }
-
-  LOG_DEBUG("Session age validation passed for %s: %" PRIu32 " seconds old", domain_to_string(domain),
-            session_age_seconds);
 
   // Update the peer with the loaded session
   auto *peer = client_->get_peer(domain);

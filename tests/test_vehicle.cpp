@@ -159,6 +159,118 @@ std::vector<uint8_t> make_vcsec_session_info_with_valid_hmac(const pb_byte_t *re
                                            sizeof(MOCK_VCSEC_MESSAGE));
 }
 
+std::vector<uint8_t> make_session_info_with_valid_hmac_and_counter(const pb_byte_t *request_uuid,
+                                                                   size_t request_uuid_length,
+                                                                   const pb_byte_t *mock_message,
+                                                                   size_t mock_message_length, uint32_t counter) {
+  std::vector<uint8_t> frame =
+      make_session_info_with_valid_hmac(request_uuid, request_uuid_length, mock_message, mock_message_length);
+  if (frame.empty()) {
+    return frame;
+  }
+
+  // Rewrite the counter in the encoded session info and re-frame. The HMAC is
+  // computed over the re-encoded bytes by rebuilding via the shared helper:
+  // simplest correct approach is to decode, patch, and let the helper's crypto
+  // run over the patched payload.
+  TeslaBLE::Client parser;
+  UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
+  auto status = parser.parse_universal_message(const_cast<pb_byte_t *>(frame.data() + 2), frame.size() - 2, &message);
+  if (status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
+  status = parser.parse_payload_session_info(&message.payload.session_info, &session_info);
+  if (status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+  session_info.counter = counter;
+
+  pb_byte_t session_info_buffer[256];
+  size_t session_info_length = sizeof(session_info_buffer);
+  status = TeslaBLE::pb_encode_fields(session_info_buffer, &session_info_length, Signatures_SessionInfo_fields,
+                                      &session_info);
+  if (status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  // Re-run the HMAC over the patched session info (same recipe as
+  // make_session_info_with_valid_hmac).
+  TeslaBLE::CryptoContext crypto_context;
+  size_t key_length = 0;
+  while (CLIENT_PRIVATE_KEY_PEM[key_length] != '\0') {
+    ++key_length;
+  }
+  auto load_status =
+      crypto_context.load_private_key(reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM), key_length + 1);
+  if (load_status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  message.payload.session_info.size = session_info_length;
+  std::copy(session_info_buffer, session_info_buffer + session_info_length, message.payload.session_info.bytes);
+
+  size_t vin_length = 0;
+  while (TEST_VIN[vin_length] != '\0') {
+    ++vin_length;
+  }
+  std::array<pb_byte_t, 64> metadata{};
+  size_t metadata_length = 0;
+  metadata[metadata_length++] = Signatures_Tag_TAG_SIGNATURE_TYPE;
+  metadata[metadata_length++] = 0x01;
+  metadata[metadata_length++] = Signatures_SignatureType_SIGNATURE_TYPE_HMAC;
+  metadata[metadata_length++] = Signatures_Tag_TAG_PERSONALIZATION;
+  metadata[metadata_length++] = static_cast<pb_byte_t>(vin_length);
+  std::copy_n(TEST_VIN, vin_length, metadata.begin() + metadata_length);
+  metadata_length += vin_length;
+  metadata[metadata_length++] = Signatures_Tag_TAG_CHALLENGE;
+  metadata[metadata_length++] = static_cast<pb_byte_t>(request_uuid_length);
+  std::copy_n(request_uuid, request_uuid_length, metadata.begin() + metadata_length);
+  metadata_length += request_uuid_length;
+  metadata[metadata_length++] = Signatures_Tag_TAG_END;
+
+  std::vector<pb_byte_t> hmac_input;
+  hmac_input.resize(metadata_length + session_info_length);
+  std::copy_n(metadata.begin(), metadata_length, hmac_input.begin());
+  std::copy_n(session_info_buffer, session_info_length, hmac_input.begin() + metadata_length);
+
+  uint8_t session_key[TeslaBLE::Peer::SHARED_KEY_SIZE_BYTES] = {0};
+  auto ecdh_status =
+      crypto_context.perform_tesla_ecdh(session_info.publicKey.bytes, session_info.publicKey.size, session_key);
+  if (ecdh_status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  uint8_t session_info_key[32] = {0};
+  auto kdf_status = TeslaBLE::CryptoUtils::derive_session_info_key(session_key, sizeof(session_key), session_info_key,
+                                                                   sizeof(session_info_key));
+  TeslaBLE::CryptoUtils::clear_sensitive_memory(session_key, sizeof(session_key));
+  if (kdf_status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  uint8_t expected_tag[32] = {0};
+  auto hmac_status = TeslaBLE::CryptoUtils::hmac_sha256(session_info_key, sizeof(session_info_key), hmac_input.data(),
+                                                        hmac_input.size(), expected_tag, sizeof(expected_tag));
+  TeslaBLE::CryptoUtils::clear_sensitive_memory(session_info_key, sizeof(session_info_key));
+  if (hmac_status != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+
+  message.sub_sigData.signature_data.sig_type.session_info_tag.tag.size = sizeof(expected_tag);
+  std::copy(expected_tag, expected_tag + sizeof(expected_tag),
+            message.sub_sigData.signature_data.sig_type.session_info_tag.tag.bytes);
+
+  return frame_universal_message(message);
+}
+
+std::vector<uint8_t> make_vcsec_session_info_with_counter(const pb_byte_t *request_uuid, size_t request_uuid_length,
+                                                          uint32_t counter) {
+  return make_session_info_with_valid_hmac_and_counter(request_uuid, request_uuid_length, MOCK_VCSEC_MESSAGE,
+                                                       sizeof(MOCK_VCSEC_MESSAGE), counter);
+}
+
 std::vector<uint8_t> make_infotainment_session_info_with_valid_hmac(const pb_byte_t *request_uuid,
                                                                     size_t request_uuid_length) {
   return make_session_info_with_valid_hmac(request_uuid, request_uuid_length, MOCK_INFOTAINMENT_MESSAGE,
@@ -565,6 +677,46 @@ TEST_F(VehicleTest, InfotainmentPollCompletesOnResponse) {
 
   ASSERT_TRUE(callback_called) << "Infotainment command should complete after response";
   ASSERT_TRUE(callback_success) << "Infotainment command should report success";
+}
+
+TEST_F(VehicleTest, CounterReplaySessionInfoIsAppliedInsteadOfRejected) {
+  vehicle_->set_connected(true);
+
+  // Establish the initial session.
+  vehicle_->vcsec_poll();
+  vehicle_->loop();
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1);
+  size_t uuid1_len = 0;
+  auto uuid1 = extract_request_uuid(writes.front(), &uuid1_len);
+  ASSERT_EQ(uuid1_len, uuid1.size());
+
+  auto session1 = make_vcsec_session_info_with_valid_hmac(uuid1.data(), uuid1_len);
+  ASSERT_FALSE(session1.empty());
+  vehicle_->on_rx_data(session1);
+  vehicle_->loop();
+
+  // The authenticated command goes out after the session is established.
+  writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 2);
+  const std::vector<uint8_t> stored_before = mock_storage_->get_storage().at("session_vcsec");
+
+  // The vehicle pushes an unsolicited, correctly signed session info that
+  // reports a LOWER counter (it lost counter state). Upstream signer.go keeps
+  // max(local, reported) and always applies such updates; rejecting them
+  // strands the peer with a counter the vehicle no longer acknowledges.
+  size_t uuid2_len = 0;
+  auto uuid2 = extract_request_uuid(writes.back(), &uuid2_len);
+  ASSERT_EQ(uuid2_len, uuid2.size());
+  auto session2 = make_vcsec_session_info_with_counter(uuid2.data(), uuid2_len, /*counter=*/0);
+  ASSERT_FALSE(session2.empty());
+  vehicle_->on_rx_data(session2);
+  vehicle_->loop();
+
+  const auto &storage = mock_storage_->get_storage();
+  EXPECT_NE(storage.count("session_vcsec"), 0u);
+  EXPECT_NE(storage.at("session_vcsec"), stored_before)
+      << "Verified lower-counter session info should be applied and persisted";
 }
 
 TEST_F(VehicleTest, InfotainmentActionFailureSurfacesPlainTextReason) {

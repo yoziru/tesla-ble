@@ -54,6 +54,9 @@ class MockStorageAdapter : public StorageAdapter {
   // Helper to preload data
   void set_data(const std::string &key, const std::vector<uint8_t> &value) { storage_[key] = value; }
 
+  // Helper for tests to inspect what was persisted
+  const std::map<std::string, std::vector<uint8_t>> &get_storage() const { return storage_; }
+
  private:
   std::map<std::string, std::vector<uint8_t>> storage_;
 };

@@ -202,11 +202,12 @@ int Peer::update_session(Signatures_SessionInfo *session_info) {
   bool time_advanced = (clock_time_ <= session_info->clock_time);
   bool should_update = epoch_changed || time_advanced;
 
-  LOG_DEBUG("Session update check: epoch_changed=%d, time_advanced=%d (local=%u, vehicle=%u)", epoch_changed,
-            time_advanced, clock_time_, session_info->clock_time);
+  LOG_DEBUG("Session update check: epoch_changed=%d, time_advanced=%d (local=%" PRIu32 ", vehicle=%" PRIu32 ")",
+            epoch_changed, time_advanced, clock_time_, session_info->clock_time);
 
   if (!epoch_changed && session_info->counter < counter_) {
-    LOG_WARNING("Session counter replay detected (vehicle=%u, local=%u)", session_info->counter, counter_);
+    LOG_WARNING("Session counter replay detected (vehicle=%" PRIu32 ", local=%" PRIu32 ")", session_info->counter,
+                counter_);
     return TeslaBLE_Status_E_ERROR_COUNTER_REPLAY;
   }
 
@@ -220,10 +221,10 @@ int Peer::update_session(Signatures_SessionInfo *session_info) {
   // ONLY update if vehicle counter is higher. This preserves anti-replay monotonicity
   // even across epoch changes, matching signer.go behavior.
   if (should_update && session_info->counter > counter_) {
-    LOG_INFO("Updating counter to %u (old_counter=%u)", session_info->counter, counter_);
+    LOG_INFO("Updating counter to %" PRIu32 " (old_counter=%" PRIu32 ")", session_info->counter, counter_);
     set_counter(session_info->counter);
   } else if (should_update) {
-    LOG_DEBUG("Keeping higher local counter %u (vehicle sent %u)", counter_, session_info->counter);
+    LOG_DEBUG("Keeping higher local counter %" PRIu32 " (vehicle sent %" PRIu32 ")", counter_, session_info->counter);
   }
 
   // Update epoch and time only when conditions are met
@@ -251,7 +252,7 @@ int Peer::update_session(Signatures_SessionInfo *session_info) {
     }
   }
 
-  LOG_DEBUG("Updated session: counter=%d, clock_time=%d", counter_, session_info->clock_time);
+  LOG_DEBUG("Updated session: counter=%" PRIu32 ", clock_time=%" PRIu32, counter_, session_info->clock_time);
 
   // Successful update clears error state and restores session validity
   // This matches Go's UpdateSessionInfo behavior where successful updates restore session
@@ -268,8 +269,8 @@ int Peer::force_update_session(Signatures_SessionInfo *session_info) {
     return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
   }
 
-  LOG_WARNING("Force updating session (bypassing counter checks): vehicle=%u local=%u", session_info->counter,
-              counter_);
+  LOG_WARNING("Force updating session (bypassing counter checks): vehicle=%" PRIu32 " local=%" PRIu32 "",
+              session_info->counter, counter_);
 
   int status = set_epoch(session_info->epoch);
   if (status != TeslaBLE_Status_E_OK) {
@@ -293,7 +294,7 @@ int Peer::force_update_session(Signatures_SessionInfo *session_info) {
   is_valid_ = true;
   has_shared_secret_ = true;
 
-  LOG_INFO("Force updated session: counter=%u, clock_time=%u", counter_, clock_time_);
+  LOG_INFO("Force updated session: counter=%" PRIu32 ", clock_time=%" PRIu32, counter_, clock_time_);
   return TeslaBLE_Status_E_OK;
 }
 

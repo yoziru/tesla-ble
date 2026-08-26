@@ -200,7 +200,8 @@ TeslaBLE_Status_E CryptoContext::generate_public_key(pb_byte_t *output_buffer, s
   }
 
   if (mbedtls_pk_get_type(private_key_context_.get()) != MBEDTLS_PK_ECKEY) {
-    LOG_ERROR("Private key is not an EC key, type: %d", mbedtls_pk_get_type(private_key_context_.get()));
+    LOG_ERROR("Private key is not an EC key, type: %d",
+              static_cast<int>(mbedtls_pk_get_type(private_key_context_.get())));
     return TeslaBLE_Status_E_ERROR_INTERNAL;
   }
 

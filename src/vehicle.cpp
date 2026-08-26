@@ -722,7 +722,7 @@ void TeslaBLE::Vehicle::handle_message_(const UniversalMessage_RoutableMessage &
         handle_carserver_message_(msg);
         break;
       default:
-        LOG_DEBUG("Message from unknown domain: %d", msg.from_destination.sub_destination.domain);
+        LOG_DEBUG("Message from unknown domain: %d", static_cast<int>(msg.from_destination.sub_destination.domain));
         break;
     }
   }
@@ -784,7 +784,8 @@ void TeslaBLE::Vehicle::handle_session_info_message_(const UniversalMessage_Rout
   log_session_info(TESLA_LOG_TAG, &session_info);
 
   if (session_info.status != Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK) {
-    LOG_WARNING("Session info status not OK for %s: %d", domain_to_string(domain), session_info.status);
+    LOG_WARNING("Session info status not OK for %s: %d", domain_to_string(domain),
+                static_cast<int>(session_info.status));
     auto cmd = peek_command_();
     if (cmd) {
       mark_command_failed_(
@@ -927,7 +928,7 @@ void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_Routabl
   log_carserver_response(TESLA_LOG_TAG, &response);
   auto *peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
   if (peer && response_counter > 0 && !peer->validate_response_counter(response_counter)) {
-    LOG_WARNING("Duplicate response counter detected: %u", response_counter);
+    LOG_WARNING("Duplicate response counter detected: %" PRIu32, response_counter);
   }
   if (response.which_response_msg == CarServer_Response_vehicleData_tag) {
     auto &vd = response.response_msg.vehicleData;
@@ -1114,7 +1115,8 @@ void TeslaBLE::Vehicle::load_session_from_storage_(UniversalMessage_Domain domai
 
   // Validate session status
   if (session_info.status != Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK) {
-    LOG_WARNING("Stored session for %s has invalid status: %d", domain_to_string(domain), session_info.status);
+    LOG_WARNING("Stored session for %s has invalid status: %d", domain_to_string(domain),
+                static_cast<int>(session_info.status));
     return;
   }
 
@@ -1133,19 +1135,21 @@ void TeslaBLE::Vehicle::load_session_from_storage_(UniversalMessage_Domain domai
 
   // Reject sessions older than 1 hour (3600 seconds)
   if (session_age_seconds > 3600) {
-    LOG_WARNING("Stored session for %s is too old (%u seconds) - rejecting to prevent crypto errors",
+    LOG_WARNING("Stored session for %s is too old (%" PRIu32 " seconds) - rejecting to prevent crypto errors",
                 domain_to_string(domain), session_age_seconds);
     return;
   }
 
-  LOG_DEBUG("Session age validation passed for %s: %u seconds old", domain_to_string(domain), session_age_seconds);
+  LOG_DEBUG("Session age validation passed for %s: %" PRIu32 " seconds old", domain_to_string(domain),
+            session_age_seconds);
 
   // Update the peer with the loaded session
   auto *peer = client_->get_peer(domain);
   if (peer) {
     // Use update_session - it will handle counter correctly (preserve higher value)
     if (peer->update_session(&session_info) == 0) {
-      LOG_INFO("Loaded session from storage for %s (counter: %u)", domain_to_string(domain), session_info.counter);
+      LOG_INFO("Loaded session from storage for %s (counter: %" PRIu32 ")", domain_to_string(domain),
+               session_info.counter);
     } else {
       LOG_ERROR("Failed to apply stored session for %s", domain_to_string(domain));
     }

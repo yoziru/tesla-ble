@@ -52,6 +52,16 @@ typedef enum _CarServer_HvacClimateKeeperAction_ClimateKeeperAction_E {
   CarServer_HvacClimateKeeperAction_ClimateKeeperAction_E_ClimateKeeperAction_Camp = 3
 } CarServer_HvacClimateKeeperAction_ClimateKeeperAction_E;
 
+typedef enum _CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E {
+  CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_SpeedLimit = 0,
+  CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_Acceleration = 1,
+  CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_SafetyFeatures = 2,
+  CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_Curfew = 3,
+  CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_BrowserBlocked = 4,
+  CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_TheaterBlocked = 5,
+  CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_ArcadeBlocked = 6
+} CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E;
+
 /* Struct definitions */
 typedef struct _CarServer_GetTirePressureState {
   char dummy_field;
@@ -490,6 +500,31 @@ typedef struct _CarServer_VehicleControlResetPinToDriveAction {
   char dummy_field;
 } CarServer_VehicleControlResetPinToDriveAction;
 
+typedef struct _CarServer_ParentalControlsClearPinAction {
+  pb_callback_t pin;
+} CarServer_ParentalControlsClearPinAction;
+
+typedef struct _CarServer_ParentalControlsClearPinAdminAction {
+  char dummy_field;
+} CarServer_ParentalControlsClearPinAdminAction;
+
+typedef struct _CarServer_ParentalControlsAction {
+  /* If a PIN was set previously, it must be provided whenever this command
+is used. For example, after parental controls are disabled, re-enabling
+requires the original PIN. */
+  bool activate;
+  pb_callback_t pin;
+} CarServer_ParentalControlsAction;
+
+typedef struct _CarServer_ParentalControlsEnableSettingsAction {
+  CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E setting;
+  bool enable;
+} CarServer_ParentalControlsEnableSettingsAction;
+
+typedef struct _CarServer_ParentalControlsSetSpeedLimitAction {
+  double limit_mph;
+} CarServer_ParentalControlsSetSpeedLimitAction;
+
 typedef struct _CarServer_VehicleControlResetPinToDriveAdminAction {
   char dummy_field;
 } CarServer_VehicleControlResetPinToDriveAdminAction;
@@ -558,6 +593,11 @@ typedef struct _CarServer_VehicleAction {
     CarServer_RemovePreconditionScheduleAction removePreconditionScheduleAction;
     CarServer_BatchRemovePreconditionSchedulesAction batchRemovePreconditionSchedulesAction;
     CarServer_BatchRemoveChargeSchedulesAction batchRemoveChargeSchedulesAction;
+    CarServer_ParentalControlsClearPinAction parentalControlsClearPinAction;
+    CarServer_ParentalControlsClearPinAdminAction parentalControlsClearPinAdminAction;
+    CarServer_ParentalControlsAction parentalControlsAction;
+    CarServer_ParentalControlsEnableSettingsAction parentalControlsEnableSettingsAction;
+    CarServer_ParentalControlsSetSpeedLimitAction parentalControlsSetSpeedLimitAction;
     CarServer_SetLowPowerModeAction setLowPowerModeAction;
     CarServer_SetKeepAccessoryPowerModeAction setKeepAccessoryPowerModeAction;
   } vehicle_action_msg;
@@ -620,6 +660,14 @@ extern "C" {
   ((CarServer_HvacClimateKeeperAction_ClimateKeeperAction_E) (CarServer_HvacClimateKeeperAction_ClimateKeeperAction_E_ClimateKeeperAction_Camp + \
                                                               1))
 
+#define _CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_MIN \
+  CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_SpeedLimit
+#define _CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_MAX \
+  CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_ArcadeBlocked
+#define _CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_ARRAYSIZE \
+  ((CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E) (CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_ArcadeBlocked + \
+                                                                               1))
+
 #define CarServer_ActionStatus_result_ENUMTYPE CarServer_OperationStatus_E
 
 #define CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction_seat_cooler_level_ENUMTYPE \
@@ -637,6 +685,9 @@ extern "C" {
   CarServer_HvacClimateKeeperAction_ClimateKeeperAction_E
 
 #define CarServer_SetCopTempAction_copActivationTemp_ENUMTYPE CarServer_ClimateState_CopActivationTemp
+
+#define CarServer_ParentalControlsEnableSettingsAction_setting_ENUMTYPE \
+  CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E
 
 /* Initializer values for message structs */
 #define CarServer_Action_init_default \
@@ -813,6 +864,20 @@ extern "C" {
     0, { {NULL}, NULL } \
   }
 #define CarServer_VehicleControlResetPinToDriveAction_init_default {0}
+#define CarServer_ParentalControlsClearPinAction_init_default \
+  { \
+    { \
+      {NULL}, NULL \
+    } \
+  }
+#define CarServer_ParentalControlsClearPinAdminAction_init_default {0}
+#define CarServer_ParentalControlsAction_init_default \
+  { \
+    0, { {NULL}, NULL } \
+  }
+#define CarServer_ParentalControlsEnableSettingsAction_init_default \
+  {_CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_MIN, 0}
+#define CarServer_ParentalControlsSetSpeedLimitAction_init_default {0}
 #define CarServer_VehicleControlResetPinToDriveAdminAction_init_default {0}
 #define CarServer_SetLowPowerModeAction_init_default {0}
 #define CarServer_SetKeepAccessoryPowerModeAction_init_default {0}
@@ -987,6 +1052,20 @@ extern "C" {
     0, { {NULL}, NULL } \
   }
 #define CarServer_VehicleControlResetPinToDriveAction_init_zero {0}
+#define CarServer_ParentalControlsClearPinAction_init_zero \
+  { \
+    { \
+      {NULL}, NULL \
+    } \
+  }
+#define CarServer_ParentalControlsClearPinAdminAction_init_zero {0}
+#define CarServer_ParentalControlsAction_init_zero \
+  { \
+    0, { {NULL}, NULL } \
+  }
+#define CarServer_ParentalControlsEnableSettingsAction_init_zero \
+  {_CarServer_ParentalControlsEnableSettingsAction_ParentalControlsSetting_E_MIN, 0}
+#define CarServer_ParentalControlsSetSpeedLimitAction_init_zero {0}
 #define CarServer_VehicleControlResetPinToDriveAdminAction_init_zero {0}
 #define CarServer_SetLowPowerModeAction_init_zero {0}
 #define CarServer_SetKeepAccessoryPowerModeAction_init_zero {0}
@@ -1136,6 +1215,12 @@ extern "C" {
 #define CarServer_SetCopTempAction_copActivationTemp_tag 1
 #define CarServer_VehicleControlSetPinToDriveAction_on_tag 1
 #define CarServer_VehicleControlSetPinToDriveAction_password_tag 2
+#define CarServer_ParentalControlsClearPinAction_pin_tag 1
+#define CarServer_ParentalControlsAction_activate_tag 1
+#define CarServer_ParentalControlsAction_pin_tag 2
+#define CarServer_ParentalControlsEnableSettingsAction_setting_tag 1
+#define CarServer_ParentalControlsEnableSettingsAction_enable_tag 2
+#define CarServer_ParentalControlsSetSpeedLimitAction_limit_mph_tag 1
 #define CarServer_SetLowPowerModeAction_low_power_mode_tag 1
 #define CarServer_SetKeepAccessoryPowerModeAction_keep_accessory_power_mode_tag 1
 #define CarServer_VehicleAction_getVehicleData_tag 1
@@ -1191,6 +1276,11 @@ extern "C" {
 #define CarServer_VehicleAction_removePreconditionScheduleAction_tag 100
 #define CarServer_VehicleAction_batchRemovePreconditionSchedulesAction_tag 107
 #define CarServer_VehicleAction_batchRemoveChargeSchedulesAction_tag 108
+#define CarServer_VehicleAction_parentalControlsClearPinAction_tag 109
+#define CarServer_VehicleAction_parentalControlsClearPinAdminAction_tag 110
+#define CarServer_VehicleAction_parentalControlsAction_tag 111
+#define CarServer_VehicleAction_parentalControlsEnableSettingsAction_tag 112
+#define CarServer_VehicleAction_parentalControlsSetSpeedLimitAction_tag 113
 #define CarServer_VehicleAction_setLowPowerModeAction_tag 130
 #define CarServer_VehicleAction_setKeepAccessoryPowerModeAction_tag 138
 #define CarServer_Action_vehicleAction_tag 2
@@ -1310,6 +1400,20 @@ extern "C" {
     107) \
   X(a, STATIC, ONEOF, MESSAGE, \
     (vehicle_action_msg, batchRemoveChargeSchedulesAction, vehicle_action_msg.batchRemoveChargeSchedulesAction), 108) \
+  X(a, STATIC, ONEOF, MESSAGE, \
+    (vehicle_action_msg, parentalControlsClearPinAction, vehicle_action_msg.parentalControlsClearPinAction), 109) \
+  X(a, STATIC, ONEOF, MESSAGE, \
+    (vehicle_action_msg, parentalControlsClearPinAdminAction, vehicle_action_msg.parentalControlsClearPinAdminAction), \
+    110) \
+  X(a, STATIC, ONEOF, MESSAGE, \
+    (vehicle_action_msg, parentalControlsAction, vehicle_action_msg.parentalControlsAction), 111) \
+  X(a, STATIC, ONEOF, MESSAGE, \
+    (vehicle_action_msg, parentalControlsEnableSettingsAction, \
+     vehicle_action_msg.parentalControlsEnableSettingsAction), \
+    112) \
+  X(a, STATIC, ONEOF, MESSAGE, \
+    (vehicle_action_msg, parentalControlsSetSpeedLimitAction, vehicle_action_msg.parentalControlsSetSpeedLimitAction), \
+    113) \
   X(a, STATIC, ONEOF, MESSAGE, (vehicle_action_msg, setLowPowerModeAction, vehicle_action_msg.setLowPowerModeAction), \
     130) \
   X(a, STATIC, ONEOF, MESSAGE, \
@@ -1393,6 +1497,15 @@ extern "C" {
   CarServer_BatchRemovePreconditionSchedulesAction
 #define CarServer_VehicleAction_vehicle_action_msg_batchRemoveChargeSchedulesAction_MSGTYPE \
   CarServer_BatchRemoveChargeSchedulesAction
+#define CarServer_VehicleAction_vehicle_action_msg_parentalControlsClearPinAction_MSGTYPE \
+  CarServer_ParentalControlsClearPinAction
+#define CarServer_VehicleAction_vehicle_action_msg_parentalControlsClearPinAdminAction_MSGTYPE \
+  CarServer_ParentalControlsClearPinAdminAction
+#define CarServer_VehicleAction_vehicle_action_msg_parentalControlsAction_MSGTYPE CarServer_ParentalControlsAction
+#define CarServer_VehicleAction_vehicle_action_msg_parentalControlsEnableSettingsAction_MSGTYPE \
+  CarServer_ParentalControlsEnableSettingsAction
+#define CarServer_VehicleAction_vehicle_action_msg_parentalControlsSetSpeedLimitAction_MSGTYPE \
+  CarServer_ParentalControlsSetSpeedLimitAction
 #define CarServer_VehicleAction_vehicle_action_msg_setLowPowerModeAction_MSGTYPE CarServer_SetLowPowerModeAction
 #define CarServer_VehicleAction_vehicle_action_msg_setKeepAccessoryPowerModeAction_MSGTYPE \
   CarServer_SetKeepAccessoryPowerModeAction
@@ -1907,6 +2020,31 @@ extern "C" {
 #define CarServer_VehicleControlResetPinToDriveAction_CALLBACK NULL
 #define CarServer_VehicleControlResetPinToDriveAction_DEFAULT NULL
 
+#define CarServer_ParentalControlsClearPinAction_FIELDLIST(X, a) X(a, CALLBACK, SINGULAR, STRING, pin, 1)
+#define CarServer_ParentalControlsClearPinAction_CALLBACK pb_default_field_callback
+#define CarServer_ParentalControlsClearPinAction_DEFAULT NULL
+
+#define CarServer_ParentalControlsClearPinAdminAction_FIELDLIST(X, a)
+
+#define CarServer_ParentalControlsClearPinAdminAction_CALLBACK NULL
+#define CarServer_ParentalControlsClearPinAdminAction_DEFAULT NULL
+
+#define CarServer_ParentalControlsAction_FIELDLIST(X, a) \
+  X(a, STATIC, SINGULAR, BOOL, activate, 1) \
+  X(a, CALLBACK, SINGULAR, STRING, pin, 2)
+#define CarServer_ParentalControlsAction_CALLBACK pb_default_field_callback
+#define CarServer_ParentalControlsAction_DEFAULT NULL
+
+#define CarServer_ParentalControlsEnableSettingsAction_FIELDLIST(X, a) \
+  X(a, STATIC, SINGULAR, UENUM, setting, 1) \
+  X(a, STATIC, SINGULAR, BOOL, enable, 2)
+#define CarServer_ParentalControlsEnableSettingsAction_CALLBACK NULL
+#define CarServer_ParentalControlsEnableSettingsAction_DEFAULT NULL
+
+#define CarServer_ParentalControlsSetSpeedLimitAction_FIELDLIST(X, a) X(a, STATIC, SINGULAR, DOUBLE, limit_mph, 1)
+#define CarServer_ParentalControlsSetSpeedLimitAction_CALLBACK NULL
+#define CarServer_ParentalControlsSetSpeedLimitAction_DEFAULT NULL
+
 #define CarServer_VehicleControlResetPinToDriveAdminAction_FIELDLIST(X, a)
 
 #define CarServer_VehicleControlResetPinToDriveAdminAction_CALLBACK NULL
@@ -1995,6 +2133,11 @@ extern const pb_msgdesc_t CarServer_ChargePortDoorOpen_msg;
 extern const pb_msgdesc_t CarServer_SetCopTempAction_msg;
 extern const pb_msgdesc_t CarServer_VehicleControlSetPinToDriveAction_msg;
 extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAction_msg;
+extern const pb_msgdesc_t CarServer_ParentalControlsClearPinAction_msg;
+extern const pb_msgdesc_t CarServer_ParentalControlsClearPinAdminAction_msg;
+extern const pb_msgdesc_t CarServer_ParentalControlsAction_msg;
+extern const pb_msgdesc_t CarServer_ParentalControlsEnableSettingsAction_msg;
+extern const pb_msgdesc_t CarServer_ParentalControlsSetSpeedLimitAction_msg;
 extern const pb_msgdesc_t CarServer_VehicleControlResetPinToDriveAdminAction_msg;
 extern const pb_msgdesc_t CarServer_SetLowPowerModeAction_msg;
 extern const pb_msgdesc_t CarServer_SetKeepAccessoryPowerModeAction_msg;
@@ -2080,6 +2223,11 @@ extern const pb_msgdesc_t CarServer_SetKeepAccessoryPowerModeAction_msg;
 #define CarServer_SetCopTempAction_fields &CarServer_SetCopTempAction_msg
 #define CarServer_VehicleControlSetPinToDriveAction_fields &CarServer_VehicleControlSetPinToDriveAction_msg
 #define CarServer_VehicleControlResetPinToDriveAction_fields &CarServer_VehicleControlResetPinToDriveAction_msg
+#define CarServer_ParentalControlsClearPinAction_fields &CarServer_ParentalControlsClearPinAction_msg
+#define CarServer_ParentalControlsClearPinAdminAction_fields &CarServer_ParentalControlsClearPinAdminAction_msg
+#define CarServer_ParentalControlsAction_fields &CarServer_ParentalControlsAction_msg
+#define CarServer_ParentalControlsEnableSettingsAction_fields &CarServer_ParentalControlsEnableSettingsAction_msg
+#define CarServer_ParentalControlsSetSpeedLimitAction_fields &CarServer_ParentalControlsSetSpeedLimitAction_msg
 #define CarServer_VehicleControlResetPinToDriveAdminAction_fields \
   &CarServer_VehicleControlResetPinToDriveAdminAction_msg
 #define CarServer_SetLowPowerModeAction_fields &CarServer_SetLowPowerModeAction_msg
@@ -2104,6 +2252,8 @@ extern const pb_msgdesc_t CarServer_SetKeepAccessoryPowerModeAction_msg;
 /* CarServer_AutoSeatClimateAction_size depends on runtime parameters */
 /* CarServer_SetVehicleNameAction_size depends on runtime parameters */
 /* CarServer_VehicleControlSetPinToDriveAction_size depends on runtime parameters */
+/* CarServer_ParentalControlsClearPinAction_size depends on runtime parameters */
+/* CarServer_ParentalControlsAction_size depends on runtime parameters */
 #define CARSERVER_CAR_SERVER_PB_H_MAX_SIZE CarServer_ActionStatus_size
 #define CarServer_ActionStatus_size 105
 #define CarServer_AutoSeatClimateAction_CarSeat_size 4
@@ -2143,6 +2293,9 @@ extern const pb_msgdesc_t CarServer_SetKeepAccessoryPowerModeAction_msg;
 #define CarServer_MediaPreviousFavorite_size 0
 #define CarServer_MediaPreviousTrack_size 0
 #define CarServer_MediaUpdateVolume_size 6
+#define CarServer_ParentalControlsClearPinAdminAction_size 0
+#define CarServer_ParentalControlsEnableSettingsAction_size 4
+#define CarServer_ParentalControlsSetSpeedLimitAction_size 9
 #define CarServer_Ping_size 11
 #define CarServer_RemoveChargeScheduleAction_size 11
 #define CarServer_RemovePreconditionScheduleAction_size 11

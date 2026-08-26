@@ -159,6 +159,16 @@ PB_BIND(CarServer_VehicleControlSetPinToDriveAction, CarServer_VehicleControlSet
 
 PB_BIND(CarServer_VehicleControlResetPinToDriveAction, CarServer_VehicleControlResetPinToDriveAction, AUTO)
 
+PB_BIND(CarServer_ParentalControlsClearPinAction, CarServer_ParentalControlsClearPinAction, AUTO)
+
+PB_BIND(CarServer_ParentalControlsClearPinAdminAction, CarServer_ParentalControlsClearPinAdminAction, AUTO)
+
+PB_BIND(CarServer_ParentalControlsAction, CarServer_ParentalControlsAction, AUTO)
+
+PB_BIND(CarServer_ParentalControlsEnableSettingsAction, CarServer_ParentalControlsEnableSettingsAction, AUTO)
+
+PB_BIND(CarServer_ParentalControlsSetSpeedLimitAction, CarServer_ParentalControlsSetSpeedLimitAction, AUTO)
+
 PB_BIND(CarServer_VehicleControlResetPinToDriveAdminAction, CarServer_VehicleControlResetPinToDriveAdminAction, AUTO)
 
 PB_BIND(CarServer_SetLowPowerModeAction, CarServer_SetLowPowerModeAction, AUTO)

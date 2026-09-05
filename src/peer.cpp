@@ -67,7 +67,7 @@ void Peer::clear_shared_secret() {
   LOG_INFO("Resetting peer session state for domain %s", domain_to_string(domain_));
 
   // Ensure atomic reset of all session parameters
-  std::scoped_lock lock(session_mutex_, counter_mutex_);
+  std::scoped_lock lock(counter_mutex_);
 
   is_valid_ = false;
   has_shared_secret_ = false;

@@ -178,7 +178,6 @@ class Peer {
   SlidingWindow response_window_;
 
   // Thread safety
-  mutable std::mutex session_mutex_;
   mutable std::mutex counter_mutex_;
 };
 

@@ -422,7 +422,7 @@ bool CryptoUtils::secure_memory_compare(const pb_byte_t *a, const pb_byte_t *b, 
 }
 
 void CryptoUtils::clear_sensitive_memory(void *memory, size_t length) {
-  if (memory && length > 0) {
+  if (memory) {
     mbedtls_platform_zeroize(memory, length);
   }
 }

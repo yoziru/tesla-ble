@@ -7,6 +7,9 @@
 #include "defs.h"
 #include "errors.h"
 
+extern "C" {
+#include <mbedtls/constant_time.h>
+}
 #include <mbedtls/entropy.h>
 #include <mbedtls/md.h>
 #include <mbedtls/platform_util.h>
@@ -415,13 +418,7 @@ bool CryptoUtils::secure_memory_compare(const pb_byte_t *a, const pb_byte_t *b, 
   if (!a || !b || length == 0) {
     return false;
   }
-
-  // Use constant-time comparison to prevent timing attacks
-  int result = 0;
-  for (size_t i = 0; i < length; i++) {
-    result |= a[i] ^ b[i];
-  }
-  return result == 0;
+  return mbedtls_ct_memcmp(a, b, length) == 0;
 }
 
 void CryptoUtils::clear_sensitive_memory(void *memory, size_t length) {

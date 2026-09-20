@@ -44,6 +44,14 @@ std::vector<uint8_t> frame_universal_message(const UniversalMessage_RoutableMess
   return framed;
 }
 
+std::vector<uint8_t> frame_bytes(const pb_byte_t *payload, size_t payload_length) {
+  std::vector<uint8_t> framed(payload_length + 2);
+  framed[0] = static_cast<uint8_t>((payload_length >> 8) & 0xFF);
+  framed[1] = static_cast<uint8_t>(payload_length & 0xFF);
+  std::copy_n(payload, payload_length, framed.begin() + 2);
+  return framed;
+}
+
 std::array<pb_byte_t, 16> extract_request_uuid(const std::vector<uint8_t> &frame, size_t *uuid_length) {
   std::array<pb_byte_t, 16> uuid{};
   if (uuid_length) {
@@ -277,7 +285,8 @@ std::vector<uint8_t> make_infotainment_session_info_with_valid_hmac(const pb_byt
                                            sizeof(MOCK_INFOTAINMENT_MESSAGE));
 }
 
-std::vector<uint8_t> make_plain_infotainment_response() {
+std::vector<uint8_t> make_plain_infotainment_response(const pb_byte_t *request_uuid = nullptr,
+                                                      size_t request_uuid_length = 0) {
   pb_byte_t response_data[] = {0x0A, 0x02, 0x08, 0x00};
   UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
   message.has_from_destination = true;
@@ -286,6 +295,10 @@ std::vector<uint8_t> make_plain_infotainment_response() {
   message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
   message.payload.protobuf_message_as_bytes.size = sizeof(response_data);
   std::copy_n(response_data, sizeof(response_data), message.payload.protobuf_message_as_bytes.bytes);
+  if (request_uuid && request_uuid_length <= sizeof(message.request_uuid.bytes)) {
+    message.request_uuid.size = request_uuid_length;
+    std::copy_n(request_uuid, request_uuid_length, message.request_uuid.bytes);
+  }
   return frame_universal_message(message);
 }
 
@@ -679,6 +692,53 @@ TEST_F(VehicleTest, InfotainmentPollCompletesOnResponse) {
   ASSERT_TRUE(callback_success) << "Infotainment command should report success";
 }
 
+TEST_F(VehicleTest, PollAndChargingCommandResponsesStaySerialized) {
+  vehicle_->set_connected(true);
+  vehicle_->set_awake(true);
+  vehicle_->vcsec_poll();
+  int charging_limit = 80;
+  TeslaBLE::OperationOutcome charging_outcome = TeslaBLE::OperationOutcome::FAILED;
+  vehicle_->send_command_result(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Set Charging Limit",
+      [charging_limit](Client *client, uint8_t *buff, size_t *len) {
+        return client->build_car_server_vehicle_action_message(
+            buff, len, CarServer_VehicleAction_chargingSetLimitAction_tag, &charging_limit);
+      },
+      [&](TeslaBLE::OperationResult result) { charging_outcome = result.outcome(); });
+
+  vehicle_->loop();
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_EQ(writes.size(), 1U);
+
+  size_t uuid_length = 0;
+  auto uuid = extract_request_uuid(writes.front(), &uuid_length);
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), uuid_length));
+  vehicle_->loop();
+  ASSERT_EQ(mock_ble_->get_written_data().size(), 2U);
+
+  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->loop();
+  writes = mock_ble_->get_written_data();
+  ASSERT_EQ(writes.size(), 3U);
+
+  uuid = extract_request_uuid(writes.back(), &uuid_length);
+  vehicle_->on_rx_data(make_infotainment_session_info_with_valid_hmac(uuid.data(), uuid_length));
+  vehicle_->loop();
+  ASSERT_EQ(mock_ble_->get_written_data().size(), 4U);
+
+  std::array<pb_byte_t, 16> stale_uuid{};
+  vehicle_->on_rx_data(make_plain_infotainment_response(stale_uuid.data(), stale_uuid.size()));
+  vehicle_->loop();
+  EXPECT_EQ(charging_outcome, TeslaBLE::OperationOutcome::FAILED);
+
+  auto command_uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &uuid_length);
+  vehicle_->on_rx_data(make_plain_infotainment_response(command_uuid.data(), uuid_length));
+  vehicle_->loop();
+
+  EXPECT_EQ(mock_ble_->get_written_data().size(), 4U);
+  EXPECT_EQ(charging_outcome, TeslaBLE::OperationOutcome::SUCCESS);
+}
+
 TEST_F(VehicleTest, CounterReplaySessionInfoIsAppliedInsteadOfRejected) {
   vehicle_->set_connected(true);
 
@@ -829,6 +889,43 @@ TEST_F(VehicleTest, InfotainmentActionFailureSurfacesPlainTextReason) {
   EXPECT_FALSE(captured_error->may_have_succeeded()) << "CarServer action failures should be definite failures";
   EXPECT_TRUE(captured_error->message().find("climate keeper unavailable") != std::string::npos)
       << "Error should include the vehicle-provided action failure reason: " << captured_error->message();
+}
+
+TEST_F(VehicleTest, AlreadySetActionIsAnIdempotentSuccess) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::AWAKE);
+
+  TeslaBLE::OperationOutcome outcome = TeslaBLE::OperationOutcome::FAILED;
+  vehicle_->send_command_result(
+      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Climate On",
+      [](Client *client, uint8_t *buff, size_t *len) {
+        bool enabled = true;
+        return client->build_car_server_vehicle_action_message(buff, len, CarServer_VehicleAction_hvacAutoAction_tag,
+                                                               &enabled);
+      },
+      [&](TeslaBLE::OperationResult result) { outcome = result.outcome(); });
+
+  vehicle_->loop();
+  auto initial_writes = mock_ble_->get_written_data();
+  ASSERT_GE(initial_writes.size(), 1);
+  size_t request_uuid_length = 0;
+  auto request_uuid = extract_request_uuid(initial_writes.front(), &request_uuid_length);
+  ASSERT_EQ(request_uuid_length, request_uuid.size());
+
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(request_uuid.data(), request_uuid_length));
+  vehicle_->loop();
+
+  auto info_writes = mock_ble_->get_written_data();
+  ASSERT_GE(info_writes.size(), 2);
+  auto infotainment_request_uuid = extract_request_uuid(info_writes.back(), &request_uuid_length);
+  vehicle_->on_rx_data(
+      make_infotainment_session_info_with_valid_hmac(infotainment_request_uuid.data(), request_uuid_length));
+  vehicle_->loop();
+
+  vehicle_->on_rx_data(make_plain_infotainment_action_error_response("already_set"));
+  vehicle_->loop();
+
+  EXPECT_EQ(outcome, TeslaBLE::OperationOutcome::SUCCESS);
 }
 
 // ============================================================================
@@ -1040,6 +1137,74 @@ TEST_F(VehicleTest, RecoverySkipsCorruptPrefix) {
   vehicle_->loop();
 
   EXPECT_EQ(message_count, 1U) << "Valid message should be recovered after corrupt prefix";
+}
+
+TEST_F(VehicleTest, SplitFrameAcrossNotificationsIsReassembled) {
+  size_t message_count = 0;
+  vehicle_->set_message_callback([&](const UniversalMessage_RoutableMessage &) { message_count++; });
+  auto frame = frame_bytes(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE));
+
+  vehicle_->on_rx_data(std::vector<uint8_t>(frame.begin(), frame.begin() + 17));
+  vehicle_->on_rx_data(std::vector<uint8_t>(frame.begin() + 17, frame.end()));
+  vehicle_->loop();
+
+  EXPECT_EQ(message_count, 1U);
+}
+
+TEST_F(VehicleTest, MultipleFramesInOneNotificationAreProcessed) {
+  size_t message_count = 0;
+  vehicle_->set_message_callback([&](const UniversalMessage_RoutableMessage &) { message_count++; });
+  auto frame = frame_bytes(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE));
+  std::vector<uint8_t> combined = frame;
+  combined.insert(combined.end(), frame.begin(), frame.end());
+
+  vehicle_->on_rx_data(combined);
+  vehicle_->loop();
+
+  EXPECT_EQ(message_count, 2U);
+}
+
+TEST_F(VehicleTest, CorruptLengthBeforeSplitFrameDoesNotDiscardValidFrame) {
+  size_t message_count = 0;
+  vehicle_->set_message_callback([&](const UniversalMessage_RoutableMessage &) { message_count++; });
+  auto frame = frame_bytes(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE));
+  std::vector<uint8_t> first = {0xF0, 0x01};
+  first.insert(first.end(), frame.begin(), frame.begin() + 17);
+
+  vehicle_->on_rx_data(first);
+  vehicle_->on_rx_data(std::vector<uint8_t>(frame.begin() + 17, frame.end()));
+  vehicle_->loop();
+
+  EXPECT_EQ(message_count, 1U);
+}
+
+TEST_F(VehicleTest, MalformedProtobufBeforeValidFrameIsSkipped) {
+  size_t message_count = 0;
+  vehicle_->set_message_callback([&](const UniversalMessage_RoutableMessage &) { message_count++; });
+  auto valid_frame = frame_bytes(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE));
+  std::vector<uint8_t> malformed = {0x00, 0x06, 0xFF, 0x00, 0x02, 0x18, 0x01, 0xFF};
+  malformed.insert(malformed.end(), valid_frame.begin(), valid_frame.end());
+
+  vehicle_->on_rx_data(malformed);
+  vehicle_->loop();
+
+  EXPECT_EQ(message_count, 1U);
+}
+
+TEST_F(VehicleTest, DuplicateFragmentDoesNotMisalignFollowingFrames) {
+  size_t message_count = 0;
+  vehicle_->set_message_callback([&](const UniversalMessage_RoutableMessage &) { message_count++; });
+  auto frame = frame_bytes(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE));
+  auto second_frame = frame_bytes(MOCK_INFOTAINMENT_MESSAGE, sizeof(MOCK_INFOTAINMENT_MESSAGE));
+  constexpr size_t duplicate_length = 17;
+
+  vehicle_->on_rx_data(std::vector<uint8_t>(frame.begin(), frame.begin() + duplicate_length));
+  vehicle_->on_rx_data(std::vector<uint8_t>(frame.begin(), frame.begin() + duplicate_length));
+  vehicle_->on_rx_data(std::vector<uint8_t>(frame.begin() + duplicate_length, frame.end()));
+  vehicle_->on_rx_data(second_frame);
+  vehicle_->loop();
+
+  EXPECT_EQ(message_count, 2U);
 }
 
 // ============================================================================

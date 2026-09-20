@@ -18,6 +18,7 @@
 #include <vector>
 #include <array>
 #include <cstdlib>  // for rand()
+#include <string_view>
 #include <utility>  // for std::cmp_greater, std::cmp_less_equal
 
 namespace TeslaBLE {
@@ -610,7 +611,18 @@ bool Vehicle::is_domain_authenticated_(UniversalMessage_Domain domain) {
 }
 
 void TeslaBLE::Vehicle::on_rx_data(const std::vector<uint8_t> &data) {
-  rx_buffer_.insert(rx_buffer_.end(), data.begin(), data.end());
+  if (data.empty()) {
+    return;
+  }
+  if (data.size() >= MAX_RX_BUFFER_SIZE) {
+    rx_buffer_.assign(data.end() - MAX_RX_BUFFER_SIZE, data.end());
+  } else {
+    const size_t required = rx_buffer_.size() + data.size();
+    if (required > MAX_RX_BUFFER_SIZE) {
+      rx_buffer_.erase(rx_buffer_.begin(), rx_buffer_.begin() + (required - MAX_RX_BUFFER_SIZE));
+    }
+    rx_buffer_.insert(rx_buffer_.end(), data.begin(), data.end());
+  }
   recovery_attempted_ = false;
   while (is_message_complete()) {
     process_complete_message();
@@ -619,6 +631,8 @@ void TeslaBLE::Vehicle::on_rx_data(const std::vector<uint8_t> &data) {
 
 bool Vehicle::is_message_complete() {
   if (rx_buffer_.size() < FRAME_HEADER_SIZE)
+    return false;
+  if (recovery_attempted_)
     return false;
   int msg_len = get_expected_message_length();
   if (msg_len <= 0 || std::cmp_greater(msg_len, MAX_MESSAGE_SIZE)) {
@@ -637,17 +651,15 @@ void TeslaBLE::Vehicle::process_complete_message() {
   int msg_len = get_expected_message_length();
   if (msg_len <= 0 || std::cmp_greater(msg_len, MAX_MESSAGE_SIZE)) {
     LOG_ERROR("Invalid message length %d, attempting buffer recovery", msg_len);
-    bool severe_corruption = msg_len > 0xF000;
     if (!attempt_buffer_recovery_(msg_len)) {
-      if (severe_corruption) {
-        LOG_ERROR("Severe buffer corruption detected (length: %d), clearing buffer", msg_len);
-      } else {
-        LOG_WARNING("Buffer recovery failed, clearing all data");
+      LOG_WARNING("Buffer recovery found no complete frame, retaining data for fragmented recovery");
+      if (rx_buffer_.size() > MAX_RX_BUFFER_SIZE) {
+        rx_buffer_.erase(rx_buffer_.begin(), rx_buffer_.end() - MAX_RX_BUFFER_SIZE);
       }
-      rx_buffer_.clear();
+      recovery_attempted_ = true;
       return;
     }
-    recovery_attempted_ = true;
+    recovery_attempted_ = false;
   }
 
   if (msg_len <= 0 || std::cmp_greater(msg_len, MAX_MESSAGE_SIZE)) {
@@ -676,11 +688,13 @@ void TeslaBLE::Vehicle::process_complete_message() {
   } else {
     LOG_ERROR("Failed to parse Universal Message (buffer size: %zu) - attempting buffer recovery", rx_buffer_.size());
     if (recovery_attempted_ || !attempt_buffer_recovery_(msg_len)) {
-      LOG_WARNING("Buffer recovery failed after parse error, clearing all data");
-      rx_buffer_.clear();
-      recovery_attempted_ = false;
-    } else {
+      LOG_WARNING("Buffer recovery failed after parse error, retaining data for fragmented recovery");
+      if (rx_buffer_.size() > MAX_RX_BUFFER_SIZE) {
+        rx_buffer_.erase(rx_buffer_.begin(), rx_buffer_.end() - MAX_RX_BUFFER_SIZE);
+      }
       recovery_attempted_ = true;
+    } else {
+      recovery_attempted_ = false;
     }
   }
 }
@@ -914,6 +928,17 @@ void TeslaBLE::Vehicle::handle_vcsec_message_(const UniversalMessage_RoutableMes
 
 void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_RoutableMessage &msg) {
   LOG_DEBUG("Processing CarServer message");
+  if (msg.request_uuid.size > 0) {
+    pb_byte_t expected_uuid[16] = {0};
+    size_t expected_uuid_length = sizeof(expected_uuid);
+    if (!client_->get_last_request_uuid(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, expected_uuid,
+                                        &expected_uuid_length) ||
+        msg.request_uuid.size != expected_uuid_length ||
+        !std::equal(msg.request_uuid.bytes, msg.request_uuid.bytes + msg.request_uuid.size, expected_uuid)) {
+      LOG_WARNING("Ignoring CarServer response for a different request");
+      return;
+    }
+  }
   const Signatures_SignatureData *sig_data = nullptr;
   if (msg.which_sub_sigData == UniversalMessage_RoutableMessage_signature_data_tag) {
     sig_data = &msg.sub_sigData.signature_data;
@@ -938,6 +963,7 @@ void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_Routabl
   auto *peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
   if (peer && response_counter > 0 && !peer->validate_response_counter(response_counter)) {
     LOG_WARNING("Duplicate response counter detected: %" PRIu32, response_counter);
+    return;
   }
   if (response.which_response_msg == CarServer_Response_vehicleData_tag) {
     auto &vd = response.response_msg.vehicleData;
@@ -956,7 +982,10 @@ void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_Routabl
   if (cmd && cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT &&
       cmd->state == CommandState::WAITING_FOR_RESPONSE) {
     if (response.has_actionStatus) {
-      if (response.actionStatus.result == CarServer_OperationStatus_E_OPERATIONSTATUS_OK) {
+      bool already_set = response.actionStatus.has_result_reason &&
+                         response.actionStatus.result_reason.which_reason == CarServer_ResultReason_plain_text_tag &&
+                         std::string_view(response.actionStatus.result_reason.reason.plain_text) == "already_set";
+      if (response.actionStatus.result == CarServer_OperationStatus_E_OPERATIONSTATUS_OK || already_set) {
         mark_command_completed_(cmd);
       } else {
         LOG_ERROR("CarServer Action Failed");
@@ -1027,28 +1056,38 @@ bool Vehicle::attempt_buffer_recovery_(int &msg_len) {
 
   LOG_INFO("Attempting to recover buffer from %zu bytes", rx_buffer_.size());
 
-  // Search for potential next valid message start
-  for (size_t i = 1; i < rx_buffer_.size() - FRAME_HEADER_SIZE; i++) {
+  // Resync only to a complete candidate that also decodes as a UniversalMessage.
+  for (size_t i = 1; i + FRAME_HEADER_SIZE <= rx_buffer_.size(); i++) {
     uint16_t potential_len = (rx_buffer_.at(i) << 8) | rx_buffer_.at(i + 1);
+    size_t potential_total = static_cast<size_t>(potential_len) + FRAME_HEADER_SIZE;
 
-    // Valid length check: reasonable size and fits in buffer
-    // Also check for corrupted length values (near max uint16)
-    if (potential_len > 0 && potential_len <= MAX_MESSAGE_SIZE &&
-        potential_len < 0xF000 &&  // Filter out obviously corrupted lengths
-        i + FRAME_HEADER_SIZE + potential_len <= rx_buffer_.size()) {
-      LOG_INFO("Found potential valid message at offset %zu, length %d", i, potential_len);
-
-      // Remove corrupted prefix, keep valid suffix
-      rx_buffer_.erase(rx_buffer_.begin(), rx_buffer_.begin() + i);
-      LOG_DEBUG("Buffer recovered to %zu bytes", rx_buffer_.size());
-
-      // Retry processing with recovered buffer
-      msg_len = get_expected_message_length();
-      if (msg_len > 0 && std::cmp_less_equal(msg_len, MAX_MESSAGE_SIZE)) {
-        LOG_INFO("Successfully recovered valid message, continuing processing");
-        return true;
-      }
+    if (potential_len == 0 || potential_total > MAX_MESSAGE_SIZE || i + potential_total > rx_buffer_.size()) {
+      continue;
     }
+
+    UniversalMessage_RoutableMessage candidate = UniversalMessage_RoutableMessage_init_default;
+    if (client_->parse_universal_message(rx_buffer_.data() + i + FRAME_HEADER_SIZE, potential_len, &candidate) != 0) {
+      continue;
+    }
+    bool valid_from_destination =
+        candidate.has_from_destination &&
+        candidate.from_destination.which_sub_destination == UniversalMessage_Destination_domain_tag &&
+        (candidate.from_destination.sub_destination.domain == UniversalMessage_Domain_DOMAIN_BROADCAST ||
+         candidate.from_destination.sub_destination.domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY ||
+         candidate.from_destination.sub_destination.domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+    if (!valid_from_destination || (candidate.which_payload == 0 && !candidate.has_signedMessageStatus)) {
+      continue;
+    }
+
+    LOG_INFO("Found valid message at offset %zu, length %d", i, potential_len);
+
+    // Remove corrupted prefix, keep valid suffix.
+    rx_buffer_.erase(rx_buffer_.begin(), rx_buffer_.begin() + i);
+    LOG_DEBUG("Buffer recovered to %zu bytes", rx_buffer_.size());
+
+    msg_len = get_expected_message_length();
+    LOG_INFO("Successfully recovered valid message, continuing processing");
+    return true;
   }
 
   return false;

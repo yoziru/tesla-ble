@@ -234,3 +234,39 @@ TEST_F(SessionRecoveryTest, UpdateSessionWithSameCounter) {
   result = peer_->update_session(&session_info);
   EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Update with same counter should succeed";
 }
+
+TEST_F(SessionRecoveryTest, NewAuthenticatedEpochAcceptsCounterOne) {
+  auto session_info = create_session_info_(100);
+  ASSERT_EQ(peer_->update_session(&session_info), TeslaBLE_Status_E_OK);
+  ASSERT_TRUE(peer_->validate_response_counter(1));
+  EXPECT_FALSE(peer_->validate_response_counter(1));
+
+  auto new_session_info = create_session_info_(1, 2000);
+  new_session_info.epoch[0] ^= 0xFF;
+  ASSERT_EQ(peer_->update_session(&new_session_info), TeslaBLE_Status_E_OK);
+
+  EXPECT_TRUE(peer_->validate_response_counter(1));
+}
+
+TEST_F(SessionRecoveryTest, ResetSessionAcceptsCounterOne) {
+  auto session_info = create_session_info_(100);
+  ASSERT_EQ(peer_->update_session(&session_info), TeslaBLE_Status_E_OK);
+  ASSERT_TRUE(peer_->validate_response_counter(1));
+
+  peer_->reset();
+
+  EXPECT_TRUE(peer_->validate_response_counter(1));
+}
+
+TEST_F(SessionRecoveryTest, FailedForceUpdatePreservesResponseWindow) {
+  auto session_info = create_session_info_(100);
+  ASSERT_EQ(peer_->update_session(&session_info), TeslaBLE_Status_E_OK);
+  ASSERT_TRUE(peer_->validate_response_counter(1));
+
+  auto invalid_session_info = create_session_info_(200, 2000);
+  invalid_session_info.publicKey.size = 64;
+  EXPECT_NE(peer_->force_update_session(&invalid_session_info), TeslaBLE_Status_E_OK);
+
+  EXPECT_EQ(peer_->get_counter(), 100U);
+  EXPECT_FALSE(peer_->validate_response_counter(1));
+}

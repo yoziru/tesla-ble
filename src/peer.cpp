@@ -252,6 +252,10 @@ int Peer::update_session(Signatures_SessionInfo *session_info) {
     }
   }
 
+  if (epoch_changed) {
+    reset_response_window();
+  }
+
   LOG_DEBUG("Updated session: counter=%" PRIu32 ", clock_time=%" PRIu32, counter_, session_info->clock_time);
 
   // Successful update clears error state and restores session validity
@@ -272,6 +276,15 @@ int Peer::force_update_session(Signatures_SessionInfo *session_info) {
   LOG_WARNING("Force updating session (bypassing counter checks): vehicle=%" PRIu32 " local=%" PRIu32 "",
               session_info->counter, counter_);
 
+  if (session_info->publicKey.size > 0) {
+    LOG_DEBUG("Deriving shared secret from session info public key (force update)");
+    int status = load_tesla_key(session_info->publicKey.bytes, session_info->publicKey.size);
+    if (status != TeslaBLE_Status_E_OK) {
+      LOG_ERROR("Failed to load Tesla public key from session info: %d", status);
+      return status;
+    }
+  }
+
   int status = set_epoch(session_info->epoch);
   if (status != TeslaBLE_Status_E_OK) {
     LOG_ERROR("Failed to set epoch during force update");
@@ -282,14 +295,7 @@ int Peer::force_update_session(Signatures_SessionInfo *session_info) {
   clock_time_ = session_info->clock_time;
   session_start_monotonic_ = std::chrono::steady_clock::now();
 
-  if (session_info->publicKey.size > 0) {
-    LOG_DEBUG("Deriving shared secret from session info public key (force update)");
-    status = load_tesla_key(session_info->publicKey.bytes, session_info->publicKey.size);
-    if (status != TeslaBLE_Status_E_OK) {
-      LOG_ERROR("Failed to load Tesla public key from session info: %d", status);
-      return status;
-    }
-  }
+  reset_response_window();
 
   is_valid_ = true;
   has_shared_secret_ = true;

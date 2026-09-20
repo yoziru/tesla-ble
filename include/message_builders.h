@@ -55,6 +55,8 @@ class VehicleActionBuilder {
   static int build_hvac_bioweapon_mode(CarServer_VehicleAction &action, const void *data);
   static int build_vehicle_control_schedule_software_update(CarServer_VehicleAction &action, const void *data);
   static int build_set_cabin_overheat_protection(CarServer_VehicleAction &action, const void *data);
+  static int build_set_low_power_mode(CarServer_VehicleAction &action, const void *data);
+  static int build_set_keep_accessory_power_mode(CarServer_VehicleAction &action, const void *data);
 
   // Map of action types to their builder functions - initialized lazily via get_builders()
 

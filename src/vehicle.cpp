@@ -1419,6 +1419,16 @@ void TeslaBLE::Vehicle::set_sentry_mode(bool enable) {
                             CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, enable);
 }
 
+void TeslaBLE::Vehicle::set_low_power_mode(bool enable) {
+  send_infotainment_action_(enable ? "Low Power Mode On" : "Low Power Mode Off",
+                            CarServer_VehicleAction_setLowPowerModeAction_tag, enable);
+}
+
+void TeslaBLE::Vehicle::set_keep_accessory_power_mode(bool enable) {
+  send_infotainment_action_(enable ? "Keep Accessory Power On" : "Keep Accessory Power Off",
+                            CarServer_VehicleAction_setKeepAccessoryPowerModeAction_tag, enable);
+}
+
 void TeslaBLE::Vehicle::vent_windows() {
   send_infotainment_action_("Vent Windows", CarServer_VehicleAction_vehicleControlWindowAction_tag, 0);
 }

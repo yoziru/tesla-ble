@@ -1,6 +1,5 @@
 #pragma once
 
-#include "vehicle.h"
 #include "car_server.pb.h"
 #include "signatures.pb.h"
 #include "universal_message.pb.h"

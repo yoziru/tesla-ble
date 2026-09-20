@@ -7,12 +7,11 @@
 #include <cstring>
 #include <universal_message.pb.h>
 #include <vcsec.pb.h>
-#include <sstream>
-#include <iomanip>
 
 #include "defs.h"
 #include "errors.h"
-#include "log.h"
+#include <tb_logging.h>
+#include <tb_utils.h>
 
 // mock data from PROTOCOL.md examples
 static constexpr char MOCK_VIN[] = "5YJ30123456789ABC";
@@ -21,15 +20,6 @@ static const unsigned char MOCK_PRIVATE_KEY[227] =
     "KEY-----\nMHcCAQEEILRjIS9VEyG+0K71a2T/"
     "lKVF5MllmYu78y14UzHgPQb5oAoGCCqGSM49\nAwEHoUQDQgAEUxC4mUu1EemeRNJFvgU3RHptxzxR1kCc+"
     "fVIwxNg4Pxa2AzDDAbZ\njh4MR49c2FBOLVVzYlUnt1F35HFWGjaXsg==\n-----END EC PRIVATE KEY-----";
-
-std::string bytes_to_hex_string(const pb_byte_t *bytes, size_t length) {
-  std::stringstream ss;
-  ss << std::hex << std::setfill('0');
-  for (size_t i = 0; i < length; i++) {
-    ss << std::setw(2) << static_cast<unsigned>(bytes[i]);
-  }
-  return ss.str();
-}
 
 int main() {
   TeslaBLE::Client client = TeslaBLE::Client{};
@@ -51,7 +41,7 @@ int main() {
     LOG_ERROR("Failed to get private key");
   }
   LOG_DEBUG("Private key length: %d", private_key_length);
-  LOG_VERBOSE("Private key: %s", bytes_to_hex_string(private_key_buffer, private_key_length).c_str());
+  LOG_VERBOSE("Private key: %s", TeslaBLE::format_hex(private_key_buffer, private_key_length).c_str());
 
   unsigned char whitelist_message_buffer[VCSEC_ToVCSECMessage_size];
   size_t whitelist_message_length;
@@ -69,7 +59,7 @@ int main() {
   }
   LOG_DEBUG("Whitelist message length: %d", whitelist_message_length);
   LOG_DEBUG("Whitelist message hex: %s",
-            bytes_to_hex_string(whitelist_message_buffer, whitelist_message_length).c_str());
+            TeslaBLE::format_hex(whitelist_message_buffer, whitelist_message_length).c_str());
 
   // mock received_message from VSSEC
   // 321212102fddc145caccca430566370df149855d3a0208027a5e0801124104c7a1f47138486aa4729971494878d33b1a24e39571f748a6e16c5955b3d877d3a6aaa0e955166474af5d32c410f439a2234137ad1bb085fd4e8813c958f11d971a104c463f9cc0d3d26906e982ed224adde625854a000030066a2432220a205a0d3c7cb02c04d912a3588bc2a6fd8c00f244091bdd9dfe46fcdc4706415b269203103ccce3d51a6f3c2aeea8913644a70584
@@ -94,7 +84,7 @@ int main() {
     LOG_ERROR("Failed to parse received message VSSE: %s", TeslaBLE::teslable_status_to_string(status));
     return -1;
   }
-  log_routable_message(&received_message_vcsec);
+  TeslaBLE::log_routable_message("Example", &received_message_vcsec);
 
   Signatures_SessionInfo session_info_vcsec = Signatures_SessionInfo_init_default;
   return_code = client.parse_payload_session_info(&received_message_vcsec.payload.session_info, &session_info_vcsec);
@@ -102,7 +92,7 @@ int main() {
     LOG_ERROR("Failed to parse session info VSSEC");
     return -1;
   }
-  log_session_info(&session_info_vcsec);
+  TeslaBLE::log_session_info("Example", &session_info_vcsec);
 
   UniversalMessage_Domain domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
   auto *session = client.get_peer(domain);
@@ -120,11 +110,11 @@ int main() {
   }
 
   LOG_DEBUG("VCSEC Public key: %s",
-            bytes_to_hex_string(session_info_vcsec.publicKey.bytes, session_info_vcsec.publicKey.size).c_str());
+            TeslaBLE::format_hex(session_info_vcsec.publicKey.bytes, session_info_vcsec.publicKey.size).c_str());
 
   LOG_DEBUG("Parsed VCSEC session info response");
   LOG_DEBUG("Received new counter from the car: %" PRIu32, session->get_counter());
-  LOG_INFO("Epoch: %s", bytes_to_hex_string(session->get_epoch(), 16).c_str());
+  LOG_INFO("Epoch: %s", TeslaBLE::format_hex(session->get_epoch(), 16).c_str());
 
   // build wake command
   LOG_INFO("Building wake command");
@@ -137,7 +127,7 @@ int main() {
     return -1;
   }
   LOG_DEBUG("Action message length: %d", action_message_buffer_length);
-  LOG_INFO("Action message hex: %s", bytes_to_hex_string(action_message_buffer, action_message_buffer_length).c_str());
+  LOG_INFO("Action message hex: %s", TeslaBLE::format_hex(action_message_buffer, action_message_buffer_length).c_str());
 
   // build information request status
   LOG_INFO("Building information request status");
@@ -152,7 +142,7 @@ int main() {
   }
   LOG_DEBUG("VCSEC InfoRequest status length: %d", info_request_status_length);
   LOG_INFO("VCSEC InfoRequest status hex: %s",
-           bytes_to_hex_string(info_request_status_buffer, info_request_status_length).c_str());
+           TeslaBLE::format_hex(info_request_status_buffer, info_request_status_length).c_str());
 
   // mock received message from INFOTAINMENT
   // 321212108f3d244b50b07a9842cac108c928b5e73a0208037a5e0801124104c7a1f47138486aa4729971494878d33b1a24e39571f748a6e16c5955b3d877d3a6aaa0e955166474af5d32c410f439a2234137ad1bb085fd4e8813c958f11d971a104c463f9cc0d3d26906e982ed224adde6255f0a000030076a2432220a208e8dcd164ef361fd123c46c2b2bdfd1fc93056f4ef32c9311a275db908d4d23f9203100a404ec0fc9aa863aec3e50196fbf30b
@@ -177,7 +167,7 @@ int main() {
     LOG_ERROR("Failed to parse received message INFOTAINMENT");
     return -1;
   }
-  log_routable_message(&received_message);
+  TeslaBLE::log_routable_message("Example", &received_message);
 
   LOG_INFO("Parsing session info INFOTAINMENT");
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
@@ -186,7 +176,7 @@ int main() {
     LOG_ERROR("Failed to parse session info INFOTAINMENT");
     return -1;
   }
-  log_session_info(&session_info);
+  TeslaBLE::log_session_info("Example", &session_info);
 
   session = client.get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
   return_code = session->update_session(&session_info);
@@ -204,7 +194,7 @@ int main() {
   LOG_DEBUG("Parsed INFOTAINMENT session info response");
   LOG_DEBUG("Received new counter from the car: %" PRIu32, session_info.counter);
   LOG_DEBUG("Received new clock time from the car: %" PRIu32, session_info.clock_time);
-  LOG_DEBUG("Epoch: %s", bytes_to_hex_string(session->get_epoch(), 16).c_str());
+  LOG_DEBUG("Epoch: %s", TeslaBLE::format_hex(session->get_epoch(), 16).c_str());
 
   // 8f3d244b50b07a9842cac108c928b5e7
   // pb_byte_t connection_id[16] = {0x8f, 0x3d, 0x24, 0x4b, 0x50, 0xb0, 0x7a, 0x98, 0x42, 0xca, 0xc1, 0x08, 0xc9, 0x28,
@@ -227,7 +217,7 @@ int main() {
   }
   LOG_DEBUG("ChargingAmpsMessage length: %d", charging_amps_message_length);
   LOG_INFO("ChargingAmpsMessage hex: %s",
-           bytes_to_hex_string(charging_amps_message_buffer, charging_amps_message_length).c_str());
+           TeslaBLE::format_hex(charging_amps_message_buffer, charging_amps_message_length).c_str());
 
   LOG_INFO("Set charging limit message");
   pb_byte_t charging_limit_message_buffer[UniversalMessage_RoutableMessage_size];
@@ -243,7 +233,7 @@ int main() {
   }
   LOG_DEBUG("ChargingSetLimitMessage length: %d", charging_limit_message_length);
   LOG_INFO("ChargingSetLimitMessage hex: %s",
-           bytes_to_hex_string(charging_limit_message_buffer, charging_limit_message_length).c_str());
+           TeslaBLE::format_hex(charging_limit_message_buffer, charging_limit_message_length).c_str());
 
   LOG_INFO("Turn on HVAC limit message");
   pb_byte_t hvac_on_message_buffer[UniversalMessage_RoutableMessage_size];
@@ -258,7 +248,7 @@ int main() {
     return -1;
   }
   LOG_DEBUG("HVAC length: %d", hvac_on_message_length);
-  LOG_INFO("HVAC hex: %s", bytes_to_hex_string(hvac_on_message_buffer, hvac_on_message_length).c_str());
+  LOG_INFO("HVAC hex: %s", TeslaBLE::format_hex(hvac_on_message_buffer, hvac_on_message_length).c_str());
 
   LOG_INFO("Get charge data message");
   pb_byte_t get_data_message_buffer[UniversalMessage_RoutableMessage_size];
@@ -270,5 +260,5 @@ int main() {
     return -1;
   }
   LOG_DEBUG("HVAC length: %d", get_data_message_length);
-  LOG_INFO("HVAC hex: %s", bytes_to_hex_string(get_data_message_buffer, get_data_message_length).c_str());
+  LOG_INFO("HVAC hex: %s", TeslaBLE::format_hex(get_data_message_buffer, get_data_message_length).c_str());
 }

@@ -309,6 +309,7 @@ class Vehicle {
 
   static constexpr size_t FRAME_HEADER_SIZE = 2;
   static constexpr size_t MAX_MESSAGE_SIZE = 2048;
+  static constexpr size_t MAX_RX_BUFFER_SIZE = MAX_MESSAGE_SIZE * 2;
   std::shared_ptr<Command> peek_command_() const;
   void process_command_queue_();
   void handle_message_(const UniversalMessage_RoutableMessage &msg);

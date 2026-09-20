@@ -8,7 +8,7 @@ namespace TeslaBLE {
 const char *teslable_status_to_string(TeslaBLE_Status_E status) {
   switch (status) {
 #define TESLA_BLE_ERROR_DEF(name, value, string) \
-  case name:                                     \
+  case name: \
     return string;
     TESLA_BLE_ERROR_CODES
 #undef TESLA_BLE_ERROR_DEF

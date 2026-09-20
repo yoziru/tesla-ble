@@ -15,6 +15,14 @@ cd build && ctest -j 2>&1 | grep -E "(FAILED.*\]|^[0-9]+% tests|expected equalit
 ./scripts/clang-tidy.sh --fix        # Apply automatic fixes
 ```
 
+## Release
+From `main`, trigger the GitHub Actions workflow. Replace `X.Y.Z` in both commands.
+```bash
+gh workflow run .github/workflows/release.yml --ref main -f bump=minor -f version=X.Y.Z
+gh release view vX.Y.Z
+```
+Do not run `scripts/release.sh` locally or push release tags manually.
+
 ## Architecture
 - **Library**: C++23 library for Tesla vehicle BLE communication
 - **Core Classes**: `Client` (main API), `CryptoContext` (keys/EC), `Peer` (sessions per domain)

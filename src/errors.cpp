@@ -7,28 +7,11 @@ namespace TeslaBLE {
 // add helper functions to convert error codes to strings
 const char *teslable_status_to_string(TeslaBLE_Status_E status) {
   switch (status) {
-    case TeslaBLE_Status_E_OK:
-      return "OK";
-    case TeslaBLE_Status_E_ERROR_INTERNAL:
-      return "ERROR_INTERNAL";
-    case TeslaBLE_Status_E_ERROR_PB_ENCODING:
-      return "ERROR_PB_ENCODING";
-    case TeslaBLE_Status_E_ERROR_PB_DECODING:
-      return "ERROR_PB_DECODING";
-    case TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED:
-      return "ERROR_PRIVATE_KEY_NOT_INITIALIZED";
-    case TeslaBLE_Status_E_ERROR_INVALID_SESSION:
-      return "ERROR_INVALID_SESSION";
-    case TeslaBLE_Status_E_ERROR_ENCRYPT:
-      return "ERROR_ENCRYPT";
-    case TeslaBLE_Status_E_ERROR_DECRYPT:
-      return "ERROR_DECRYPT";
-    case TeslaBLE_Status_E_ERROR_INVALID_PARAMS:
-      return "ERROR_INVALID_PARAMS";
-    case TeslaBLE_Status_E_ERROR_CRYPTO:
-      return "ERROR_CRYPTO";
-    case TeslaBLE_Status_E_ERROR_COUNTER_REPLAY:
-      return "ERROR_COUNTER_REPLAY";
+#define TESLA_BLE_ERROR_DEF(name, value, string) \
+  case name: \
+    return string;
+    TESLA_BLE_ERROR_CODES
+#undef TESLA_BLE_ERROR_DEF
     default:
       return "ERROR_UNKNOWN";
   }
@@ -37,17 +20,9 @@ const char *teslable_status_to_string(TeslaBLE_Status_E status) {
 // Helper function to get all error codes and their string representations for testing
 std::map<TeslaBLE_Status_E, std::string> get_all_error_codes_and_strings() {
   return {
-      {TeslaBLE_Status_E_OK, "OK"},
-      {TeslaBLE_Status_E_ERROR_INTERNAL, "ERROR_INTERNAL"},
-      {TeslaBLE_Status_E_ERROR_PB_ENCODING, "ERROR_PB_ENCODING"},
-      {TeslaBLE_Status_E_ERROR_PB_DECODING, "ERROR_PB_DECODING"},
-      {TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED, "ERROR_PRIVATE_KEY_NOT_INITIALIZED"},
-      {TeslaBLE_Status_E_ERROR_INVALID_SESSION, "ERROR_INVALID_SESSION"},
-      {TeslaBLE_Status_E_ERROR_ENCRYPT, "ERROR_ENCRYPT"},
-      {TeslaBLE_Status_E_ERROR_DECRYPT, "ERROR_DECRYPT"},
-      {TeslaBLE_Status_E_ERROR_INVALID_PARAMS, "ERROR_INVALID_PARAMS"},
-      {TeslaBLE_Status_E_ERROR_CRYPTO, "ERROR_CRYPTO"},
-      {TeslaBLE_Status_E_ERROR_COUNTER_REPLAY, "ERROR_COUNTER_REPLAY"},
+#define TESLA_BLE_ERROR_DEF(name, value, string) {name, string},
+      TESLA_BLE_ERROR_CODES
+#undef TESLA_BLE_ERROR_DEF
   };
 }
 }  // namespace TeslaBLE

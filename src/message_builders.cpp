@@ -53,7 +53,9 @@ const std::unordered_map<pb_size_t, VehicleActionBuilder::BuilderFunction> &Vehi
       {CarServer_VehicleAction_hvacBioweaponModeAction_tag, build_hvac_bioweapon_mode},
       {CarServer_VehicleAction_vehicleControlScheduleSoftwareUpdateAction_tag,
        build_vehicle_control_schedule_software_update},
-      {CarServer_VehicleAction_setCabinOverheatProtectionAction_tag, build_set_cabin_overheat_protection}};
+      {CarServer_VehicleAction_setCabinOverheatProtectionAction_tag, build_set_cabin_overheat_protection},
+      {CarServer_VehicleAction_setLowPowerModeAction_tag, build_set_low_power_mode},
+      {CarServer_VehicleAction_setKeepAccessoryPowerModeAction_tag, build_set_keep_accessory_power_mode}};
   return BUILDERS;
 }
 
@@ -357,6 +359,28 @@ int VehicleActionBuilder::build_set_cabin_overheat_protection(CarServer_VehicleA
   }
 
   action.vehicle_action_msg.setCabinOverheatProtectionAction = *cop_data;
+  return TeslaBLE_Status_E_OK;
+}
+
+int VehicleActionBuilder::build_set_low_power_mode(CarServer_VehicleAction &action, const void *data) {
+  const bool *enabled = require_data<bool>(data, "Set low power mode action requires boolean data");
+  if (!enabled) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+
+  action.vehicle_action_msg.setLowPowerModeAction = CarServer_SetLowPowerModeAction_init_default;
+  action.vehicle_action_msg.setLowPowerModeAction.low_power_mode = *enabled;
+  return TeslaBLE_Status_E_OK;
+}
+
+int VehicleActionBuilder::build_set_keep_accessory_power_mode(CarServer_VehicleAction &action, const void *data) {
+  const bool *enabled = require_data<bool>(data, "Set keep accessory power mode action requires boolean data");
+  if (!enabled) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+
+  action.vehicle_action_msg.setKeepAccessoryPowerModeAction = CarServer_SetKeepAccessoryPowerModeAction_init_default;
+  action.vehicle_action_msg.setKeepAccessoryPowerModeAction.keep_accessory_power_mode = *enabled;
   return TeslaBLE_Status_E_OK;
 }
 

@@ -378,16 +378,23 @@ TEST_P(VehicleActionBooleanTest, BuildBooleanVehicleActionMessage) {
 
 INSTANTIATE_TEST_SUITE_P(
     BooleanActions, VehicleActionBooleanTest,
-    ::testing::Values(std::make_tuple("vehicleControlSetSentryModeAction_On",
-                                      CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, true),
-                      std::make_tuple("vehicleControlSetSentryModeAction_Off",
-                                      CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, false),
-                      std::make_tuple("hvacAutoAction_On", CarServer_VehicleAction_hvacAutoAction_tag, true),
-                      std::make_tuple("hvacAutoAction_Off", CarServer_VehicleAction_hvacAutoAction_tag, false),
-                      std::make_tuple("hvacSteeringWheelHeaterAction_On",
-                                      CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag, true),
-                      std::make_tuple("hvacSteeringWheelHeaterAction_Off",
-                                      CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag, false)),
+    ::testing::Values(
+        std::make_tuple("vehicleControlSetSentryModeAction_On",
+                        CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, true),
+        std::make_tuple("vehicleControlSetSentryModeAction_Off",
+                        CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, false),
+        std::make_tuple("hvacAutoAction_On", CarServer_VehicleAction_hvacAutoAction_tag, true),
+        std::make_tuple("hvacAutoAction_Off", CarServer_VehicleAction_hvacAutoAction_tag, false),
+        std::make_tuple("hvacSteeringWheelHeaterAction_On", CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag,
+                        true),
+        std::make_tuple("hvacSteeringWheelHeaterAction_Off", CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag,
+                        false),
+        std::make_tuple("setLowPowerModeAction_On", CarServer_VehicleAction_setLowPowerModeAction_tag, true),
+        std::make_tuple("setLowPowerModeAction_Off", CarServer_VehicleAction_setLowPowerModeAction_tag, false),
+        std::make_tuple("setKeepAccessoryPowerModeAction_On",
+                        CarServer_VehicleAction_setKeepAccessoryPowerModeAction_tag, true),
+        std::make_tuple("setKeepAccessoryPowerModeAction_Off",
+                        CarServer_VehicleAction_setKeepAccessoryPowerModeAction_tag, false)),
     [](const ::testing::TestParamInfo<VehicleActionBooleanTest::ParamType> &info) { return std::get<0>(info.param); });
 
 // Test numeric vehicle actions
@@ -422,9 +429,9 @@ TEST_F(MessageBuildingTest, VehicleActionCoverageReport) {
   auto all_tags = get_all_vehicle_action_tags();
 
   // Count different types of actions we're testing
-  int simple_actions = 14;  // From INSTANTIATE_TEST_SUITE_P SimpleActions
-  int boolean_actions = 6;  // From INSTANTIATE_TEST_SUITE_P BooleanActions (3 actions * 2 values each)
-  int numeric_actions = 6;  // From INSTANTIATE_TEST_SUITE_P NumericActions
+  int simple_actions = 14;   // From INSTANTIATE_TEST_SUITE_P SimpleActions
+  int boolean_actions = 10;  // From INSTANTIATE_TEST_SUITE_P BooleanActions (5 actions * 2 values each)
+  int numeric_actions = 6;   // From INSTANTIATE_TEST_SUITE_P NumericActions
   int tested_actions = simple_actions + boolean_actions + numeric_actions;
   int total_actions = all_tags.size();
   int skipped_actions = total_actions - tested_actions - 1;  // -1 for getVehicleData

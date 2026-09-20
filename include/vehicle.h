@@ -246,6 +246,8 @@ class Vehicle {
   void flash_lights();
   void honk_horn();
   void set_sentry_mode(bool enable);
+  void set_low_power_mode(bool enable);
+  void set_keep_accessory_power_mode(bool enable);
   void vent_windows();
   void close_windows();
 

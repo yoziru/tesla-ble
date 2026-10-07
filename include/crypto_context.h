@@ -2,18 +2,16 @@
 
 #include <memory>
 #include "errors.h"
-#include "mbedtls/pk.h"
-#include "mbedtls/ecdh.h"
-#include "mbedtls/ctr_drbg.h"
-#include "mbedtls/entropy.h"
 #include "pb.h"
+#include <psa/crypto.h>
 
 namespace TeslaBLE {
 /**
- * @brief RAII wrapper for mbedTLS contexts
+ * @brief RAII wrapper for the PSA Crypto key used by the Tesla protocol
  *
- * This class provides automatic cleanup of mbedTLS contexts and
- * centralizes cryptographic operations.
+ * Uses only the PSA Crypto API (plus mbedtls_pk for the PEM key format), so
+ * it builds against Mbed TLS 3.6 (ESP-IDF 5.x) and Mbed TLS 4.x / TF-PSA-Crypto
+ * (ESP-IDF 6.x), which removed the legacy ECDH, GCM, SHA-1 and CTR_DRBG APIs.
  */
 class CryptoContext {
  public:
@@ -29,7 +27,7 @@ class CryptoContext {
   CryptoContext &operator=(CryptoContext &&) noexcept;
 
   /**
-   * @brief Initialize the crypto context with entropy
+   * @brief Initialize PSA Crypto
    * @return Error code (0 on success)
    */
   TeslaBLE_Status_E initialize();
@@ -84,7 +82,7 @@ class CryptoContext {
   TeslaBLE_Status_E perform_tesla_ecdh(const uint8_t *tesla_public_key, size_t tesla_key_size, uint8_t *session_key);
 
   /**
-   * @brief Generate random bytes using this context's DRBG
+   * @brief Generate random bytes from the PSA random generator
    * @param output Output buffer for random bytes
    * @param length Number of bytes to generate
    * @return TeslaBLE_Status_E_OK on success, error code otherwise
@@ -97,16 +95,9 @@ class CryptoContext {
    */
   bool is_private_key_initialized() const;
 
-  // Getters for contexts (needed by Peer class)
-  std::shared_ptr<mbedtls_pk_context> get_private_key_context() const { return private_key_context_; }
-  std::shared_ptr<mbedtls_ecdh_context> get_ecdh_context() const { return ecdh_context_; }
-  std::shared_ptr<mbedtls_ctr_drbg_context> get_drbg_context() const { return drbg_context_; }
-
  private:
-  std::shared_ptr<mbedtls_pk_context> private_key_context_;
-  std::shared_ptr<mbedtls_ecdh_context> ecdh_context_;
-  std::shared_ptr<mbedtls_ctr_drbg_context> drbg_context_;
-  std::unique_ptr<mbedtls_entropy_context> entropy_context_;
+  // Volatile PSA key holding our P-256 key pair (0 = none).
+  psa_key_id_t private_key_id_ = PSA_KEY_ID_NULL;
 
   bool initialized_ = false;
 
@@ -121,14 +112,18 @@ class CryptoContext {
 class CryptoUtils {
  public:
   /**
+   * @brief Initialize PSA Crypto (idempotent, safe to call before every use)
+   * @return true on success
+   */
+  static bool ensure_psa_initialized();
+
+  /**
    * @brief Generate random bytes
    * @param output Buffer to write random bytes
    * @param length Number of bytes to generate
-   * @param drbg_context Random number generator context
    * @return Error code (0 on success)
    */
-  static TeslaBLE_Status_E generate_random_bytes(pb_byte_t *output, size_t length,
-                                                 mbedtls_ctr_drbg_context *drbg_context);
+  static TeslaBLE_Status_E generate_random_bytes(pb_byte_t *output, size_t length);
 
   /**
    * @brief Calculate SHA1 hash
@@ -138,6 +133,49 @@ class CryptoUtils {
    * @return Error code (0 on success)
    */
   static TeslaBLE_Status_E sha1_hash(const pb_byte_t *input, size_t input_length, pb_byte_t *output);
+
+  /**
+   * @brief Calculate SHA256 hash
+   * @param input Input data
+   * @param input_length Length of input data
+   * @param output Output buffer (must be at least 32 bytes)
+   * @return Error code (0 on success)
+   */
+  static TeslaBLE_Status_E sha256_hash(const pb_byte_t *input, size_t input_length, pb_byte_t *output);
+
+  /**
+   * @brief AES-128-GCM encrypt (12-byte nonce, 16-byte tag)
+   * @param key 16-byte AES key
+   * @param nonce 12-byte nonce
+   * @param additional_data Additional authenticated data (AAD)
+   * @param additional_data_length Length of additional_data
+   * @param input Plaintext
+   * @param input_length Length of plaintext
+   * @param output Ciphertext output (input_length bytes)
+   * @param output_size Size of output buffer
+   * @param tag 16-byte tag output
+   * @return Error code (0 on success)
+   */
+  static TeslaBLE_Status_E aes_gcm_encrypt(const uint8_t *key, const uint8_t *nonce, const uint8_t *additional_data,
+                                           size_t additional_data_length, const uint8_t *input, size_t input_length,
+                                           uint8_t *output, size_t output_size, uint8_t *tag);
+
+  /**
+   * @brief AES-128-GCM decrypt and verify (12-byte nonce, 16-byte tag)
+   * @param key 16-byte AES key
+   * @param nonce 12-byte nonce
+   * @param additional_data Additional authenticated data (AAD)
+   * @param additional_data_length Length of additional_data
+   * @param input Ciphertext
+   * @param input_length Length of ciphertext
+   * @param tag 16-byte tag to verify
+   * @param output Plaintext output (input_length bytes)
+   * @param output_size Size of output buffer
+   * @return Error code (0 on success)
+   */
+  static TeslaBLE_Status_E aes_gcm_decrypt(const uint8_t *key, const uint8_t *nonce, const uint8_t *additional_data,
+                                           size_t additional_data_length, const uint8_t *input, size_t input_length,
+                                           const uint8_t *tag, uint8_t *output, size_t output_size);
 
   /**
    * @brief Secure memory comparison

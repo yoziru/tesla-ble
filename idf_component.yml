@@ -3,7 +3,7 @@ description: "C++ library for Tesla BLE API communication"
 url: "https://github.com/yoziru/tesla-ble"
 dependencies:
   idf:
-    version: ">=5.0.1"
+    version: ">=5.3"  # Mbed TLS 3.6+ (PSA key import/export helpers)
 targets:
   - esp32
   - esp32s3

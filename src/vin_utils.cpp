@@ -5,7 +5,7 @@
 
 #include "vin_utils.h"
 
-#include <mbedtls/sha1.h>
+#include "crypto_context.h"
 
 #include <cctype>
 #include <cstring>
@@ -19,8 +19,7 @@ std::string get_vin_advertisement_name(const char *vin) {
 
   // Calculate SHA1 of the VIN
   unsigned char sha1_hash[20];
-  int status = mbedtls_sha1(reinterpret_cast<const unsigned char *>(vin), 17, sha1_hash);
-  if (status != 0) {
+  if (CryptoUtils::sha1_hash(reinterpret_cast<const pb_byte_t *>(vin), 17, sha1_hash) != TeslaBLE_Status_E_OK) {
     return "";
   }
 

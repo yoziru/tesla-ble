@@ -215,6 +215,7 @@ TEST_F(ProtocolHandshakeTest, ResponseDecryption) {
                                              request_hash, sizeof(request_hash),
                                              0,  // flags
                                              0,  // fault
+                                             0,  // response counter
                                              decrypted, sizeof(decrypted), &decrypted_length);
 
   // The exact result depends on the mock data being valid
@@ -259,9 +260,12 @@ TEST_F(ProtocolHandshakeTest, VcsecResponseDecryptRoundTrip) {
   size_t ad_length = 0;
   uint32_t flags = (1u << UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE);
   uint32_t fault = 0;
-  auto ad_result =
-      peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE, TestConstants::TEST_VIN, 0,
-                               ad_buffer.data(), &ad_length, flags, request_hash.data(), request_hash_length, fault);
+  // The vehicle authenticates its response with its own counter, which in
+  // general differs from ours (the regression: AD used our request counter).
+  const uint32_t response_counter = 0x2a;
+  auto ad_result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE,
+                                            TestConstants::TEST_VIN, 0, ad_buffer.data(), &ad_length, flags,
+                                            request_hash.data(), request_hash_length, fault, response_counter);
   ASSERT_EQ(ad_result, TeslaBLE_Status_E_OK) << "Failed to construct AD buffer";
 
   unsigned char ad_hash[32];
@@ -294,10 +298,20 @@ TEST_F(ProtocolHandshakeTest, VcsecResponseDecryptRoundTrip) {
 
   std::array<pb_byte_t, 32> decrypted{};
   size_t decrypted_length = 0;
-  int decrypt_result =
-      peer.decrypt_response(ciphertext.data(), ciphertext_length, nonce.data(), tag.data(), request_hash.data(),
-                            request_hash_length, flags, fault, decrypted.data(), decrypted.size(), &decrypted_length);
+  int decrypt_result = peer.decrypt_response(ciphertext.data(), ciphertext_length, nonce.data(), tag.data(),
+                                             request_hash.data(), request_hash_length, flags, fault, response_counter,
+                                             decrypted.data(), decrypted.size(), &decrypted_length);
   ASSERT_EQ(decrypt_result, TeslaBLE_Status_E_OK) << "Failed to decrypt VCSEC response";
+
+  // A response is only accepted when the tag verifies: the wrong counter
+  // changes the authenticated data, so decryption must fail.
+  std::array<pb_byte_t, 32> rejected{};
+  size_t rejected_length = 0;
+  EXPECT_NE(peer.decrypt_response(ciphertext.data(), ciphertext_length, nonce.data(), tag.data(), request_hash.data(),
+                                  request_hash_length, flags, fault, response_counter + 1, rejected.data(),
+                                  rejected.size(), &rejected_length),
+            TeslaBLE_Status_E_OK)
+      << "Response with a mismatched counter must not authenticate";
   ASSERT_EQ(decrypted_length, plaintext.size()) << "Decrypted length mismatch";
   EXPECT_TRUE(std::equal(plaintext.begin(), plaintext.end(), decrypted.begin()))
       << "Decrypted payload should match plaintext";

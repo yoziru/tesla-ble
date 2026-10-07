@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -110,8 +112,8 @@ class Peer {
   // Cryptographic operations
   int construct_ad_buffer(Signatures_SignatureType signature_type, const char *vin, uint32_t expires_at,
                           pb_byte_t *output_buffer, size_t *output_length, uint32_t flags = 0,
-                          const pb_byte_t *request_hash = nullptr, size_t request_hash_length = 0,
-                          uint32_t fault = 0) const;
+                          const pb_byte_t *request_hash = nullptr, size_t request_hash_length = 0, uint32_t fault = 0,
+                          std::optional<uint32_t> counter = std::nullopt) const;
 
   int encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t *output_buffer,
               size_t output_buffer_length, size_t *output_length, pb_byte_t *signature_buffer, pb_byte_t *ad_buffer,
@@ -123,7 +125,8 @@ class Peer {
 
   int decrypt_response(const pb_byte_t *input_buffer, size_t input_length, const pb_byte_t *nonce, const pb_byte_t *tag,
                        const pb_byte_t *request_hash, size_t request_hash_length, uint32_t flags, uint32_t fault,
-                       pb_byte_t *output_buffer, size_t output_buffer_length, size_t *output_length) const;
+                       uint32_t response_counter, pb_byte_t *output_buffer, size_t output_buffer_length,
+                       size_t *output_length) const;
 
   /**
    * @brief Validate a response counter using sliding window anti-replay

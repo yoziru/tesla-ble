@@ -20,14 +20,6 @@
 
 #include <pb.h>
 
-#include <mbedtls/ctr_drbg.h>
-#include <mbedtls/ecdh.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/error.h>
-#include <mbedtls/gcm.h>
-#include <mbedtls/pk.h>
-#include <mbedtls/sha1.h>
-
 #include <cinttypes>
 #include <cstring>
 
@@ -306,7 +298,8 @@ int Peer::force_update_session(Signatures_SessionInfo *session_info) {
 
 int Peer::construct_ad_buffer(Signatures_SignatureType signature_type, const char *vin, uint32_t expires_at,
                               pb_byte_t *output_buffer, size_t *output_length, uint32_t flags,
-                              const pb_byte_t *request_hash, size_t request_hash_length, uint32_t fault) const {
+                              const pb_byte_t *request_hash, size_t request_hash_length, uint32_t fault,
+                              std::optional<uint32_t> counter) const {
   if (output_buffer == nullptr || output_length == nullptr || vin == nullptr) {
     LOG_ERROR("Invalid parameters for AD buffer construction");
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
@@ -368,9 +361,10 @@ int Peer::construct_ad_buffer(Signatures_SignatureType signature_type, const cha
     }
   }
 
-  // Counter (TLV format)
+  // Counter (TLV format). A response is authenticated with the counter the
+  // vehicle sent in it (AES_GCM_ResponseData.counter), not our request counter.
   pb_byte_t counter_bytes[4];
-  write_uint32_be(counter_bytes, counter_);
+  write_uint32_be(counter_bytes, counter.value_or(counter_));
   if (!append_tlv(Signatures_Tag_TAG_COUNTER, counter_bytes, sizeof(counter_bytes))) {
     LOG_ERROR("Failed to append counter to AD buffer");
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
@@ -451,74 +445,41 @@ int Peer::construct_request_hash(Signatures_SignatureType auth_type, const pb_by
 
 int Peer::decrypt_response(const pb_byte_t *input_buffer, size_t input_length, const pb_byte_t *nonce,
                            const pb_byte_t *tag, const pb_byte_t *request_hash, size_t request_hash_length,
-                           uint32_t flags, uint32_t fault, pb_byte_t *output_buffer, size_t output_buffer_length,
-                           size_t *output_length) const {
+                           uint32_t flags, uint32_t fault, uint32_t response_counter, pb_byte_t *output_buffer,
+                           size_t output_buffer_length, size_t *output_length) const {
   if (!is_private_key_initialized()) {
     LOG_ERROR("[DecryptResponse] Private key not initialized");
     return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
   }
 
-  mbedtls_gcm_context aes_context;
-  mbedtls_gcm_init(&aes_context);
-
-  // Set up AES-GCM with the shared key
-  int return_code = mbedtls_gcm_setkey(&aes_context, MBEDTLS_CIPHER_ID_AES, shared_secret_sha1_.data(), 128);
-  if (return_code != 0) {
-    LOG_ERROR("[DecryptResponse] GCM set key error: -0x%04x", (unsigned int) -return_code);
-    return TeslaBLE_Status_E_ERROR_DECRYPT;
-  }
-
   // Construct AD buffer for response (max 79 bytes)
   pb_byte_t ad_buffer[80];
   size_t ad_length;
-  return_code = construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE, vin_.c_str(),
-                                    0,  // expires_at not used for responses
-                                    ad_buffer, &ad_length, flags, request_hash, request_hash_length, fault);
+  int return_code =
+      construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE, vin_.c_str(),
+                          0,  // expires_at not used for responses
+                          ad_buffer, &ad_length, flags, request_hash, request_hash_length, fault, response_counter);
 
   if (return_code != 0) {
     LOG_ERROR("[DecryptResponse] Failed to construct AD buffer");
     return return_code;
   }
 
-  // Hash the AD buffer
-  unsigned char ad_hash[32];
-  return_code = mbedtls_sha256(ad_buffer, ad_length, ad_hash, 0);
-  if (return_code != 0) {
-    LOG_ERROR("[DecryptResponse] AD metadata SHA256 hash error: -0x%04x", (unsigned int) -return_code);
+  // Hash the AD buffer; the hash is the GCM AAD
+  pb_byte_t ad_hash[32];
+  if (CryptoUtils::sha256_hash(ad_buffer, ad_length, ad_hash) != TeslaBLE_Status_E_OK) {
+    LOG_ERROR("[DecryptResponse] AD metadata SHA256 hash error");
     return TeslaBLE_Status_E_ERROR_DECRYPT;
   }
 
-  // Start decryption
-  return_code = mbedtls_gcm_starts(&aes_context, MBEDTLS_GCM_DECRYPT, nonce, 12);  // nonce is always 12 bytes
-  if (return_code != 0) {
-    LOG_ERROR("[DecryptResponse] GCM start error: -0x%04x", (unsigned int) -return_code);
+  // Decrypt and verify the tag (nonce is always 12 bytes, tag 16)
+  if (CryptoUtils::aes_gcm_decrypt(shared_secret_sha1_.data(), nonce, ad_hash, sizeof(ad_hash), input_buffer,
+                                   input_length, tag, output_buffer, output_buffer_length) != TeslaBLE_Status_E_OK) {
+    LOG_ERROR("[DecryptResponse] Decryption or authentication failed");
     return TeslaBLE_Status_E_ERROR_DECRYPT;
   }
 
-  // Set AD hash as AAD
-  mbedtls_gcm_update_ad(&aes_context, ad_hash, sizeof(ad_hash));
-
-  // Decrypt the message
-  return_code =
-      mbedtls_gcm_update(&aes_context, input_buffer, input_length, output_buffer, output_buffer_length, output_length);
-  if (return_code != 0) {
-    LOG_ERROR("[DecryptResponse] Decryption error in gcm_update: -0x%04x", (unsigned int) -return_code);
-    return TeslaBLE_Status_E_ERROR_DECRYPT;
-  }
-
-  // Finalize and verify the tag
-  size_t finish_length = 0;
-  pb_byte_t finish_buffer[16];
-  pb_byte_t tag_copy[16];
-  std::memcpy(tag_copy, tag, sizeof(tag_copy));
-  return_code = mbedtls_gcm_finish(&aes_context, finish_buffer, sizeof(finish_buffer), &finish_length, tag_copy,
-                                   sizeof(tag_copy));  // tag is always 16 bytes
-  if (return_code != 0) {
-    LOG_ERROR("[DecryptResponse] Authentication failed in gcm_finish: -0x%04x", (unsigned int) -return_code);
-    return TeslaBLE_Status_E_ERROR_DECRYPT;
-  }
-
-  mbedtls_gcm_free(&aes_context);
+  *output_length = input_length;
   return TeslaBLE_Status_E_OK;
 }
 
@@ -530,64 +491,30 @@ int Peer::encrypt(pb_byte_t *input_buffer, size_t input_buffer_length, pb_byte_t
     return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
   }
 
-  mbedtls_gcm_context aes_context;
-  mbedtls_gcm_init(&aes_context);
-
-  // Use 128-bit key as specified in the protocol
-  int return_code = mbedtls_gcm_setkey(&aes_context, MBEDTLS_CIPHER_ID_AES, shared_secret_sha1_.data(), 128);
-  if (return_code != 0) {
-    LOG_ERROR("[Encrypt] GCM set key error: -0x%04x", (unsigned int) -return_code);
-    mbedtls_gcm_free(&aes_context);
-    return TeslaBLE_Status_E_ERROR_ENCRYPT;
+  // Validate buffer sizes before encryption
+  if (output_buffer_length < input_buffer_length) {
+    LOG_ERROR("[Encrypt] Output buffer too small: %zu < %zu", output_buffer_length, input_buffer_length);
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
   // Generate a new nonce for each encryption
   generate_nonce(nonce);
 
-  return_code = mbedtls_gcm_starts(&aes_context, MBEDTLS_GCM_ENCRYPT, nonce, 12);
-  if (return_code != 0) {
-    LOG_ERROR("[Encrypt] GCM start error: -0x%04x", (unsigned int) -return_code);
-    mbedtls_gcm_free(&aes_context);
-    return TeslaBLE_Status_E_ERROR_ENCRYPT;
-  }
-
   // Hash the AD buffer to create the AAD as per the protocol
-  unsigned char ad_hash[32];
-  return_code = mbedtls_sha256(ad_buffer, ad_buffer_length, ad_hash, 0);
-  if (return_code != 0) {
-    LOG_ERROR("[Encrypt] AD metadata SHA256 hash error: -0x%04x", (unsigned int) -return_code);
-    mbedtls_gcm_free(&aes_context);
+  pb_byte_t ad_hash[32];
+  if (CryptoUtils::sha256_hash(ad_buffer, ad_buffer_length, ad_hash) != TeslaBLE_Status_E_OK) {
+    LOG_ERROR("[Encrypt] AD metadata SHA256 hash error");
     return TeslaBLE_Status_E_ERROR_ENCRYPT;
   }
 
-  mbedtls_gcm_update_ad(&aes_context, ad_hash, sizeof(ad_hash));
-
-  // Validate buffer sizes before encryption
-  if (output_buffer_length < input_buffer_length) {
-    LOG_ERROR("[Encrypt] Output buffer too small: %zu < %zu", output_buffer_length, input_buffer_length);
-    mbedtls_gcm_free(&aes_context);
-    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-  }
-
-  return_code = mbedtls_gcm_update(&aes_context, input_buffer, input_buffer_length, output_buffer, output_buffer_length,
-                                   output_length);
-  if (return_code != 0) {
-    LOG_ERROR("[Encrypt] Encryption error in gcm_update: -0x%04x", (unsigned int) -return_code);
-    mbedtls_gcm_free(&aes_context);
+  // AES-128-GCM with the session key; the 16-byte tag goes to signature_buffer
+  if (CryptoUtils::aes_gcm_encrypt(shared_secret_sha1_.data(), nonce, ad_hash, sizeof(ad_hash), input_buffer,
+                                   input_buffer_length, output_buffer, output_buffer_length,
+                                   signature_buffer) != TeslaBLE_Status_E_OK) {
+    LOG_ERROR("[Encrypt] GCM encryption error");
     return TeslaBLE_Status_E_ERROR_ENCRYPT;
   }
-
-  size_t finish_buffer_length = 0;
-  pb_byte_t finish_buffer[16];
-  return_code = mbedtls_gcm_finish(&aes_context, finish_buffer, sizeof(finish_buffer), &finish_buffer_length,
-                                   signature_buffer, 16);
-  if (return_code != 0) {
-    LOG_ERROR("[Encrypt] Finalization error in gcm_finish: -0x%04x", (unsigned int) -return_code);
-    mbedtls_gcm_free(&aes_context);
-    return TeslaBLE_Status_E_ERROR_ENCRYPT;
-  }
-
-  mbedtls_gcm_free(&aes_context);
+  *output_length = input_buffer_length;
 
   LOG_VERBOSE("[Encrypt] Nonce: %s, Ciphertext: %s, Tag: %s", format_hex(nonce, 12).c_str(),
               format_hex(output_buffer, *output_length).c_str(), format_hex(signature_buffer, 16).c_str());

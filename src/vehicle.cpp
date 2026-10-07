@@ -866,10 +866,11 @@ void TeslaBLE::Vehicle::handle_vcsec_message_(const UniversalMessage_RoutableMes
     }
 
     size_t decrypt_length = 0;
-    int return_code = session->decrypt_response(
-        payload->bytes, payload->size, sig_data->sig_type.AES_GCM_Response_data.nonce,
-        sig_data->sig_type.AES_GCM_Response_data.tag, request_hash, request_hash_length, msg.flags, fault,
-        decrypt_buffer.bytes, sizeof(decrypt_buffer.bytes), &decrypt_length);
+    int return_code =
+        session->decrypt_response(payload->bytes, payload->size, sig_data->sig_type.AES_GCM_Response_data.nonce,
+                                  sig_data->sig_type.AES_GCM_Response_data.tag, request_hash, request_hash_length,
+                                  msg.flags, fault, sig_data->sig_type.AES_GCM_Response_data.counter,
+                                  decrypt_buffer.bytes, sizeof(decrypt_buffer.bytes), &decrypt_length);
     if (return_code != 0) {
       LOG_ERROR("Failed to decrypt VCSEC response: %d", return_code);
       return;

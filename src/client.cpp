@@ -347,7 +347,7 @@ int Client::parse_payload_car_server_response(
         int return_code = session->decrypt_response(
             input_buffer->bytes, input_buffer->size, signature_data->sig_type.AES_GCM_Response_data.nonce,
             signature_data->sig_type.AES_GCM_Response_data.tag, last_request_hash_.data(),
-            this->last_request_hash_length_, response_flags, signed_message_fault, decrypt_buffer.bytes,
+            this->last_request_hash_length_, response_flags, signed_message_fault, counter, decrypt_buffer.bytes,
             sizeof(decrypt_buffer.bytes), &decrypt_length);
         if (return_code != 0) {
           LOG_ERROR("[parse_payload_car_server_response] Failed to decrypt response");

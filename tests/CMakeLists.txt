@@ -38,6 +38,7 @@ set(TEST_FILES
     test_protocol_compliance.cpp
     test_protocol_handshake.cpp
     test_protocol_vectors.cpp
+    test_psa_crypto.cpp
     test_session_management.cpp
     test_session_recovery.cpp
     test_tb_utils.cpp

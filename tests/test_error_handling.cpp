@@ -9,6 +9,15 @@
 
 using namespace TeslaBLE;
 
+// Local helper building the error code to string map (the library helper was removed)
+std::map<TeslaBLE_Status_E, std::string> local_error_codes_and_strings() {
+  return {
+#define TESLA_BLE_ERROR_DEF(name, value, string) {name, string},
+      TESLA_BLE_ERROR_CODES
+#undef TESLA_BLE_ERROR_DEF
+  };
+}
+
 class ErrorHandlingTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -23,7 +32,7 @@ class ErrorHandlingTest : public ::testing::Test {
 
 // Helper function to get all error codes as a vector
 std::vector<TeslaBLE_Status_E> get_all_error_codes() {
-  auto error_map = get_all_error_codes_and_strings();
+  auto error_map = local_error_codes_and_strings();
   std::vector<TeslaBLE_Status_E> codes;
   codes.reserve(error_map.size());
   for (const auto &pair : error_map) {
@@ -33,7 +42,7 @@ std::vector<TeslaBLE_Status_E> get_all_error_codes() {
 }
 
 TEST_F(ErrorHandlingTest, ErrorCodeToStringMapping) {
-  auto error_map = get_all_error_codes_and_strings();
+  auto error_map = local_error_codes_and_strings();
 
   // Test all error codes have proper string representations
   for (const auto &pair : error_map) {
@@ -44,7 +53,7 @@ TEST_F(ErrorHandlingTest, ErrorCodeToStringMapping) {
 
 TEST_F(ErrorHandlingTest, UnknownErrorCode) {
   // Test unknown error code returns "ERROR_UNKNOWN"
-  auto error_map = get_all_error_codes_and_strings();
+  auto error_map = local_error_codes_and_strings();
   int max_value = 0;
   for (const auto &pair : error_map) {
     max_value = std::max(max_value, static_cast<int>(pair.first));

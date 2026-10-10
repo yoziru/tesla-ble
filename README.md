@@ -97,10 +97,7 @@ ctest --output-on-failure --verbose
 ./tests/test_message_parsing
 ./tests/test_session_management
 ./tests/test_protocol_compliance
-./tests/test_utils
-
-# Run the complete test suite
-./tests/tesla_ble_tests
+./tests/test_error_handling
 ```
 
 ### Test Coverage
@@ -143,7 +140,8 @@ sudo apt-get install clang-format clang-tidy  # Ubuntu/Debian
 brew install clang-format clang-tidy          # macOS
 
 # Run formatting and linting checks (will configure CMake if needed)
-./scripts/lint.sh
+./scripts/clang-format.sh --check
+./scripts/clang-tidy.sh --check
 
 # Or run individually:
 # Format code
@@ -179,8 +177,8 @@ The project uses GitHub Actions for CI/CD with the following features:
 - **Multiple build types**: Debug and Release
 - **Code coverage**: Automatic coverage reporting to Codecov
 - **Static analysis**: cppcheck integration
-- **Memory testing**: Valgrind and AddressSanitizer
-- **Performance testing**: Various sanitizers (address, undefined, thread)
+- **Memory testing**: Valgrind is available locally via `./scripts/run_tests.sh --valgrind` (not run in CI)
+- **Coverage**: Coverage analysis is available locally via `./scripts/run_tests.sh --coverage` (not run in CI)
 
 ### Test Structure
 
@@ -191,9 +189,9 @@ The test suite is organized into several categories:
 - **`test_message_building.cpp`**: Message construction for various commands
 - **`test_message_parsing.cpp`**: Parsing of received messages
 - **`test_session_management.cpp`**: Session handling and peer management
-- **`test_utils.cpp`**: Utility functions and helper methods
+- **`test_tb_utils.cpp`**: Utility functions and helper methods
 - **`test_vehicle.cpp`**: Vehicle state management and command processing
-- **`test_exponential_backoff.cpp`**: Exponential backoff retry logic
+- **`test_session_recovery.cpp`**: Session recovery after session errors
 
 Each test file contains comprehensive unit tests covering both success and failure scenarios, edge cases, and parameter validation.
 

@@ -54,46 +54,11 @@ class MessageProcessor {
    */
   size_t process_messages();
 
-  /**
-   * @brief Check if message processor is busy
-   * @return true if messages are being processed
-   */
-  bool is_processing() const;
-
-  /**
-   * @brief Get current queue size
-   * @return Number of queued messages
-   */
-  size_t get_queue_size() const;
-
-  /**
-   * @brief Clear all queued messages
-   */
-  void clear_queue();
-
  private:
   static constexpr size_t MAX_QUEUE_SIZE = 1000;
   MessageHandler message_handler_;
   std::queue<UniversalMessage_RoutableMessage> message_queue_;
   mutable std::mutex queue_mutex_;
-  bool processing_ = false;
 };
-
-/**
- * @brief Global message processor instance
- */
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-extern std::unique_ptr<MessageProcessor> g_message_processor;
-
-/**
- * @brief Initialize global message processor
- * @param handler Message handler function
- */
-void initialize_message_processor(MessageProcessor::MessageHandler handler);
-
-/**
- * @brief Cleanup global message processor
- */
-void cleanup_message_processor();
 
 }  // namespace TeslaBLE

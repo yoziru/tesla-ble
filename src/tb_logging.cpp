@@ -113,8 +113,12 @@ const char *message_fault_to_string(UniversalMessage_MessageFault_E fault) {
 // Function to log UniversalMessage_MessageStatus
 void log_message_status(const char *tag, const UniversalMessage_MessageStatus *status) {
   LOG_ERROR("  MessageStatus:");
-  LOG_ERROR("    operation_status: %s", operation_status_to_string(status->operation_status));
-  LOG_ERROR("    signed_message_fault: %s", message_fault_to_string(status->signed_message_fault));
+  LOG_DEBUG("    operation_status: %s", operation_status_to_string(status->operation_status));
+  if (status->signed_message_fault != UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE) {
+    LOG_ERROR("    signed_message_fault: %s", message_fault_to_string(status->signed_message_fault));
+  } else {
+    LOG_DEBUG("    signed_message_fault: %s", message_fault_to_string(status->signed_message_fault));
+  }
 }
 
 const char *vssec_signed_message_information_to_string(VCSEC_SignedMessage_information_E information) {

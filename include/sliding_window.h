@@ -24,37 +24,6 @@ class SlidingWindow {
   SlidingWindow() = default;
 
   /**
-   * @brief Check if a counter value is valid (not a replay)
-   *
-   * A counter is valid if:
-   * - It's higher than the highest seen counter, OR
-   * - It's within the sliding window and hasn't been seen before
-   *
-   * @param counter The counter value to validate
-   * @return true if the counter is valid (not a replay)
-   */
-  bool is_valid(uint32_t counter) const {
-    // If not yet initialized, any counter is valid
-    if (!used_) {
-      return true;
-    }
-
-    // Counter higher than highest seen - always valid
-    if (counter > highest_counter_) {
-      return true;
-    }
-
-    // Counter too old - outside window
-    if (highest_counter_ - counter >= WINDOW_SIZE) {
-      return false;
-    }
-
-    // Counter within window - check if already seen
-    uint32_t offset = highest_counter_ - counter;
-    return (window_ & (1ULL << offset)) == 0;
-  }
-
-  /**
    * @brief Add a counter to the window (mark as seen)
    *
    * Call this after successfully processing a message with this counter.
@@ -111,31 +80,12 @@ class SlidingWindow {
   uint32_t get_highest_counter() const { return highest_counter_; }
 
   /**
-   * @brief Check if the window has been initialized
-   */
-  bool is_initialized() const { return used_; }
-
-  /**
    * @brief Reset the sliding window
    */
   void reset() {
     window_ = 0;
     highest_counter_ = 0;
     used_ = false;
-  }
-
-  /**
-   * @brief Force set the highest counter (for session recovery)
-   *
-   * This should only be used during session recovery when we need
-   * to synchronize with the vehicle's counter.
-   *
-   * @param counter The counter value to set as highest
-   */
-  void force_set_counter(uint32_t counter) {
-    highest_counter_ = counter;
-    window_ = 1;  // Only mark current position as used
-    used_ = true;
   }
 
  private:

@@ -33,9 +33,6 @@ using TeslaBLE_Status_E = enum TeslaBLE_Status_E_ { TESLA_BLE_ERROR_CODES };
 #ifdef __cplusplus
 // Add helper functions to convert error codes to strings
 const char *teslable_status_to_string(TeslaBLE_Status_E status);
-
-// Helper function to get all error codes and their string representations for testing
-std::map<TeslaBLE_Status_E, std::string> get_all_error_codes_and_strings();
 }
 #endif
 

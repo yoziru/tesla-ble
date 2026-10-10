@@ -2253,10 +2253,90 @@ TEST_F(VehicleInternalTest, CommandCompletesAfterTimeoutWithPartialData) {
   EXPECT_TRUE(vehicle_->rx_buffer_.empty());
   EXPECT_EQ(cmd->state, CommandState::READY);
 
+  // The retry is delayed by the backoff; once the delay elapses the command is re-sent.
+  cmd->next_retry_time = std::chrono::steady_clock::now() - std::chrono::milliseconds(1);
+
   vehicle_->loop();
   vehicle_->on_rx_data(make_plain_infotainment_response());
   vehicle_->loop();
 
   ASSERT_TRUE(completed);
   ASSERT_TRUE(success);
+}
+
+// ============================================================================
+// Auth Stall Recovery Regression Tests
+// ============================================================================
+
+TEST_F(VehicleTest, AuthStallReportsFailureOnceAndDisconnects) {
+  vehicle_->set_connected(true);
+
+  int callback_count = 0;
+  std::unique_ptr<CommandError> captured_error;
+
+  vehicle_->send_command(
+      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Stuck Command",
+      [](Client *, uint8_t *buffer, size_t *len) {
+        *len = 4;
+        std::fill_n(buffer, 4, 0x42);
+        return TeslaBLE_Status_E_OK;
+      },
+      [&](std::unique_ptr<CommandError> error) {
+        callback_count++;
+        captured_error = std::move(error);
+      });
+
+  vehicle_->loop();
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1) << "Should send session info request";
+
+  auto &command_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
+  ASSERT_FALSE(command_queue.empty());
+  auto command = command_queue.front();
+
+  // Simulate an auth stall well past every retry threshold.
+  command->started_at = std::chrono::steady_clock::now() - std::chrono::seconds(400);
+  command->last_tx_at = std::chrono::steady_clock::now() - Vehicle::AUTH_RESPONSE_TIMEOUT - std::chrono::seconds(1);
+
+  vehicle_->loop();
+
+  EXPECT_EQ(callback_count, 1) << "A stalled command must complete exactly once";
+  ASSERT_NE(captured_error, nullptr);
+  EXPECT_TRUE(captured_error->message().find("session stale") != std::string::npos)
+      << "Failure should describe the stale session: " << captured_error->message();
+  EXPECT_FALSE(vehicle_->is_connected()) << "Connection should be reset after the auth stall";
+  EXPECT_TRUE(command_queue.empty());
+}
+
+TEST_F(VehicleTest, AuthTimeoutRaisesRetryLevelBeforeFailing) {
+  vehicle_->set_connected(true);
+
+  vehicle_->send_command_bool(
+      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Slow Auth Command",
+      [](Client *, uint8_t *buffer, size_t *len) {
+        *len = 4;
+        std::fill_n(buffer, 4, 0x42);
+        return TeslaBLE_Status_E_OK;
+      },
+      nullptr);
+
+  vehicle_->loop();
+  ASSERT_GE(mock_ble_->get_written_data().size(), 1);
+
+  auto &command_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
+  ASSERT_FALSE(command_queue.empty());
+  auto command = command_queue.front();
+  ASSERT_EQ(command->state, CommandState::AUTH_RESPONSE_WAITING);
+
+  // One prior auth retry and 40s elapsed stays inside the escalated 60s budget.
+  command->retry_count = 1;
+  command->started_at = std::chrono::steady_clock::now() - std::chrono::seconds(40);
+  command->last_tx_at = std::chrono::steady_clock::now() - Vehicle::AUTH_RESPONSE_TIMEOUT - std::chrono::seconds(1);
+
+  vehicle_->loop();
+
+  EXPECT_EQ(command->state, CommandState::AUTHENTICATING) << "Second auth timeout should still retry, not fail";
+  EXPECT_TRUE(vehicle_->is_connected());
+  EXPECT_FALSE(command_queue.empty());
+  EXPECT_EQ(command->retry_count, 2);
 }

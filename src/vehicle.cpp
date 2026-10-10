@@ -184,11 +184,7 @@ void TeslaBLE::Vehicle::process_command_queue_() {
   auto command = command_queue_.front();
   auto now = std::chrono::steady_clock::now();
   auto phase_duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - command->phase_started_at);
-  const auto step_timeout =
-      (command->state == CommandState::WAITING_FOR_RESPONSE || command->state == CommandState::READY)
-          ? CLOCK_SYNC_MAX_LATENCY
-          : AUTH_RESPONSE_TIMEOUT;
-  if (phase_duration > step_timeout && command->state != CommandState::WAITING_FOR_RESPONSE &&
+  if (phase_duration > AUTH_RESPONSE_TIMEOUT && command->state != CommandState::WAITING_FOR_RESPONSE &&
       command->state != CommandState::READY && command->state != CommandState::AUTH_RESPONSE_WAITING) {
     if (is_connected_) {
       LOG_WARNING("Command step timeout while connected: %s (phase: %d)", command->name.c_str(),
@@ -198,6 +194,11 @@ void TeslaBLE::Vehicle::process_command_queue_() {
                 static_cast<int>(command->phase));
     }
     mark_command_failed_(command, CommandError::timeout("Command step"));
+    return;
+  }
+
+  if ((command->state == CommandState::IDLE || command->state == CommandState::READY) &&
+      now < command->next_retry_time) {
     return;
   }
 
@@ -326,13 +327,14 @@ void TeslaBLE::Vehicle::handle_auth_timeout_common_(const std::shared_ptr<Comman
   log_timeout_message_(domain_name + " auth response timeout", command);
   auto now = std::chrono::steady_clock::now();
   auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(now - command->started_at);
+  command->retry_count++;
   int attempt_level = std::min(command->retry_count / 2, 3);
   static constexpr std::array<int, 4> TIMEOUT_THRESHOLDS = {30, 60, 120, 300};
   if (total_duration > std::chrono::seconds(TIMEOUT_THRESHOLDS.at(attempt_level))) {
     LOG_ERROR("Connection validation failed: %s auth stuck for %lld seconds (level %d, retry %d)", domain_name.c_str(),
               (long long) total_duration.count(), attempt_level, command->retry_count);
-    reset_all_sessions_and_connection_();
     mark_command_failed_(command, CommandError::session_stale("connection"));
+    reset_all_sessions_and_connection_();
     return;
   }
   rx_buffer_.clear();
@@ -509,7 +511,6 @@ void TeslaBLE::Vehicle::retry_command(const std::shared_ptr<Command> &command) {
   command->next_retry_time = std::chrono::steady_clock::now() + backoff_delay;
   LOG_DEBUG("Exponential backoff: retry %d, delay %lldms for command: %s", static_cast<int>(command->retry_count + 1),
             static_cast<long long>(backoff_delay.count()), command->name.c_str());
-  command->last_tx_at = std::chrono::steady_clock::now() - backoff_delay + std::chrono::milliseconds(100);
 
   set_command_phase_(command, OperationPhase::QUEUED);
   switch (command->state) {

@@ -292,7 +292,7 @@ class Vehicle {
   void media_previous_favorite();
   void media_volume_up();
   void media_volume_down();
-  void set_media_volume(float volume);  // 0-10, as vehicle-command SetVolume
+  void set_media_volume(float level);  // 0-10, as vehicle-command SetVolume
 
   // Pairing & Auth
   void pair(Keys_Role role = Keys_Role_ROLE_OWNER);

@@ -7,6 +7,7 @@
 #include "universal_message.pb.h"
 
 #include <cinttypes>
+#include <cmath>
 
 namespace TeslaBLE {
 
@@ -255,7 +256,7 @@ int VehicleActionBuilder::build_media_update_volume(CarServer_VehicleAction &act
   // As vehicle-command SetVolume (absolute, 0-10) / VolumeUp / VolumeDown (delta)
   if (volume->which_media_volume == CarServer_MediaUpdateVolume_volume_absolute_float_tag) {
     float level = volume->media_volume.volume_absolute_float;
-    if (!(level >= 0.0f && level <= 10.0f)) {
+    if (!std::isfinite(level) || level < 0.0f || level > 10.0f) {
       LOG_ERROR("Invalid media volume: %.2f (must be 0-10)", static_cast<double>(level));
       return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
     }
@@ -444,10 +445,10 @@ int VehicleActionBuilder::build_scheduled_departure(CarServer_VehicleAction &act
   if (!departure) {
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
-  constexpr int32_t MINUTES_PER_DAY = 24 * 60;
+  constexpr int32_t minutes_per_day = 24 * 60;
   if (departure->enabled &&
-      (departure->departure_time < 0 || departure->departure_time >= MINUTES_PER_DAY ||
-       departure->off_peak_hours_end_time < 0 || departure->off_peak_hours_end_time >= MINUTES_PER_DAY)) {
+      (departure->departure_time < 0 || departure->departure_time >= minutes_per_day ||
+       departure->off_peak_hours_end_time < 0 || departure->off_peak_hours_end_time >= minutes_per_day)) {
     LOG_ERROR("Scheduled departure times must be minutes after midnight (0-1439)");
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }

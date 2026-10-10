@@ -31,6 +31,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -83,7 +84,7 @@ bool find_wire_bytes(const pb_byte_t *data, size_t length, uint32_t field_number
         if (!read_wire_varint(pos, end, &skip)) {
           return false;
         }
-        if (skip <= static_cast<uint64_t>(end - pos) && (key >> 3) == field_number) {
+        if (std::cmp_less_equal(skip, end - pos) && (key >> 3) == field_number) {
           *out = pos;
           *out_length = static_cast<size_t>(skip);
           found = true;
@@ -92,7 +93,7 @@ bool find_wire_bytes(const pb_byte_t *data, size_t length, uint32_t field_number
       default:
         return false;
     }
-    if (skip > static_cast<uint64_t>(end - pos)) {
+    if (std::cmp_greater(skip, end - pos)) {
       return false;
     }
     pos += skip;

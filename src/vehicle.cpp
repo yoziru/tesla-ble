@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <cmath>
 #include <vector>
 #include <array>
 #include <cstdlib>  // for rand()
@@ -1573,7 +1574,7 @@ void TeslaBLE::Vehicle::media_volume_down() {
 }
 
 void TeslaBLE::Vehicle::set_media_volume(float level) {
-  if (!(level >= 0.0f && level <= 10.0f)) {
+  if (!std::isfinite(level) || level < 0.0f || level > 10.0f) {
     LOG_ERROR("Invalid media volume: %.2f (must be 0-10)", static_cast<double>(level));
     return;
   }

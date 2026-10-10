@@ -859,7 +859,8 @@ void TeslaBLE::Vehicle::handle_vcsec_message_(const UniversalMessage_RoutableMes
     }
 
     size_t request_hash_length = 0;
-    const pb_byte_t *request_hash = client_->get_last_request_hash(&request_hash_length);
+    const pb_byte_t *request_hash =
+        client_->get_last_request_hash(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, &request_hash_length);
     if (!request_hash || request_hash_length == 0) {
       LOG_ERROR("Missing request hash for VCSEC response decrypt");
       return;

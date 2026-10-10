@@ -346,8 +346,8 @@ int Client::parse_payload_car_server_response(
         size_t decrypt_length;
         int return_code = session->decrypt_response(
             input_buffer->bytes, input_buffer->size, signature_data->sig_type.AES_GCM_Response_data.nonce,
-            signature_data->sig_type.AES_GCM_Response_data.tag, last_request_hash_.data(),
-            this->last_request_hash_length_, response_flags, signed_message_fault, decrypt_buffer.bytes,
+            signature_data->sig_type.AES_GCM_Response_data.tag, last_request_hash_infotainment_.data(),
+            this->last_request_hash_infotainment_length_, response_flags, signed_message_fault, decrypt_buffer.bytes,
             sizeof(decrypt_buffer.bytes), &decrypt_length);
         if (return_code != 0) {
           LOG_ERROR("[parse_payload_car_server_response] Failed to decrypt response");
@@ -385,11 +385,26 @@ int Client::parse_payload_car_server_response(
   return TeslaBLE_Status_E_OK;
 }
 
-const pb_byte_t *Client::get_last_request_hash(size_t *length) const {
+const pb_byte_t *Client::get_last_request_hash(UniversalMessage_Domain domain, size_t *length) const {
   if (length) {
-    *length = last_request_hash_length_;
+    *length = 0;
   }
-  return last_request_hash_.data();
+
+  switch (domain) {
+    case UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY:
+      if (length) {
+        *length = last_request_hash_vcsec_length_;
+      }
+      return last_request_hash_vcsec_.data();
+    case UniversalMessage_Domain_DOMAIN_INFOTAINMENT:
+      if (length) {
+        *length = last_request_hash_infotainment_length_;
+      }
+      return last_request_hash_infotainment_.data();
+    default:
+      LOG_ERROR("Invalid domain for request hash: %d", static_cast<int>(domain));
+      return nullptr;
+  }
 }
 
 bool Client::get_last_request_uuid(UniversalMessage_Domain domain, pb_byte_t *uuid, size_t *uuid_length) const {
@@ -610,9 +625,14 @@ int Client::build_universal_message_with_payload(pb_byte_t *payload, size_t payl
       return return_code;
     }
 
-    // Store the request hash for later use
-    std::copy(request_hash, request_hash + request_hash_length, last_request_hash_.begin());
-    this->last_request_hash_length_ = request_hash_length;
+    // Store the request hash for later use, per domain
+    if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) {
+      std::copy(request_hash, request_hash + request_hash_length, last_request_hash_vcsec_.begin());
+      last_request_hash_vcsec_length_ = request_hash_length;
+    } else {
+      std::copy(request_hash, request_hash + request_hash_length, last_request_hash_infotainment_.begin());
+      last_request_hash_infotainment_length_ = request_hash_length;
+    }
 
     universal_message.which_sub_sigData = UniversalMessage_RoutableMessage_signature_data_tag;
     universal_message.sub_sigData.signature_data = signature_data;

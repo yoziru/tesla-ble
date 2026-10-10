@@ -28,6 +28,7 @@ set(TEST_LINK_LIBS gtest_main gtest TeslaBLE)
 set(TEST_FILES
     test_ad_buffer_construction.cpp
     test_client.cpp
+    test_encrypted_responses.cpp
     test_error_handling.cpp
     test_key_generation.cpp
     test_logging.cpp

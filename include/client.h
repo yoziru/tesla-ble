@@ -106,7 +106,7 @@ class Client {
                                         UniversalMessage_MessageFault_E signed_message_fault, uint32_t response_flags,
                                         CarServer_Response *output, uint32_t *response_counter = nullptr);
 
-  const pb_byte_t *get_last_request_hash(size_t *length) const;
+  const pb_byte_t *get_last_request_hash(UniversalMessage_Domain domain, size_t *length) const;
   bool get_last_request_uuid(UniversalMessage_Domain domain, pb_byte_t *uuid, size_t *uuid_length) const;
   bool verify_session_info_tag(const Signatures_SessionInfo &session_info, const pb_byte_t *session_info_bytes,
                                size_t session_info_length, const pb_byte_t *request_uuid, size_t request_uuid_length,
@@ -135,8 +135,13 @@ class Client {
   size_t public_key_size_ = 0;
 
   // Request tracking for response validation
-  std::array<pb_byte_t, 33> last_request_hash_{};  // 1 byte type + up to 32 bytes tag
-  size_t last_request_hash_length_ = 0;
+  // Per-domain: responses are decrypted with the request hash of the last
+  // encrypted request sent to that domain, so VCSEC and Infotainment must
+  // not share one slot.
+  std::array<pb_byte_t, 33> last_request_hash_vcsec_{};  // 1 byte type + up to 32 bytes tag
+  std::array<pb_byte_t, 33> last_request_hash_infotainment_{};
+  size_t last_request_hash_vcsec_length_ = 0;
+  size_t last_request_hash_infotainment_length_ = 0;
   std::array<pb_byte_t, 16> last_request_uuid_vcsec_{};
   std::array<pb_byte_t, 16> last_request_uuid_infotainment_{};
   size_t last_request_uuid_vcsec_length_ = 0;

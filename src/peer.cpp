@@ -465,6 +465,7 @@ int Peer::decrypt_response(const pb_byte_t *input_buffer, size_t input_length, c
   int return_code = mbedtls_gcm_setkey(&aes_context, MBEDTLS_CIPHER_ID_AES, shared_secret_sha1_.data(), 128);
   if (return_code != 0) {
     LOG_ERROR("[DecryptResponse] GCM set key error: -0x%04x", (unsigned int) -return_code);
+    mbedtls_gcm_free(&aes_context);
     return TeslaBLE_Status_E_ERROR_DECRYPT;
   }
 
@@ -477,6 +478,7 @@ int Peer::decrypt_response(const pb_byte_t *input_buffer, size_t input_length, c
 
   if (return_code != 0) {
     LOG_ERROR("[DecryptResponse] Failed to construct AD buffer");
+    mbedtls_gcm_free(&aes_context);
     return return_code;
   }
 

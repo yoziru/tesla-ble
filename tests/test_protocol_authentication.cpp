@@ -253,14 +253,12 @@ TEST_F(ProtocolAuthenticationTest, ErrorConditions) {
                                     1000, ad_buffer, &dummy_length);
   EXPECT_NE(result, TeslaBLE_Status_E_OK) << "Null VIN should be rejected";
 
-  // Test buffer size handling (implementation should handle gracefully)
-  uint8_t small_buffer[10];
+  // AD buffer construction succeeds and ends with the terminal tag.
   result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
-                                    TestConstants::TEST_VIN, 1000, small_buffer, &dummy_length);
-  // Note: Implementation may handle small buffers gracefully by truncating or providing partial data
-  // This is acceptable defensive behavior for a robust client library
-  EXPECT_TRUE(result == TeslaBLE_Status_E_OK || result != TeslaBLE_Status_E_OK)
-      << "Buffer size constraints should be handled gracefully";
+                                    TestConstants::TEST_VIN, 1000, ad_buffer, &dummy_length);
+  ASSERT_EQ(result, TeslaBLE_Status_E_OK) << "AD buffer construction should succeed with a contract-sized buffer";
+  EXPECT_GT(dummy_length, 0U) << "AD buffer should contain metadata";
+  EXPECT_EQ(ad_buffer[dummy_length - 1], Signatures_Tag_TAG_END) << "AD buffer should end with the terminal tag";
 }
 
 // Test 8: Protocol Version Compatibility

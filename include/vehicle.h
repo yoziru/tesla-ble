@@ -112,6 +112,8 @@ struct Command {
   UniversalMessage_Domain domain;
   std::string name;
   // Builder function: takes Client pointer, output buffer, output length pointer. Returns status code (0 for success).
+  // The output buffer capacity is passed in *output_length and must not be exceeded
+  // (UniversalMessage_RoutableMessage_size + 2 bytes is always sufficient).
   std::function<int(Client *, uint8_t *, size_t *)> builder;
   OperationResultCallback on_complete;
   OperationPhaseCallback on_phase_change;

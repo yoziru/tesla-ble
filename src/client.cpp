@@ -531,6 +531,12 @@ int Client::build_universal_message_with_payload(pb_byte_t *payload, size_t payl
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 
+  if (payload_length > sizeof(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t::bytes)) {
+    LOG_ERROR("[build_universal_message_with_payload] Payload too large: %zu bytes (max %zu)", payload_length,
+              sizeof(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t::bytes));
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+
   UniversalMessage_RoutableMessage universal_message = UniversalMessage_RoutableMessage_init_default;
   prepare_routable_message_(universal_message, domain);
 

@@ -187,3 +187,15 @@ TEST_F(ErrorHandlingTest, EdgeCaseFunctionCalls) {
       empty_payload, 0, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, output_buffer, &output_length);
   EXPECT_NE(result4, TeslaBLE_Status_E_OK) << "Building universal message with empty payload should fail";
 }
+
+TEST_F(ErrorHandlingTest, BuildUniversalMessageRejectsOversizedPayload) {
+  constexpr size_t kMaxPayload = sizeof(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t::bytes);
+  std::vector<pb_byte_t> payload(kMaxPayload + 1, 0xAB);
+  pb_byte_t output_buffer[UniversalMessage_RoutableMessage_size + 2];
+  size_t output_length = sizeof(output_buffer);
+
+  auto result = client_->build_universal_message_with_payload(
+      payload.data(), payload.size(), UniversalMessage_Domain_DOMAIN_INFOTAINMENT, output_buffer, &output_length);
+  EXPECT_EQ(result, TeslaBLE_Status_E_ERROR_INVALID_PARAMS)
+      << "Payload larger than the routable message field must be rejected instead of copied";
+}

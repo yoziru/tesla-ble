@@ -53,6 +53,8 @@ class Client {
   bool has_private_key() const;
 
   // Message building
+  // output_buffer must be at least UniversalMessage_RoutableMessage_size + 2 bytes
+  // (2-byte BLE length prefix + largest encodable routable message).
   int build_white_list_message(Keys_Role role, VCSEC_KeyFormFactor form_factor, pb_byte_t *output_buffer,
                                size_t *output_length);
 

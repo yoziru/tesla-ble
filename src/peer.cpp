@@ -258,11 +258,10 @@ int Peer::update_session(Signatures_SessionInfo *session_info) {
 
   LOG_DEBUG("Updated session: counter=%" PRIu32 ", clock_time=%" PRIu32, counter_, session_info->clock_time);
 
-  // Successful update clears error state and restores session validity
-  // This matches Go's UpdateSessionInfo behavior where successful updates restore session
-  // Successful update restores session validity
-  is_valid_ = true;
-  has_shared_secret_ = true;
+  // A session only becomes valid once key material has been derived from a
+  // public key. Session info without a public key must not mark the peer as
+  // authenticated (the vehicle-side HMAC check fails before this anyway).
+  is_valid_ = has_shared_secret_;
 
   return TeslaBLE_Status_E_OK;
 }
@@ -297,8 +296,8 @@ int Peer::force_update_session(Signatures_SessionInfo *session_info) {
 
   reset_response_window();
 
-  is_valid_ = true;
-  has_shared_secret_ = true;
+  // Only valid when key material is present (see update_session).
+  is_valid_ = has_shared_secret_;
 
   LOG_INFO("Force updated session: counter=%" PRIu32 ", clock_time=%" PRIu32, counter_, clock_time_);
   return TeslaBLE_Status_E_OK;

@@ -270,3 +270,13 @@ TEST_F(SessionRecoveryTest, FailedForceUpdatePreservesResponseWindow) {
   EXPECT_EQ(peer_->get_counter(), 100U);
   EXPECT_FALSE(peer_->validate_response_counter(1));
 }
+
+TEST_F(SessionRecoveryTest, SessionInfoWithoutPublicKeyDoesNotMarkSessionValid) {
+  auto session_info = create_session_info_(10);
+  session_info.publicKey.size = 0;
+
+  EXPECT_EQ(peer_->update_session(&session_info), TeslaBLE_Status_E_OK)
+      << "Session info should still be applied without key material";
+  EXPECT_FALSE(peer_->is_valid()) << "A session without key material must not count as authenticated";
+  EXPECT_FALSE(peer_->is_initialized());
+}

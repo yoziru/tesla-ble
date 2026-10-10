@@ -1498,6 +1498,18 @@ void TeslaBLE::Vehicle::regenerate_key() {
     return;
   }
 
+  // Existing sessions were derived from the old key and the vehicle only
+  // knows the new key's public part, so drop both sessions and stored
+  // credentials to force a clean re-authentication.
+  if (auto *vcsec_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)) {
+    vcsec_peer->reset();
+  }
+  if (auto *info_peer = client_->get_peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT)) {
+    info_peer->reset();
+  }
+  clear_stored_session_(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  clear_stored_session_(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+
   if (persist_private_key_()) {
     LOG_INFO("New private key saved to storage");
   } else {

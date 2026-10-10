@@ -2340,3 +2340,44 @@ TEST_F(VehicleTest, AuthTimeoutRaisesRetryLevelBeforeFailing) {
   EXPECT_FALSE(command_queue.empty());
   EXPECT_EQ(command->retry_count, 2);
 }
+
+TEST_F(VehicleTest, RegenerateKeyResetsSessionsAndStoredCredentials) {
+  vehicle_->set_connected(true);
+
+  // Establish and persist a VCSEC session.
+  vehicle_->vcsec_poll();
+  vehicle_->loop();
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_GE(writes.size(), 1);
+  size_t uuid_length = 0;
+  auto uuid = extract_request_uuid(writes.front(), &uuid_length);
+  ASSERT_EQ(uuid_length, uuid.size());
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), uuid_length));
+  vehicle_->loop();
+  ASSERT_NE(mock_storage_->get_storage().count("session_vcsec"), 0U)
+      << "Session should be persisted while authenticated";
+  // Finish the poll so the queue drains before regenerating.
+  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->loop();
+
+  vehicle_->regenerate_key();
+
+  EXPECT_EQ(mock_storage_->get_storage().count("session_vcsec"), 0U)
+      << "Regenerating the key must drop stored sessions";
+  EXPECT_EQ(mock_storage_->get_storage().count("session_infotainment"), 0U);
+
+  mock_ble_->clear_written_data();
+  vehicle_->vcsec_poll();
+  vehicle_->loop();
+  vehicle_->loop();
+
+  const auto &writes_after = mock_ble_->get_written_data();
+  ASSERT_FALSE(writes_after.empty()) << "Next command should start a fresh authentication";
+  TeslaBLE::Client parser;
+  UniversalMessage_RoutableMessage first_write = UniversalMessage_RoutableMessage_init_default;
+  ASSERT_EQ(parser.parse_universal_message(const_cast<pb_byte_t *>(writes_after.front().data() + 2),
+                                           writes_after.front().size() - 2, &first_write),
+            TeslaBLE_Status_E_OK);
+  EXPECT_EQ(first_write.which_payload, UniversalMessage_RoutableMessage_session_info_request_tag)
+      << "Sessions derived from the old key must be discarded";
+}

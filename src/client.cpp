@@ -481,7 +481,8 @@ bool Client::verify_session_info_tag(const Signatures_SessionInfo &session_info,
   metadata_length += vin_length;
 
   // Challenge
-  if (request_uuid_length > 255) {
+  // metadata is 64 bytes: 3 (signature type TLV) + 2 + 17 (VIN TLV) + 2 + UUID + 1 (terminal)
+  if (request_uuid_length > 39) {
     return fail_with_key("Invalid request UUID length for session info verification");
   }
   metadata[metadata_length++] = Signatures_Tag_TAG_CHALLENGE;

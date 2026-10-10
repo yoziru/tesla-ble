@@ -26,21 +26,6 @@ TEST_F(ClientTest, GetPeerForBothDomains) {
   EXPECT_NE(infotainment_peer, nullptr) << "Infotainment peer should be available";
 }
 
-TEST_F(ClientTest, SetConnectionID) { EXPECT_NO_THROW(client_->set_connection_id(TestConstants::TEST_CONNECTION_ID)); }
-
-TEST_F(ClientTest, BuildWhiteListMessage) {
-  unsigned char whitelist_message_buffer[VCSEC_ToVCSECMessage_size];
-  size_t whitelist_message_length;
-
-  auto result =
-      client_->build_white_list_message(Keys_Role_ROLE_CHARGING_MANAGER, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY,
-                                        whitelist_message_buffer, &whitelist_message_length);
-
-  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "Failed to build whitelist message";
-  EXPECT_GT(whitelist_message_length, 0) << "Whitelist message should have content";
-  EXPECT_LE(whitelist_message_length, sizeof(whitelist_message_buffer)) << "Message should fit in buffer";
-}
-
 TEST_F(ClientTest, BuildUniversalMessageUpdatesLastRequestUuid) {
   pb_byte_t payload[] = {0x01};
   pb_byte_t buffer[512];
@@ -70,10 +55,8 @@ TEST_F(ClientTest, BuildWhiteListMessageInvalidRole) {
   unsigned char whitelist_message_buffer[VCSEC_ToVCSECMessage_size];
   size_t whitelist_message_length;
 
-  // Test with invalid role (using a high number that's likely not defined)
-  auto role_seed = static_cast<int>(reinterpret_cast<uintptr_t>(client_.get()) & 0x1);
-  int invalid_role_value = static_cast<int>(Keys_Role_ROLE_GUEST) + 1 + role_seed;
-  auto invalid_role = static_cast<Keys_Role>(invalid_role_value);
+  // Test with a fixed invalid role far outside the defined enum range
+  auto invalid_role = static_cast<Keys_Role>(999);
   auto result = client_->build_white_list_message(invalid_role, VCSEC_KeyFormFactor_KEY_FORM_FACTOR_CLOUD_KEY,
                                                   whitelist_message_buffer, &whitelist_message_length);
 

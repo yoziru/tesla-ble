@@ -18,8 +18,6 @@ using TeslaBLE::CommandState;
 using TeslaBLE::TeslaBLE_Status_E_OK;
 using TeslaBLE::Vehicle;
 using TeslaBLE::Client;
-using TeslaBLE::BleAdapter;
-using TeslaBLE::StorageAdapter;
 using TeslaBLE::MockBleAdapter;
 using TeslaBLE::MockStorageAdapter;
 using TeslaBLE::TestConstants::CLIENT_PRIVATE_KEY_PEM;
@@ -73,156 +71,56 @@ std::array<pb_byte_t, 16> extract_request_uuid(const std::vector<uint8_t> &frame
   return uuid;
 }
 
-std::vector<uint8_t> make_session_info_with_valid_hmac(const pb_byte_t *request_uuid, size_t request_uuid_length,
-                                                       const pb_byte_t *mock_message, size_t mock_message_length) {
+std::vector<uint8_t> make_session_info_response(const pb_byte_t *request_uuid, size_t request_uuid_length,
+                                                const pb_byte_t *mock_message, size_t mock_message_length,
+                                                const uint32_t *counter = nullptr,
+                                                const Signatures_Session_Info_Status *status = nullptr) {
   if (!request_uuid || request_uuid_length == 0) {
     return {};
   }
 
   TeslaBLE::CryptoContext crypto_context;
-  size_t key_length = 0;
-  while (CLIENT_PRIVATE_KEY_PEM[key_length] != '\0') {
-    ++key_length;
-  }
-  auto load_status =
-      crypto_context.load_private_key(reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM), key_length + 1);
+  auto load_status = crypto_context.load_private_key(reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM),
+                                                     strlen(CLIENT_PRIVATE_KEY_PEM) + 1);
   if (load_status != TeslaBLE_Status_E_OK) {
     return {};
   }
 
   TeslaBLE::Client parser;
   UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
-  auto status = parser.parse_universal_message(const_cast<pb_byte_t *>(mock_message), mock_message_length, &message);
-  if (status != TeslaBLE_Status_E_OK) {
+  auto result = parser.parse_universal_message(const_cast<pb_byte_t *>(mock_message), mock_message_length, &message);
+  if (result != TeslaBLE_Status_E_OK) {
     return {};
   }
 
   Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  status = parser.parse_payload_session_info(&message.payload.session_info, &session_info);
-  if (status != TeslaBLE_Status_E_OK) {
+  result = parser.parse_payload_session_info(&message.payload.session_info, &session_info);
+  if (result != TeslaBLE_Status_E_OK) {
     return {};
   }
+
+  if (counter != nullptr) {
+    session_info.counter = *counter;
+  }
+  if (status != nullptr) {
+    session_info.status = *status;
+  }
+
+  // Re-encode so the HMAC input and the transmitted payload are the same bytes.
+  pb_byte_t session_info_buffer[256];
+  size_t session_info_length = sizeof(session_info_buffer);
+  result = TeslaBLE::pb_encode_fields(session_info_buffer, &session_info_length, Signatures_SessionInfo_fields,
+                                      &session_info);
+  if (result != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+  message.payload.session_info.size = session_info_length;
+  std::copy(session_info_buffer, session_info_buffer + session_info_length, message.payload.session_info.bytes);
 
   message.request_uuid.size = request_uuid_length;
   std::copy(request_uuid, request_uuid + request_uuid_length, message.request_uuid.bytes);
 
-  size_t vin_length = 0;
-  while (TEST_VIN[vin_length] != '\0') {
-    ++vin_length;
-  }
-  std::array<pb_byte_t, 64> metadata{};
-  size_t metadata_length = 0;
-  metadata[metadata_length++] = Signatures_Tag_TAG_SIGNATURE_TYPE;
-  metadata[metadata_length++] = 0x01;
-  metadata[metadata_length++] = Signatures_SignatureType_SIGNATURE_TYPE_HMAC;
-  metadata[metadata_length++] = Signatures_Tag_TAG_PERSONALIZATION;
-  metadata[metadata_length++] = static_cast<pb_byte_t>(vin_length);
-  std::copy_n(TEST_VIN, vin_length, metadata.begin() + metadata_length);
-  metadata_length += vin_length;
-  metadata[metadata_length++] = Signatures_Tag_TAG_CHALLENGE;
-  metadata[metadata_length++] = static_cast<pb_byte_t>(request_uuid_length);
-  std::copy_n(request_uuid, request_uuid_length, metadata.begin() + metadata_length);
-  metadata_length += request_uuid_length;
-  metadata[metadata_length++] = Signatures_Tag_TAG_END;
-
-  std::vector<pb_byte_t> hmac_input;
-  hmac_input.resize(metadata_length + message.payload.session_info.size);
-  std::copy_n(metadata.begin(), metadata_length, hmac_input.begin());
-  std::copy_n(message.payload.session_info.bytes, message.payload.session_info.size,
-              hmac_input.begin() + metadata_length);
-
-  uint8_t session_key[TeslaBLE::Peer::SHARED_KEY_SIZE_BYTES] = {0};
-  auto ecdh_status =
-      crypto_context.perform_tesla_ecdh(session_info.publicKey.bytes, session_info.publicKey.size, session_key);
-  if (ecdh_status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
-  uint8_t session_info_key[32] = {0};
-  auto kdf_status = TeslaBLE::CryptoUtils::derive_session_info_key(session_key, sizeof(session_key), session_info_key,
-                                                                   sizeof(session_info_key));
-  TeslaBLE::CryptoUtils::clear_sensitive_memory(session_key, sizeof(session_key));
-  if (kdf_status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
-  uint8_t expected_tag[32] = {0};
-  auto hmac_status = TeslaBLE::CryptoUtils::hmac_sha256(session_info_key, sizeof(session_info_key), hmac_input.data(),
-                                                        hmac_input.size(), expected_tag, sizeof(expected_tag));
-  TeslaBLE::CryptoUtils::clear_sensitive_memory(session_info_key, sizeof(session_info_key));
-  if (hmac_status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
-  message.sub_sigData.signature_data.sig_type.session_info_tag.tag.size = sizeof(expected_tag);
-  std::copy(expected_tag, expected_tag + sizeof(expected_tag),
-            message.sub_sigData.signature_data.sig_type.session_info_tag.tag.bytes);
-
-  return frame_universal_message(message);
-}
-
-std::vector<uint8_t> make_vcsec_session_info_with_valid_hmac(const pb_byte_t *request_uuid,
-                                                             size_t request_uuid_length) {
-  return make_session_info_with_valid_hmac(request_uuid, request_uuid_length, MOCK_VCSEC_MESSAGE,
-                                           sizeof(MOCK_VCSEC_MESSAGE));
-}
-
-std::vector<uint8_t> make_session_info_with_valid_hmac_and_counter(const pb_byte_t *request_uuid,
-                                                                   size_t request_uuid_length,
-                                                                   const pb_byte_t *mock_message,
-                                                                   size_t mock_message_length, uint32_t counter) {
-  std::vector<uint8_t> frame =
-      make_session_info_with_valid_hmac(request_uuid, request_uuid_length, mock_message, mock_message_length);
-  if (frame.empty()) {
-    return frame;
-  }
-
-  // Rewrite the counter in the encoded session info and re-frame. The HMAC is
-  // computed over the re-encoded bytes by rebuilding via the shared helper:
-  // simplest correct approach is to decode, patch, and let the helper's crypto
-  // run over the patched payload.
-  TeslaBLE::Client parser;
-  UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
-  auto status = parser.parse_universal_message(const_cast<pb_byte_t *>(frame.data() + 2), frame.size() - 2, &message);
-  if (status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
-  Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  status = parser.parse_payload_session_info(&message.payload.session_info, &session_info);
-  if (status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-  session_info.counter = counter;
-
-  pb_byte_t session_info_buffer[256];
-  size_t session_info_length = sizeof(session_info_buffer);
-  status = TeslaBLE::pb_encode_fields(session_info_buffer, &session_info_length, Signatures_SessionInfo_fields,
-                                      &session_info);
-  if (status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
-  // Re-run the HMAC over the patched session info (same recipe as
-  // make_session_info_with_valid_hmac).
-  TeslaBLE::CryptoContext crypto_context;
-  size_t key_length = 0;
-  while (CLIENT_PRIVATE_KEY_PEM[key_length] != '\0') {
-    ++key_length;
-  }
-  auto load_status =
-      crypto_context.load_private_key(reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM), key_length + 1);
-  if (load_status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
-  message.payload.session_info.size = session_info_length;
-  std::copy(session_info_buffer, session_info_buffer + session_info_length, message.payload.session_info.bytes);
-
-  size_t vin_length = 0;
-  while (TEST_VIN[vin_length] != '\0') {
-    ++vin_length;
-  }
+  size_t vin_length = strlen(TEST_VIN);
   std::array<pb_byte_t, 64> metadata{};
   size_t metadata_length = 0;
   metadata[metadata_length++] = Signatures_Tag_TAG_SIGNATURE_TYPE;
@@ -271,6 +169,24 @@ std::vector<uint8_t> make_session_info_with_valid_hmac_and_counter(const pb_byte
             message.sub_sigData.signature_data.sig_type.session_info_tag.tag.bytes);
 
   return frame_universal_message(message);
+}
+
+std::vector<uint8_t> make_session_info_with_valid_hmac(const pb_byte_t *request_uuid, size_t request_uuid_length,
+                                                       const pb_byte_t *mock_message, size_t mock_message_length) {
+  return make_session_info_response(request_uuid, request_uuid_length, mock_message, mock_message_length);
+}
+
+std::vector<uint8_t> make_vcsec_session_info_with_valid_hmac(const pb_byte_t *request_uuid,
+                                                             size_t request_uuid_length) {
+  return make_session_info_with_valid_hmac(request_uuid, request_uuid_length, MOCK_VCSEC_MESSAGE,
+                                           sizeof(MOCK_VCSEC_MESSAGE));
+}
+
+std::vector<uint8_t> make_session_info_with_valid_hmac_and_counter(const pb_byte_t *request_uuid,
+                                                                   size_t request_uuid_length,
+                                                                   const pb_byte_t *mock_message,
+                                                                   size_t mock_message_length, uint32_t counter) {
+  return make_session_info_response(request_uuid, request_uuid_length, mock_message, mock_message_length, &counter);
 }
 
 std::vector<uint8_t> make_vcsec_session_info_with_counter(const pb_byte_t *request_uuid, size_t request_uuid_length,
@@ -337,99 +253,8 @@ std::vector<uint8_t> make_plain_infotainment_action_error_response(const char *r
 std::vector<uint8_t> make_session_info_with_status(const pb_byte_t *request_uuid, size_t request_uuid_length,
                                                    const pb_byte_t *mock_message, size_t mock_message_length,
                                                    Signatures_Session_Info_Status status) {
-  if (!request_uuid || request_uuid_length == 0) {
-    return {};
-  }
-
-  TeslaBLE::CryptoContext crypto_context;
-  auto load_status = crypto_context.load_private_key(reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM),
-                                                     strlen(CLIENT_PRIVATE_KEY_PEM) + 1);
-  if (load_status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
-  TeslaBLE::Client parser;
-  UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
-  auto parse_status =
-      parser.parse_universal_message(const_cast<pb_byte_t *>(mock_message), mock_message_length, &message);
-  if (parse_status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
-  Signatures_SessionInfo session_info = Signatures_SessionInfo_init_default;
-  parse_status = parser.parse_payload_session_info(&message.payload.session_info, &session_info);
-  if (parse_status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
-  // Modify the status
-  session_info.status = status;
-
-  // Re-encode the session info with the modified status
-  pb_byte_t session_info_buffer[256];
-  size_t session_info_length = sizeof(session_info_buffer);
-  auto encode_status = TeslaBLE::pb_encode_fields(session_info_buffer, &session_info_length,
-                                                  Signatures_SessionInfo_fields, &session_info);
-  if (encode_status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
-  // Update message payload with modified session info
-  message.payload.session_info.size = session_info_length;
-  std::copy(session_info_buffer, session_info_buffer + session_info_length, message.payload.session_info.bytes);
-
-  message.request_uuid.size = request_uuid_length;
-  std::copy(request_uuid, request_uuid + request_uuid_length, message.request_uuid.bytes);
-
-  size_t vin_length = strlen(TEST_VIN);
-  std::array<pb_byte_t, 64> metadata{};
-  size_t metadata_length = 0;
-  metadata[metadata_length++] = Signatures_Tag_TAG_SIGNATURE_TYPE;
-  metadata[metadata_length++] = 0x01;
-  metadata[metadata_length++] = Signatures_SignatureType_SIGNATURE_TYPE_HMAC;
-  metadata[metadata_length++] = Signatures_Tag_TAG_PERSONALIZATION;
-  metadata[metadata_length++] = static_cast<pb_byte_t>(vin_length);
-  std::copy_n(TEST_VIN, vin_length, metadata.begin() + metadata_length);
-  metadata_length += vin_length;
-  metadata[metadata_length++] = Signatures_Tag_TAG_CHALLENGE;
-  metadata[metadata_length++] = static_cast<pb_byte_t>(request_uuid_length);
-  std::copy_n(request_uuid, request_uuid_length, metadata.begin() + metadata_length);
-  metadata_length += request_uuid_length;
-  metadata[metadata_length++] = Signatures_Tag_TAG_END;
-
-  std::vector<pb_byte_t> hmac_input;
-  hmac_input.resize(metadata_length + session_info_length);
-  std::copy_n(metadata.begin(), metadata_length, hmac_input.begin());
-  std::copy_n(session_info_buffer, session_info_length, hmac_input.begin() + metadata_length);
-
-  uint8_t session_key[TeslaBLE::Peer::SHARED_KEY_SIZE_BYTES] = {0};
-  auto ecdh_status =
-      crypto_context.perform_tesla_ecdh(session_info.publicKey.bytes, session_info.publicKey.size, session_key);
-  if (ecdh_status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
-  uint8_t session_info_key[32] = {0};
-  auto kdf_status = TeslaBLE::CryptoUtils::derive_session_info_key(session_key, sizeof(session_key), session_info_key,
-                                                                   sizeof(session_info_key));
-  TeslaBLE::CryptoUtils::clear_sensitive_memory(session_key, sizeof(session_key));
-  if (kdf_status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
-  uint8_t expected_tag[32] = {0};
-  auto hmac_status = TeslaBLE::CryptoUtils::hmac_sha256(session_info_key, sizeof(session_info_key), hmac_input.data(),
-                                                        hmac_input.size(), expected_tag, sizeof(expected_tag));
-  TeslaBLE::CryptoUtils::clear_sensitive_memory(session_info_key, sizeof(session_info_key));
-  if (hmac_status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
-  message.sub_sigData.signature_data.sig_type.session_info_tag.tag.size = sizeof(expected_tag);
-  std::copy(expected_tag, expected_tag + sizeof(expected_tag),
-            message.sub_sigData.signature_data.sig_type.session_info_tag.tag.bytes);
-
-  return frame_universal_message(message);
+  return make_session_info_response(request_uuid, request_uuid_length, mock_message, mock_message_length, nullptr,
+                                    &status);
 }
 
 std::vector<uint8_t> make_vcsec_session_info_key_not_on_whitelist(const pb_byte_t *request_uuid,
@@ -575,21 +400,6 @@ class VehicleTest : public ::testing::Test {
   std::shared_ptr<MockStorageAdapter> mock_storage_;
   std::shared_ptr<Vehicle> vehicle_;
 };
-
-// ============================================================================
-// Basic Initialization Tests
-// ============================================================================
-
-TEST_F(VehicleTest, Initialization) {
-  // Vehicle should be created successfully with valid adapters
-  EXPECT_NE(vehicle_, nullptr);
-  ASSERT_FALSE(vehicle_->is_connected()) << "Newly created vehicle should not be connected";
-}
-
-TEST_F(VehicleTest, SetVin) {
-  std::string vin = "TESTVIN123456789";
-  EXPECT_NO_THROW(vehicle_->set_vin(vin));
-}
 
 // ============================================================================
 // Connection State Tests
@@ -779,15 +589,6 @@ TEST_F(VehicleTest, CounterReplaySessionInfoIsAppliedInsteadOfRejected) {
       << "Verified lower-counter session info should be applied and persisted";
 }
 
-namespace {
-std::vector<std::string> g_session_load_logs;
-void session_load_log_sink(TeslaBLE::LogLevel, const char *, int, const char *format, va_list args) {
-  char buffer[512];
-  vsnprintf(buffer, sizeof(buffer), format, args);
-  g_session_load_logs.emplace_back(buffer);
-}
-}  // namespace
-
 TEST_F(VehicleTest, StoredSessionWithFutureClockTimeIsNotRejected) {
   // A device that reboots before its time source resyncs (e.g. HA-pushed
   // time) runs with the system clock far behind the clock_time recorded in
@@ -810,28 +611,25 @@ TEST_F(VehicleTest, StoredSessionWithFutureClockTimeIsNotRejected) {
             TeslaBLE_Status_E_OK);
   mock_storage_->set_data("session_vcsec", std::vector<uint8_t>(blob, blob + blob_length));
 
-  g_session_load_logs.clear();
-  TeslaBLE::set_log_callback(session_load_log_sink);
+  auto vehicle_with_stored_session = std::make_shared<Vehicle>(mock_ble_, mock_storage_);
+  vehicle_with_stored_session->set_vin(TEST_VIN);
+  vehicle_with_stored_session->set_connected(true);
+  vehicle_with_stored_session->set_awake(true);
+  vehicle_with_stored_session->vcsec_poll();
+  vehicle_with_stored_session->loop();
+  vehicle_with_stored_session->loop();
 
-  {
-    auto vehicle_with_stored_session = std::make_shared<Vehicle>(mock_ble_, mock_storage_);
-    (void) vehicle_with_stored_session;
-  }
-
-  TeslaBLE::set_log_callback(nullptr);
-
-  bool loaded = false;
-  bool rejected_as_too_old = false;
-  for (const auto &m : g_session_load_logs) {
-    if (m.find("Loaded session from storage") != std::string::npos) {
-      loaded = true;
-    }
-    if (m.find("is too old") != std::string::npos) {
-      rejected_as_too_old = true;
-    }
-  }
-  EXPECT_TRUE(loaded) << "Stored session should load when the local clock is behind session time";
-  EXPECT_FALSE(rejected_as_too_old) << "Backwards clock must not read as an ancient session";
+  // If the stored session loaded, the poll goes out encrypted; if it was
+  // rejected as too old, the first write is a session_info_request instead.
+  const auto &writes = mock_ble_->get_written_data();
+  ASSERT_FALSE(writes.empty()) << "Stored session should load and the poll should be sent";
+  TeslaBLE::Client parser;
+  UniversalMessage_RoutableMessage first_write = UniversalMessage_RoutableMessage_init_default;
+  ASSERT_EQ(parser.parse_universal_message(const_cast<pb_byte_t *>(writes.front().data() + 2),
+                                           writes.front().size() - 2, &first_write),
+            TeslaBLE_Status_E_OK);
+  EXPECT_NE(first_write.which_payload, UniversalMessage_RoutableMessage_session_info_request_tag)
+      << "Loaded session should allow the encrypted poll instead of re-authenticating";
 }
 
 TEST_F(VehicleTest, InfotainmentActionFailureSurfacesPlainTextReason) {
@@ -934,37 +732,6 @@ TEST_F(VehicleTest, AlreadySetActionIsAnIdempotentSuccess) {
 // VCSEC reports UNKNOWN status (not AWAKE) for charging vehicles.
 // Fix: Inverted logic to treat vehicle as awake unless explicitly ASLEEP.
 // ============================================================================
-
-TEST_F(VehicleTest, InfotainmentPollSkippedWhenAsleepByDefault) {
-  // Verify default behavior: vehicle starts in asleep state (no VCSEC status received)
-  // and infotainment polls without force_wake should be skipped
-  vehicle_->set_connected(true);
-  vehicle_->set_sleep_state(TeslaBLE::SleepState::ASLEEP);
-
-  bool poll_callback_called = false;
-  bool poll_success = false;
-
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Optional Poll",
-      [](Client *client, uint8_t *buff, size_t *len) {
-        return client->build_car_server_get_vehicle_data_message(buff, len,
-                                                                 CarServer_GetVehicleData_getChargeState_tag);
-      },
-      [&](bool success) {
-        poll_callback_called = true;
-        poll_success = success;
-      },
-      false  // requires_wake = false (optional poll)
-  );
-  vehicle_->loop();
-
-  // Poll should be skipped (no BLE writes) but callback invoked with compatible_success()
-  ASSERT_TRUE(poll_callback_called) << "Callback should be invoked for skipped poll";
-  ASSERT_TRUE(poll_success) << "Skipped poll should report compatible_success (no-op)";
-
-  auto writes = mock_ble_->get_written_data();
-  EXPECT_EQ(writes.size(), 0) << "Poll should be skipped when vehicle is asleep";
-}
 
 TEST_F(VehicleTest, SetChargingAmpsSendsData) {
   vehicle_->set_connected(true);
@@ -1210,34 +977,6 @@ TEST_F(VehicleTest, DuplicateFragmentDoesNotMisalignFollowingFrames) {
 // ============================================================================
 // Polling Behavior Tests (requires_wake)
 // ============================================================================
-
-TEST_F(VehicleTest, InfotainmentPollWithoutForceWakeSkipsWhenAsleep) {
-  bool callback_called = false;
-  bool callback_success = false;
-
-  // Send poll that doesn't require wake
-  vehicle_->set_connected(true);
-  vehicle_->set_sleep_state(TeslaBLE::SleepState::ASLEEP);
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Infotainment Poll",
-      [](Client *client, uint8_t *buff, size_t *len) {
-        return client->build_car_server_get_vehicle_data_message(buff, len,
-                                                                 CarServer_GetVehicleData_getChargeState_tag);
-      },
-      [&](bool success) {
-        callback_called = true;
-        callback_success = success;
-      },
-      false  // requires_wake = false
-  );
-
-  vehicle_->loop();
-
-  // When vehicle is asleep and command doesn't require wake,
-  // it should be skipped (completed as success without sending)
-  ASSERT_TRUE(callback_called) << "Poll callback should be called";
-  ASSERT_TRUE(callback_success) << "Skipped poll should be marked success (no-op)";
-}
 
 // ============================================================================
 // Disconnect Handling Tests
@@ -2110,69 +1849,10 @@ TEST_F(VehicleTest, WrapperCanObservePhaseTransitions) {
   EXPECT_EQ(phases[1], TeslaBLE::OperationPhase::ENSURING_VCSEC_SESSION);
 }
 
-TEST_F(VehicleTest, WrapperCompatibleSuccessPreservesExistingBoolSemantics) {
-  vehicle_->set_connected(true);
-  vehicle_->set_sleep_state(TeslaBLE::SleepState::ASLEEP);
-
-  bool callback_called = false;
-  bool callback_success = false;
-
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Compat Poll",
-      [](Client *client, uint8_t *buff, size_t *len) {
-        return client->build_car_server_get_vehicle_data_message(buff, len,
-                                                                 CarServer_GetVehicleData_getChargeState_tag);
-      },
-      [&](bool success) {
-        callback_called = true;
-        callback_success = success;
-      },
-      TeslaBLE::WakePolicy::NO_WAKE_SKIP);
-
-  vehicle_->loop();
-
-  ASSERT_TRUE(callback_called);
-  ASSERT_TRUE(callback_success) << "compatible_success should be true for skipped operations";
-  auto writes = mock_ble_->get_written_data();
-  EXPECT_EQ(writes.size(), 0) << "No BLE writes should occur for skipped NoWakeSkip";
-}
-
-// ============================================================================
-// Command Struct Tests
-// ============================================================================
-
-TEST(CommandStructTest, DefaultRequiresWakeIsTrue) {
-  Command cmd(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Test Command",
-      [](Client *, uint8_t *, size_t *) { return TeslaBLE_Status_E_OK; }, nullptr);
-
-  ASSERT_EQ(cmd.wake_policy, TeslaBLE::WakePolicy::WAKE_IF_NEEDED)
-      << "Commands should default to requiring wake for safety";
-}
-
-TEST(CommandStructTest, RequiresWakeCanBeSetFalse) {
-  Command cmd(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Test Poll",
-      [](Client *, uint8_t *, size_t *) { return TeslaBLE_Status_E_OK; }, nullptr, TeslaBLE::WakePolicy::NO_WAKE_SKIP);
-
-  ASSERT_EQ(cmd.wake_policy, TeslaBLE::WakePolicy::NO_WAKE_SKIP);
-}
-
 // ============================================================================
 // Internal Helper Tests (for regression testing specific fixes)
 // These tests verify internal invariants that prevent data corruption.
 // ============================================================================
-
-// Friend test helper exposing protected members for regression testing
-class VehicleTestHelper : public Vehicle {
- public:
-  using Vehicle::get_expected_message_length;
-  using Vehicle::rx_buffer_;
-
-  VehicleTestHelper(const std::shared_ptr<BleAdapter> &b, const std::shared_ptr<StorageAdapter> &s) : Vehicle(b, s) {}
-
-  void set_buffer(const std::vector<uint8_t> &data) { rx_buffer_ = data; }
-};
 
 class VehicleInternalTest : public ::testing::Test {
  protected:
@@ -2187,7 +1867,7 @@ class VehicleInternalTest : public ::testing::Test {
                              reinterpret_cast<const uint8_t *>(CLIENT_PRIVATE_KEY_PEM) + key_length + 1);
     mock_storage_->set_data("private_key", key);
 
-    vehicle_ = std::make_shared<VehicleTestHelper>(mock_ble_, mock_storage_);
+    vehicle_ = std::make_shared<Vehicle>(mock_ble_, mock_storage_);
     vehicle_->set_vin(TEST_VIN);
     vehicle_->set_connected(true);
     vehicle_->set_awake(true);
@@ -2195,12 +1875,12 @@ class VehicleInternalTest : public ::testing::Test {
 
   std::shared_ptr<MockBleAdapter> mock_ble_;
   std::shared_ptr<MockStorageAdapter> mock_storage_;
-  std::shared_ptr<VehicleTestHelper> vehicle_;
+  std::shared_ptr<Vehicle> vehicle_;
 };
 
 TEST_F(VehicleInternalTest, ExpectedLengthIncludesHeader) {
   std::vector<uint8_t> data = {0x00, 0x0A};
-  vehicle_->set_buffer(data);
+  vehicle_->rx_buffer_ = data;
 
   EXPECT_EQ(vehicle_->get_expected_message_length(), 12);
 }

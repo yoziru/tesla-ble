@@ -17,32 +17,6 @@ static const unsigned char MOCK_PRIVATE_KEY[227] =
     "lKVF5MllmYu78y14UzHgPQb5oAoGCCqGSM49\nAwEHoUQDQgAEUxC4mUu1EemeRNJFvgU3RHptxzxR1kCc+"
     "fVIwxNg4Pxa2AzDDAbZ\njh4MR49c2FBOLVVzYlUnt1F35HFWGjaXsg==\n-----END EC PRIVATE KEY-----";
 
-// Mock received message from VCSEC (same as in session management tests)
-static const pb_byte_t MOCK_VCSEC_MESSAGE[177] = {
-    0x32, 0x12, 0x12, 0x10, 0x2f, 0xdd, 0xc1, 0x45, 0xca, 0xcc, 0xca, 0x43, 0x05, 0x66, 0x37, 0x0d, 0xf1, 0x49,
-    0x85, 0x5d, 0x3a, 0x02, 0x08, 0x02, 0x7a, 0x5e, 0x08, 0x01, 0x12, 0x41, 0x04, 0xc7, 0xa1, 0xf4, 0x71, 0x38,
-    0x48, 0x6a, 0xa4, 0x72, 0x99, 0x71, 0x49, 0x48, 0x78, 0xd3, 0x3b, 0x1a, 0x24, 0xe3, 0x95, 0x71, 0xf7, 0x48,
-    0xa6, 0xe1, 0x6c, 0x59, 0x55, 0xb3, 0xd8, 0x77, 0xd3, 0xa6, 0xaa, 0xa0, 0xe9, 0x55, 0x16, 0x64, 0x74, 0xaf,
-    0x5d, 0x32, 0xc4, 0x10, 0xf4, 0x39, 0xa2, 0x23, 0x41, 0x37, 0xad, 0x1b, 0xb0, 0x85, 0xfd, 0x4e, 0x88, 0x13,
-    0xc9, 0x58, 0xf1, 0x1d, 0x97, 0x1a, 0x10, 0x4c, 0x46, 0x3f, 0x9c, 0xc0, 0xd3, 0xd2, 0x69, 0x06, 0xe9, 0x82,
-    0xed, 0x22, 0x4a, 0xdd, 0xe6, 0x25, 0x85, 0x4a, 0x00, 0x00, 0x30, 0x06, 0x6a, 0x24, 0x32, 0x22, 0x0a, 0x20,
-    0x5a, 0x0d, 0x3c, 0x7c, 0xb0, 0x2c, 0x04, 0xd9, 0x12, 0xa3, 0x58, 0x8b, 0xc2, 0xa6, 0xfd, 0x8c, 0x00, 0xf2,
-    0x44, 0x09, 0x1b, 0xdd, 0x9d, 0xfe, 0x46, 0xfc, 0xdc, 0x47, 0x06, 0x41, 0x5b, 0x26, 0x92, 0x03, 0x10, 0x3c,
-    0xcc, 0xe3, 0xd5, 0x1a, 0x6f, 0x3c, 0x2a, 0xee, 0xa8, 0x91, 0x36, 0x44, 0xa7, 0x05, 0x84};
-
-// Mock received message from INFOTAINMENT (same as in session management tests)
-static const pb_byte_t MOCK_INFOTAINMENT_MESSAGE[177] = {
-    0x32, 0x12, 0x12, 0x10, 0x8f, 0x3d, 0x24, 0x4b, 0x50, 0xb0, 0x7a, 0x98, 0x42, 0xca, 0xc1, 0x08, 0xc9, 0x28,
-    0xb5, 0xe7, 0x3a, 0x02, 0x08, 0x03, 0x7a, 0x5e, 0x08, 0x01, 0x12, 0x41, 0x04, 0xc7, 0xa1, 0xf4, 0x71, 0x38,
-    0x48, 0x6a, 0xa4, 0x72, 0x99, 0x71, 0x49, 0x48, 0x78, 0xd3, 0x3b, 0x1a, 0x24, 0xe3, 0x95, 0x71, 0xf7, 0x48,
-    0xa6, 0xe1, 0x6c, 0x59, 0x55, 0xb3, 0xd8, 0x77, 0xd3, 0xa6, 0xaa, 0xa0, 0xe9, 0x55, 0x16, 0x64, 0x74, 0xaf,
-    0x5d, 0x32, 0xc4, 0x10, 0xf4, 0x39, 0xa2, 0x23, 0x41, 0x37, 0xad, 0x1b, 0xb0, 0x85, 0xfd, 0x4e, 0x88, 0x13,
-    0xc9, 0x58, 0xf1, 0x1d, 0x97, 0x1a, 0x10, 0x4c, 0x46, 0x3f, 0x9c, 0xc0, 0xd3, 0xd2, 0x69, 0x06, 0xe9, 0x82,
-    0xed, 0x22, 0x4a, 0xdd, 0xe6, 0x25, 0x5f, 0x0a, 0x00, 0x00, 0x30, 0x07, 0x6a, 0x24, 0x32, 0x22, 0x0a, 0x20,
-    0x8e, 0x8d, 0xcd, 0x16, 0x4e, 0xf3, 0x61, 0xfd, 0x12, 0x3c, 0x46, 0xc2, 0xb2, 0xbd, 0xfd, 0x1f, 0xc9, 0x30,
-    0x56, 0xf4, 0xef, 0x32, 0xc9, 0x31, 0x1a, 0x27, 0x5d, 0xb9, 0x08, 0xd4, 0xd2, 0x3f, 0x92, 0x03, 0x10, 0x0a,
-    0x40, 0x4e, 0xc0, 0xfc, 0x9a, 0xa8, 0x63, 0xae, 0xc3, 0xe5, 0x01, 0x96, 0xfb, 0xf3, 0x0b};
-
 class MessageBuildingTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -70,8 +44,8 @@ class MessageBuildingTest : public ::testing::Test {
   void initialize_vcsec_session_() {
     // Parse the VCSEC message to get session info
     UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-    auto parse_result = client->parse_universal_message(const_cast<pb_byte_t *>(MOCK_VCSEC_MESSAGE),
-                                                        sizeof(MOCK_VCSEC_MESSAGE), &received_message);
+    auto parse_result = client->parse_universal_message(const_cast<pb_byte_t *>(TestConstants::MOCK_VCSEC_MESSAGE),
+                                                        sizeof(TestConstants::MOCK_VCSEC_MESSAGE), &received_message);
     ASSERT_EQ(parse_result, TeslaBLE_Status_E_OK) << "Failed to parse VCSEC message";
 
     // Parse session info
@@ -92,8 +66,9 @@ class MessageBuildingTest : public ::testing::Test {
   void initialize_infotainment_session_() {
     // Parse the Infotainment message to get session info
     UniversalMessage_RoutableMessage received_message = UniversalMessage_RoutableMessage_init_default;
-    auto parse_result = client->parse_universal_message(const_cast<pb_byte_t *>(MOCK_INFOTAINMENT_MESSAGE),
-                                                        sizeof(MOCK_INFOTAINMENT_MESSAGE), &received_message);
+    auto parse_result =
+        client->parse_universal_message(const_cast<pb_byte_t *>(TestConstants::MOCK_INFOTAINMENT_MESSAGE),
+                                        sizeof(TestConstants::MOCK_INFOTAINMENT_MESSAGE), &received_message);
     ASSERT_EQ(parse_result, TeslaBLE_Status_E_OK) << "Failed to parse Infotainment message";
 
     // Parse session info
@@ -236,19 +211,6 @@ TEST_F(VehicleDataTest, VehicleDataTagsAreUnique) {
   }
 
   EXPECT_GT(all_tags.size(), 0) << "Should discover at least one vehicle data type";
-}
-
-TEST_F(VehicleDataTest, VehicleDataCoverageReport) {
-  auto all_tags = get_all_vehicle_data_tags();
-
-  std::cout << "\n=== VEHICLE DATA COVERAGE REPORT ===\n";
-  std::cout << "Total vehicle data types discovered: " << all_tags.size() << "\n";
-  std::cout << "All types tested individually below:\n";
-
-  for (const auto &tag_info : all_tags) {
-    std::cout << "  " << tag_info.name << " = " << tag_info.tag << "\n";
-  }
-  std::cout << "======================================\n";
 }
 
 // Generate individual test for each vehicle data type
@@ -424,35 +386,6 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple("ping_12345", CarServer_VehicleAction_ping_tag, 12345),
         std::make_tuple("ping_99999", CarServer_VehicleAction_ping_tag, 99999)),
     [](const ::testing::TestParamInfo<VehicleActionNumericTest::ParamType> &info) { return std::get<0>(info.param); });
-
-TEST_F(MessageBuildingTest, VehicleActionCoverageReport) {
-  auto all_tags = get_all_vehicle_action_tags();
-
-  // Count different types of actions we're testing
-  int simple_actions = 14;   // From INSTANTIATE_TEST_SUITE_P SimpleActions
-  int boolean_actions = 10;  // From INSTANTIATE_TEST_SUITE_P BooleanActions (5 actions * 2 values each)
-  int numeric_actions = 6;   // From INSTANTIATE_TEST_SUITE_P NumericActions
-  int tested_actions = simple_actions + boolean_actions + numeric_actions;
-  int total_actions = all_tags.size();
-  int skipped_actions = total_actions - tested_actions - 1;  // -1 for getVehicleData
-
-  std::cout << "=== Vehicle Action Test Coverage Report ===\n";
-  std::cout << "Total actions discovered: " << total_actions << "\n";
-  std::cout << "Simple actions tested: " << simple_actions << "\n";
-  std::cout << "Boolean actions tested: " << boolean_actions << " (3 actions × 2 values)\n";
-  std::cout << "Numeric actions tested: " << numeric_actions << " (3 actions × 2 values)\n";
-  std::cout << "Total test cases: " << tested_actions << "\n";
-  std::cout << "Complex actions (require structs): " << skipped_actions << "\n";
-  std::cout << "Coverage: " << (tested_actions * 100 / total_actions) << "%\n";
-
-  // Ensure we have reasonable coverage
-  EXPECT_GE(tested_actions, 20) << "Should have at least 20 individual test cases for vehicle actions";
-
-  std::cout << "\nAll discovered vehicle action types:\n";
-  for (const auto &tag_pair : all_tags) {
-    std::cout << "  " << tag_pair.first << " = " << tag_pair.second << "\n";
-  }
-}
 
 TEST_F(MessageBuildingTest, SetCabinOverheatProtectionOn) {
   pb_byte_t buffer[UniversalMessage_RoutableMessage_size];

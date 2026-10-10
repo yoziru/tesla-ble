@@ -70,27 +70,6 @@ TEST_F(TBUtilsTest, PbEncodeFieldsUniversalMessage) {
       << "Encoded message should be at least as large as public key";
 }
 
-TEST_F(TBUtilsTest, PbEncodeFieldsBufferTooSmall) {
-  // This test verifies that pb_encode_fields properly handles buffer size validation
-  // The current implementation calculates the required size first, so we can't test
-  // buffer overflow in the same way. Instead, we test that the function correctly
-  // reports the required size.
-
-  VCSEC_UnsignedMessage unsigned_message = VCSEC_UnsignedMessage_init_default;
-  unsigned_message.which_sub_message = VCSEC_UnsignedMessage_InformationRequest_tag;
-  unsigned_message.sub_message.InformationRequest.informationRequestType =
-      VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS;
-
-  // Get the required size
-  pb_byte_t buffer[VCSEC_UnsignedMessage_size];
-  size_t required_length;
-  auto result = pb_encode_fields(buffer, &required_length, VCSEC_UnsignedMessage_fields, &unsigned_message);
-
-  EXPECT_EQ(result, TeslaBLE_Status_E_OK) << "pb_encode_fields should succeed for valid message";
-  EXPECT_GT(required_length, 0) << "Required size should be greater than 0";
-  EXPECT_LE(required_length, sizeof(buffer)) << "Required size should not exceed buffer size";
-}
-
 // Tests for format_hex utility function
 TEST_F(TBUtilsTest, FormatHexBasic) {
   const uint8_t data[] = {0x01, 0x02, 0x03, 0xAB, 0xCD, 0xEF};

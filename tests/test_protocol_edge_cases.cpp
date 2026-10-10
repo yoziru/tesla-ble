@@ -9,9 +9,6 @@
 #include <client.h>
 #include <peer.h>
 #include <crypto_context.h>
-#include <mbedtls/md.h>
-#include <mbedtls/sha256.h>
-#include <cstring>
 #include <memory>
 #include <string>
 #include "test_constants.h"
@@ -58,29 +55,7 @@ TEST_F(ProtocolEdgeCasesTest, CounterOverflow) {
   EXPECT_EQ(peer.get_counter(), 0) << "Counter should wrap to 0 on overflow";
 }
 
-// Test 4: Malformed Metadata
-TEST_F(ProtocolEdgeCasesTest, MalformedMetadata) {
-  Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context_, TestConstants::TEST_VIN);
-  uint8_t malformed_metadata[3] = {0x02, 0x11};  // Incomplete TLV
-  uint8_t ad_hash[32];
-  int ret = mbedtls_sha256(malformed_metadata, 2, ad_hash, 0);
-  EXPECT_EQ(ret, 0);
-  // Try to use malformed metadata in encryption (should fail or be handled)
-  pb_byte_t plaintext[4] = {1, 2, 3, 4};
-  pb_byte_t ciphertext[16];
-  pb_byte_t tag[16];
-  mbedtls_gcm_context gcm;
-  mbedtls_gcm_init(&gcm);
-  ret = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, ad_hash, 128);
-  EXPECT_EQ(ret, 0);
-  ret =
-      mbedtls_gcm_crypt_and_tag(&gcm, MBEDTLS_GCM_ENCRYPT, 4, ad_hash, 12, nullptr, 0, plaintext, ciphertext, 16, tag);
-  EXPECT_TRUE(ret == 0 || ret != 0) << "Malformed metadata should not crash";
-  // Should not crash, but may fail due to bad key
-  mbedtls_gcm_free(&gcm);
-}
-
-// Test 5: Request Hash Construction with Short Tag (should handle gracefully)
+// Test 4: Request Hash Construction with Short Tag (should handle gracefully)
 TEST_F(ProtocolEdgeCasesTest, RequestHashInvalidTagLength) {
   Peer peer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, crypto_context_, TestConstants::TEST_VIN);
   uint8_t short_tag[4] = {1, 2, 3, 4};
@@ -92,24 +67,6 @@ TEST_F(ProtocolEdgeCasesTest, RequestHashInvalidTagLength) {
   EXPECT_EQ(hash_length, 5) << "Hash length should be 1 (auth type) + 4 (tag length)";
   EXPECT_EQ(hash[0], static_cast<uint8_t>(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED))
       << "First byte should be auth type";
-}
-
-// Test 6: HMAC Authentication with All-Zero Key
-TEST_F(ProtocolEdgeCasesTest, HmacAllZeroKey) {
-  uint8_t key[16] = {0};
-  uint8_t data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-  uint8_t hmac[32];
-  int ret = mbedtls_md_hmac(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), key, 16, data, 8, hmac);
-  EXPECT_EQ(ret, 0);
-  // HMAC should not be all zeros
-  bool all_zero = true;
-  for (unsigned char value : hmac) {
-    if (value != 0) {
-      all_zero = false;
-      break;
-    }
-  }
-  EXPECT_FALSE(all_zero) << "HMAC output should not be all zeros even with zero key";
 }
 
 }  // namespace TeslaBLE

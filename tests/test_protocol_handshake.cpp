@@ -215,16 +215,12 @@ TEST_F(ProtocolHandshakeTest, ResponseDecryption) {
                                              request_hash, sizeof(request_hash),
                                              0,  // flags
                                              0,  // fault
+                                             0,  // response counter
                                              decrypted, sizeof(decrypted), &decrypted_length);
 
-  // The exact result depends on the mock data being valid
-  // But we should get a meaningful response
-  EXPECT_TRUE(decrypt_result == TeslaBLE_Status_E_OK || decrypt_result != TeslaBLE_Status_E_OK)
-      << "Decryption should either succeed or fail gracefully";
-
-  if (result == TeslaBLE_Status_E_OK) {
-    EXPECT_GT(decrypted_length, 0) << "Successful decryption should produce content";
-  }
+  // The mock data does not carry a valid tag for this session, so it must be
+  // rejected (before tag verification was added, decryption always "succeeded").
+  EXPECT_EQ(decrypt_result, TeslaBLE_Status_E_ERROR_DECRYPT) << "Decryption of unauthenticated data must fail";
 }
 
 TEST_F(ProtocolHandshakeTest, VcsecResponseDecryptRoundTrip) {
@@ -259,9 +255,12 @@ TEST_F(ProtocolHandshakeTest, VcsecResponseDecryptRoundTrip) {
   size_t ad_length = 0;
   uint32_t flags = (1u << UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE);
   uint32_t fault = 0;
-  auto ad_result =
-      peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE, TestConstants::TEST_VIN, 0,
-                               ad_buffer.data(), &ad_length, flags, request_hash.data(), request_hash_length, fault);
+  // The vehicle authenticates its response with the counter it sends in
+  // AES_GCM_ResponseData, which in general differs from our request counter.
+  const uint32_t response_counter = 0x2a;
+  auto ad_result = peer.construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE,
+                                            TestConstants::TEST_VIN, 0, ad_buffer.data(), &ad_length, flags,
+                                            request_hash.data(), request_hash_length, fault, response_counter);
   ASSERT_EQ(ad_result, TeslaBLE_Status_E_OK) << "Failed to construct AD buffer";
 
   unsigned char ad_hash[32];
@@ -294,13 +293,32 @@ TEST_F(ProtocolHandshakeTest, VcsecResponseDecryptRoundTrip) {
 
   std::array<pb_byte_t, 32> decrypted{};
   size_t decrypted_length = 0;
-  int decrypt_result =
-      peer.decrypt_response(ciphertext.data(), ciphertext_length, nonce.data(), tag.data(), request_hash.data(),
-                            request_hash_length, flags, fault, decrypted.data(), decrypted.size(), &decrypted_length);
+  int decrypt_result = peer.decrypt_response(ciphertext.data(), ciphertext_length, nonce.data(), tag.data(),
+                                             request_hash.data(), request_hash_length, flags, fault, response_counter,
+                                             decrypted.data(), decrypted.size(), &decrypted_length);
   ASSERT_EQ(decrypt_result, TeslaBLE_Status_E_OK) << "Failed to decrypt VCSEC response";
   ASSERT_EQ(decrypted_length, plaintext.size()) << "Decrypted length mismatch";
   EXPECT_TRUE(std::equal(plaintext.begin(), plaintext.end(), decrypted.begin()))
       << "Decrypted payload should match plaintext";
+
+  // Authentication is only accepted when the tag verifies: a different counter
+  // changes the authenticated data, so decryption must fail.
+  std::array<pb_byte_t, 32> rejected{};
+  size_t rejected_length = 0;
+  EXPECT_NE(peer.decrypt_response(ciphertext.data(), ciphertext_length, nonce.data(), tag.data(), request_hash.data(),
+                                  request_hash_length, flags, fault, response_counter + 1, rejected.data(),
+                                  rejected.size(), &rejected_length),
+            TeslaBLE_Status_E_OK)
+      << "Response with a mismatched counter must not authenticate";
+
+  // A tampered tag must also be rejected.
+  std::array<pb_byte_t, Peer::TAG_SIZE_BYTES> tampered_tag = tag;
+  tampered_tag[0] ^= 0xFF;
+  EXPECT_NE(peer.decrypt_response(ciphertext.data(), ciphertext_length, nonce.data(), tampered_tag.data(),
+                                  request_hash.data(), request_hash_length, flags, fault, response_counter,
+                                  rejected.data(), rejected.size(), &rejected_length),
+            TeslaBLE_Status_E_OK)
+      << "Response with a tampered tag must not authenticate";
 }
 
 // Test 5: Domain-Specific Behavior

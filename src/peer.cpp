@@ -305,7 +305,8 @@ int Peer::force_update_session(Signatures_SessionInfo *session_info) {
 
 int Peer::construct_ad_buffer(Signatures_SignatureType signature_type, const char *vin, uint32_t expires_at,
                               pb_byte_t *output_buffer, size_t *output_length, uint32_t flags,
-                              const pb_byte_t *request_hash, size_t request_hash_length, uint32_t fault) const {
+                              const pb_byte_t *request_hash, size_t request_hash_length, uint32_t fault,
+                              std::optional<uint32_t> counter) const {
   if (output_buffer == nullptr || output_length == nullptr || vin == nullptr) {
     LOG_ERROR("Invalid parameters for AD buffer construction");
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
@@ -367,9 +368,10 @@ int Peer::construct_ad_buffer(Signatures_SignatureType signature_type, const cha
     }
   }
 
-  // Counter (TLV format)
+  // Counter (TLV format). A response is authenticated with the counter the
+  // vehicle sent in it (AES_GCM_ResponseData.counter), not our request counter.
   pb_byte_t counter_bytes[4];
-  write_uint32_be(counter_bytes, counter_);
+  write_uint32_be(counter_bytes, counter.value_or(counter_));
   if (!append_tlv(Signatures_Tag_TAG_COUNTER, counter_bytes, sizeof(counter_bytes))) {
     LOG_ERROR("Failed to append counter to AD buffer");
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
@@ -450,8 +452,8 @@ int Peer::construct_request_hash(Signatures_SignatureType auth_type, const pb_by
 
 int Peer::decrypt_response(const pb_byte_t *input_buffer, size_t input_length, const pb_byte_t *nonce,
                            const pb_byte_t *tag, const pb_byte_t *request_hash, size_t request_hash_length,
-                           uint32_t flags, uint32_t fault, pb_byte_t *output_buffer, size_t output_buffer_length,
-                           size_t *output_length) const {
+                           uint32_t flags, uint32_t fault, uint32_t response_counter, pb_byte_t *output_buffer,
+                           size_t output_buffer_length, size_t *output_length) const {
   if (!is_private_key_initialized()) {
     LOG_ERROR("[DecryptResponse] Private key not initialized");
     return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
@@ -471,9 +473,10 @@ int Peer::decrypt_response(const pb_byte_t *input_buffer, size_t input_length, c
   // Construct AD buffer for response (max 79 bytes)
   pb_byte_t ad_buffer[80];
   size_t ad_length;
-  return_code = construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE, vin_.c_str(),
-                                    0,  // expires_at not used for responses
-                                    ad_buffer, &ad_length, flags, request_hash, request_hash_length, fault);
+  return_code =
+      construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE, vin_.c_str(),
+                          0,  // expires_at not used for responses
+                          ad_buffer, &ad_length, flags, request_hash, request_hash_length, fault, response_counter);
 
   if (return_code != 0) {
     LOG_ERROR("[DecryptResponse] Failed to construct AD buffer");
@@ -507,15 +510,23 @@ int Peer::decrypt_response(const pb_byte_t *input_buffer, size_t input_length, c
     return TeslaBLE_Status_E_ERROR_DECRYPT;
   }
 
-  // Finalize and verify the tag
+  // Finalize and authenticate. In decrypt mode mbedtls_gcm_finish() only
+  // computes the tag; it never compares it with the received one, so the
+  // comparison is done here (constant-time).
   size_t finish_length = 0;
   pb_byte_t finish_buffer[16];
-  pb_byte_t tag_copy[16];
-  std::memcpy(tag_copy, tag, sizeof(tag_copy));
-  return_code = mbedtls_gcm_finish(&aes_context, finish_buffer, sizeof(finish_buffer), &finish_length, tag_copy,
-                                   sizeof(tag_copy));  // tag is always 16 bytes
+  pb_byte_t computed_tag[16];
+  return_code = mbedtls_gcm_finish(&aes_context, finish_buffer, sizeof(finish_buffer), &finish_length, computed_tag,
+                                   sizeof(computed_tag));  // tag is always 16 bytes
   if (return_code != 0) {
-    LOG_ERROR("[DecryptResponse] Authentication failed in gcm_finish: -0x%04x", (unsigned int) -return_code);
+    LOG_ERROR("[DecryptResponse] Failed to compute tag in gcm_finish: -0x%04x", (unsigned int) -return_code);
+    mbedtls_gcm_free(&aes_context);
+    return TeslaBLE_Status_E_ERROR_DECRYPT;
+  }
+
+  if (!CryptoUtils::secure_memory_compare(tag, computed_tag, sizeof(computed_tag))) {
+    LOG_ERROR("[DecryptResponse] Authentication failed: response tag mismatch");
+    mbedtls_gcm_free(&aes_context);
     return TeslaBLE_Status_E_ERROR_DECRYPT;
   }
 

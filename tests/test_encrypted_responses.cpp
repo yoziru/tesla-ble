@@ -27,6 +27,7 @@
 #include <chrono>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <vector>
 
 using TeslaBLE::Client;
@@ -117,10 +118,10 @@ std::array<pb_byte_t, 17> request_hash_from_frame(Client &parser, const std::vec
 }
 
 // Encrypt a payload the way the vehicle does for a response to request_frame:
-// response AD (request hash, flags, fault) + AES-GCM with the session key.
+// response AD (request hash, flags, fault, response counter) + AES-GCM with the session key.
 std::vector<uint8_t> make_encrypted_response(Client &helper, UniversalMessage_Domain domain, uint32_t counter,
                                              const std::vector<uint8_t> &request_frame, const pb_byte_t *payload,
-                                             size_t payload_length) {
+                                             size_t payload_length, std::optional<uint32_t> ad_counter_override = {}) {
   if (request_frame.size() <= 2) {
     return {};
   }
@@ -141,9 +142,12 @@ std::vector<uint8_t> make_encrypted_response(Client &helper, UniversalMessage_Do
   const uint32_t flags = 1u << UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE;
   std::array<pb_byte_t, 80> ad{};
   size_t ad_length = 0;
+  // The response is authenticated with the counter reported in
+  // AES_GCM_ResponseData; ad_counter_override lets tests sign with a
+  // different counter than the one the message reports.
   if (peer->construct_ad_buffer(Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_RESPONSE, TEST_VIN, 0, ad.data(),
-                                &ad_length, flags, request_hash.data(), request_hash.size(),
-                                0) != TeslaBLE_Status_E_OK) {
+                                &ad_length, flags, request_hash.data(), request_hash.size(), 0,
+                                ad_counter_override.value_or(counter)) != TeslaBLE_Status_E_OK) {
     return {};
   }
 
@@ -209,41 +213,96 @@ class EncryptedResponseTest : public ::testing::Test {
   std::shared_ptr<MockStorageAdapter> mock_storage_;
   std::shared_ptr<Vehicle> vehicle_;
   std::shared_ptr<Client> helper_;
+
+  // Sends the standard "Climate On" command with the preloaded session and
+  // returns the encrypted request frame that was written.
+  std::vector<uint8_t> send_climate_command(OperationOutcome *outcome) {
+    vehicle_->send_command_result(
+        UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Climate On",
+        [](Client *client, uint8_t *buff, size_t *len) {
+          bool enabled = true;
+          return client->build_car_server_vehicle_action_message(buff, len, CarServer_VehicleAction_hvacAutoAction_tag,
+                                                                 &enabled);
+        },
+        [outcome](TeslaBLE::OperationResult result) { *outcome = result.outcome(); });
+    vehicle_->loop();
+    vehicle_->loop();
+
+    const auto &writes = mock_ble_->get_written_data();
+    if (writes.size() != 1U) {
+      return {};
+    }
+    return writes.front();
+  }
+
+  // A CarServer OK response encrypted for request_frame.
+  std::vector<uint8_t> make_ok_infotainment_response(const std::vector<uint8_t> &request_frame, uint32_t counter,
+                                                     std::optional<uint32_t> ad_counter_override = {}) {
+    CarServer_Response content = CarServer_Response_init_default;
+    content.has_actionStatus = true;
+    content.actionStatus.result = CarServer_OperationStatus_E_OPERATIONSTATUS_OK;
+    pb_byte_t payload[256];
+    size_t payload_length = sizeof(payload);
+    if (TeslaBLE::pb_encode_fields(payload, &payload_length, CarServer_Response_fields, &content) !=
+        TeslaBLE_Status_E_OK) {
+      return {};
+    }
+
+    return make_encrypted_response(*helper_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, counter, request_frame,
+                                   payload, payload_length, ad_counter_override);
+  }
 };
 
 TEST_F(EncryptedResponseTest, InfotainmentCommandCompletesWithEncryptedResponse) {
   OperationOutcome outcome = OperationOutcome::FAILED;
-  vehicle_->send_command_result(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Climate On",
-      [](Client *client, uint8_t *buff, size_t *len) {
-        bool enabled = true;
-        return client->build_car_server_vehicle_action_message(buff, len, CarServer_VehicleAction_hvacAutoAction_tag,
-                                                               &enabled);
-      },
-      [&](TeslaBLE::OperationResult result) { outcome = result.outcome(); });
+  auto request = send_climate_command(&outcome);
+  ASSERT_FALSE(request.empty()) << "Preloaded sessions should send the encrypted command directly";
 
-  vehicle_->loop();
-  vehicle_->loop();
-
-  const auto &writes = mock_ble_->get_written_data();
-  ASSERT_EQ(writes.size(), 1U) << "Preloaded sessions should send the encrypted command directly";
-
-  CarServer_Response content = CarServer_Response_init_default;
-  content.has_actionStatus = true;
-  content.actionStatus.result = CarServer_OperationStatus_E_OPERATIONSTATUS_OK;
-  pb_byte_t payload[256];
-  size_t payload_length = sizeof(payload);
-  ASSERT_EQ(TeslaBLE::pb_encode_fields(payload, &payload_length, CarServer_Response_fields, &content),
-            TeslaBLE_Status_E_OK);
-
-  auto response = make_encrypted_response(*helper_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, 201, writes.front(),
-                                          payload, payload_length);
+  auto response = make_ok_infotainment_response(request, 201);
   ASSERT_FALSE(response.empty()) << "Encrypted response should be built";
 
   vehicle_->on_rx_data(response);
   vehicle_->loop();
 
   EXPECT_EQ(outcome, OperationOutcome::SUCCESS) << "Encrypted response should complete the command";
+}
+
+TEST_F(EncryptedResponseTest, TamperedResponseTagIsRejected) {
+  OperationOutcome outcome = OperationOutcome::FAILED;
+  auto request = send_climate_command(&outcome);
+  ASSERT_FALSE(request.empty());
+
+  auto response = make_ok_infotainment_response(request, 201);
+  ASSERT_FALSE(response.empty());
+
+  // Corrupt one byte of the response tag.
+  TeslaBLE::Client parser;
+  UniversalMessage_RoutableMessage parsed = UniversalMessage_RoutableMessage_init_default;
+  ASSERT_EQ(parser.parse_universal_message(const_cast<pb_byte_t *>(response.data() + 2), response.size() - 2, &parsed),
+            TeslaBLE_Status_E_OK);
+  parsed.sub_sigData.signature_data.sig_type.AES_GCM_Response_data.tag[0] ^= 0xFF;
+  auto tampered = frame_universal_message(parsed);
+  ASSERT_FALSE(tampered.empty());
+
+  vehicle_->on_rx_data(tampered);
+  vehicle_->loop();
+
+  EXPECT_EQ(outcome, OperationOutcome::FAILED) << "Tampered response must not complete the command";
+}
+
+TEST_F(EncryptedResponseTest, ResponseWithMismatchedCounterIsRejected) {
+  OperationOutcome outcome = OperationOutcome::FAILED;
+  auto request = send_climate_command(&outcome);
+  ASSERT_FALSE(request.empty());
+
+  // Sign with a different counter than the one reported in AES_GCM_ResponseData.
+  auto response = make_ok_infotainment_response(request, 201, /*ad_counter_override=*/202);
+  ASSERT_FALSE(response.empty());
+
+  vehicle_->on_rx_data(response);
+  vehicle_->loop();
+
+  EXPECT_EQ(outcome, OperationOutcome::FAILED) << "Response authenticated with a different counter must be rejected";
 }
 
 TEST_F(EncryptedResponseTest, VcsecCommandCompletesWithEncryptedResponse) {

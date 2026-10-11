@@ -113,7 +113,7 @@ jobs:
 
       - name: Use a supported Python for clang-tidy
         if: matrix.check == 'tidy'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
 

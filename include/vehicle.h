@@ -418,7 +418,6 @@ class Vehicle {
   void process_auth_response_waiting_command_(const std::shared_ptr<Command> &command);
   void process_ready_command_(const std::shared_ptr<Command> &command);
   void advance_infotainment_prerequisites_(const std::shared_ptr<Command> &command);
-  void resume_command_after_prerequisite_(const std::shared_ptr<Command> &command);
   void initiate_vcsec_auth_(const std::shared_ptr<Command> &command);
   void initiate_infotainment_auth_(const std::shared_ptr<Command> &command);
   void initiate_wake_sequence_(const std::shared_ptr<Command> &command);

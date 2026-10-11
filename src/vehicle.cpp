@@ -381,7 +381,7 @@ void TeslaBLE::Vehicle::initiate_auth_for_domain_(const std::shared_ptr<Command>
       command->state = CommandState::READY;
     } else if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY &&
                command->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
-      resume_command_after_prerequisite_(command);
+      advance_infotainment_prerequisites_(command);
     }
   } else {
     // A new session means a new counter: the request must be built again
@@ -468,10 +468,6 @@ void TeslaBLE::Vehicle::advance_infotainment_prerequisites_(const std::shared_pt
                             "Infotainment");
 }
 
-void TeslaBLE::Vehicle::resume_command_after_prerequisite_(const std::shared_ptr<Command> &command) {
-  advance_infotainment_prerequisites_(command);
-}
-
 void TeslaBLE::Vehicle::initiate_wake_sequence_(const std::shared_ptr<Command> &command) {
   if (!set_command_phase_(command, OperationPhase::ENSURING_AWAKE))
     return;
@@ -543,41 +539,29 @@ void TeslaBLE::Vehicle::retry_command(const std::shared_ptr<Command> &command) {
 void TeslaBLE::Vehicle::process_ready_command_(const std::shared_ptr<Command> &command) {
   if (!set_command_phase_(command, OperationPhase::SENDING_REQUEST))
     return;
-  if (command->resend_encoded && !command->encoded_request.empty()) {
-    command->resend_encoded = false;
-    if (ble_adapter_->write(command->encoded_request)) {
-      command->request_accepted = true;
-      LOG_DEBUG("Resent command: %s (%zu bytes, same message)", command->name.c_str(), command->encoded_request.size());
-      command->state = CommandState::WAITING_FOR_RESPONSE;
-      if (!set_command_phase_(command, OperationPhase::AWAITING_RESPONSE))
-        return;
-      command->last_tx_at = std::chrono::steady_clock::now();
-    } else {
-      LOG_ERROR("Failed to write command data: %s", command->name.c_str());
-      mark_command_failed_(command, CommandError::write_failed(command->request_accepted));
-    }
-    return;
-  }
+  const bool resend = command->resend_encoded && !command->encoded_request.empty();
   command->resend_encoded = false;
-  std::array<uint8_t, UniversalMessage_RoutableMessage_size + FRAME_HEADER_SIZE> buffer{};
-  size_t len = buffer.size();
-  if (command->builder(client_.get(), buffer.data(), &len) == 0) {
-    std::vector<uint8_t> data(buffer.begin(), buffer.begin() + len);
-    command->encoded_request = data;
-    if (ble_adapter_->write(data)) {
-      command->request_accepted = true;
-      LOG_DEBUG("Sent command: %s (%zu bytes)", command->name.c_str(), data.size());
-      command->state = CommandState::WAITING_FOR_RESPONSE;
-      if (!set_command_phase_(command, OperationPhase::AWAITING_RESPONSE))
-        return;
-      command->last_tx_at = std::chrono::steady_clock::now();
-    } else {
-      LOG_ERROR("Failed to write command data: %s", command->name.c_str());
-      mark_command_failed_(command, CommandError::write_failed(command->request_accepted));
+  if (!resend) {
+    std::array<uint8_t, UniversalMessage_RoutableMessage_size + FRAME_HEADER_SIZE> buffer{};
+    size_t len = buffer.size();
+    if (command->builder(client_.get(), buffer.data(), &len) != 0) {
+      LOG_ERROR("Failed to build command: %s", command->name.c_str());
+      mark_command_failed_(command, CommandError::build_failed(command->name));
+      return;
     }
+    command->encoded_request.assign(buffer.begin(), buffer.begin() + len);
+  }
+  if (ble_adapter_->write(command->encoded_request)) {
+    command->request_accepted = true;
+    LOG_DEBUG("%s command: %s (%zu bytes)", resend ? "Resent" : "Sent", command->name.c_str(),
+              command->encoded_request.size());
+    command->state = CommandState::WAITING_FOR_RESPONSE;
+    if (!set_command_phase_(command, OperationPhase::AWAITING_RESPONSE))
+      return;
+    command->last_tx_at = std::chrono::steady_clock::now();
   } else {
-    LOG_ERROR("Failed to build command: %s", command->name.c_str());
-    mark_command_failed_(command, CommandError::build_failed(command->name));
+    LOG_ERROR("Failed to write command data: %s", command->name.c_str());
+    mark_command_failed_(command, CommandError::write_failed(command->request_accepted));
   }
 }
 
@@ -834,8 +818,7 @@ void TeslaBLE::Vehicle::handle_message_(const UniversalMessage_RoutableMessage &
   if (msg.which_payload == UniversalMessage_RoutableMessage_session_info_tag) {
     handle_session_info_message_(msg);
     auto cmd = peek_command_();
-    if (has_session_error && cmd &&
-        (cmd->state == CommandState::WAITING_FOR_RESPONSE || cmd->state == CommandState::AUTH_RESPONSE_WAITING)) {
+    if (has_session_error && cmd && (cmd->awaiting_response() || cmd->state == CommandState::AUTH_RESPONSE_WAITING)) {
       LOG_INFO("Retrying command after session recovery");
       cmd->state = CommandState::IDLE;
       cmd->resend_encoded = false;
@@ -847,8 +830,7 @@ void TeslaBLE::Vehicle::handle_message_(const UniversalMessage_RoutableMessage &
     return;
   }
   auto cmd = peek_command_();
-  if (has_session_error && cmd &&
-      (cmd->state == CommandState::WAITING_FOR_RESPONSE || cmd->state == CommandState::AUTH_RESPONSE_WAITING)) {
+  if (has_session_error && cmd && (cmd->awaiting_response() || cmd->state == CommandState::AUTH_RESPONSE_WAITING)) {
     LOG_INFO("Transitioning to IDLE to trigger manual session recovery");
     cmd->state = CommandState::IDLE;
     cmd->resend_encoded = false;
@@ -1177,7 +1159,7 @@ void TeslaBLE::Vehicle::handle_authentication_response_(UniversalMessage_Domain 
   if (success) {
     if (domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY &&
         cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
-      resume_command_after_prerequisite_(cmd);
+      advance_infotainment_prerequisites_(cmd);
       return;
     }
     if (!set_command_phase_(cmd, OperationPhase::SENDING_REQUEST))
@@ -2010,7 +1992,7 @@ void TeslaBLE::Vehicle::handle_signed_message_error_(const UniversalMessage_Rout
   }
 
   auto cmd = peek_command_();
-  if (!has_session_error && cmd && cmd->state == CommandState::WAITING_FOR_RESPONSE) {
+  if (!has_session_error && cmd && cmd->awaiting_response()) {
     mark_command_failed_(cmd, CommandError::authentication_failed("signed message"));
   }
 }

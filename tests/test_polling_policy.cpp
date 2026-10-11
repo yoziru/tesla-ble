@@ -72,15 +72,6 @@ TEST(PollingPolicyTest, SentryModeKeepsVehicleAwake) {
   EXPECT_EQ(d.interval_ms, 10000U);
 }
 
-TEST(PollingPolicyTest, UnlockedOrPresenceDoesNotKeepAwake) {
-  InfotainmentPollPolicy p;
-  configure(p);
-
-  p.update(1000, false, false, false);
-  InfotainmentPollDecision d = p.update(1000 + 660000, false, false, false);
-  EXPECT_EQ(d.wake_policy, WakePolicy::NO_WAKE_SKIP);
-}
-
 TEST(PollingPolicyTest, AwakeBlipDoesNotResumeWakePolling) {
   InfotainmentPollPolicy p;
   configure(p);

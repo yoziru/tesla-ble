@@ -37,8 +37,9 @@ def check(path: Path) -> None:
 
 if __name__ == "__main__":
     artifacts = []
-    linux_matrix = "--linux-matrix" in sys.argv[1:]
-    arguments = [arg for arg in sys.argv[1:] if arg != "--linux-matrix"]
+    release_matrix = "--release-matrix" in sys.argv[1:]
+    linux_matrix = release_matrix or "--linux-matrix" in sys.argv[1:]
+    arguments = [arg for arg in sys.argv[1:] if arg not in ("--linux-matrix", "--release-matrix")]
     for argument in arguments or ["dist"]:
         path = Path(argument)
         artifacts.extend(
@@ -58,3 +59,12 @@ if __name__ == "__main__":
                         for artifact in artifacts
                     ), f"Missing release wheel: {python} {libc} {architecture}"
         print("OK: complete Linux release matrix (glibc and musl)")
+    if release_matrix:
+        for python in ("cp313", "cp314", "cp315"):
+            for architecture in ("x86_64", "arm64"):
+                assert any(
+                    f"-{python}-{python}-macosx_" in artifact.name
+                    and artifact.name.endswith(f"_{architecture}.whl")
+                    for artifact in artifacts
+                ), f"Missing release wheel: {python} macOS {architecture}"
+        print("OK: complete macOS release matrix (Intel and Apple Silicon)")

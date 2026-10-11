@@ -76,7 +76,7 @@ CI builds wheels for CPython 3.13, 3.14 and 3.15 (see `[tool.cibuildwheel]` in
 | --- | --- | --- |
 | Linux (manylinux/glibc) | x86_64, aarch64 | Python virtual environments on glibc distributions |
 | Linux (musllinux/Alpine) | x86_64, aarch64 | HA OS, HA Container, Alpine Linux |
-| macOS | arm64, x86_64 (cross-compiled) | Native macOS Python; Docker uses Linux wheels |
+| macOS | arm64, x86_64 | Native macOS Python; Docker uses Linux wheels |
 
 Local builds:
 
@@ -91,8 +91,12 @@ uvx cibuildwheel --platform macos .
 
 The macOS runners in CI install the required Pythons automatically, so release
 wheels are produced without local setup.
-Linux cross-architecture builds require Docker emulation/binfmt support; CI
-sets up QEMU explicitly. Every testable wheel runs the offline bindings suite.
+CI uses six native jobs, split by architecture and platform/libc, with uv as
+the build frontend. Every wheel runs the offline bindings suite, including
+Intel macOS wheels. Aggregate validation requires all 18 release wheels
+before publishing. Release publication triggers one matrix; tag pushes do
+not trigger a duplicate build. Local cross-architecture Linux builds still
+require Docker emulation/binfmt support.
 
 ## Notes
 

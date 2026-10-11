@@ -34,7 +34,7 @@ select = ["E4", "E7", "E9", "F", "I"]
 
 [tool.mypy]
 python_version = "3.13"
-files = ["scripts/check_dist.py", "bindings/python/tools/gen_state_dicts.py"]
+files = ["scripts/check_dist.py", "scripts/test_check_dist.py", "bindings/python/tools/gen_state_dicts.py"]
 strict = true
 
 # The pyproject lives at the repository root so source distributions contain
@@ -64,6 +64,7 @@ sdist.exclude = [
 # Wheel matrix: Home Assistant runs on Linux (HA OS/Container) and macOS, on
 # both x86_64 and arm64/aarch64. Shared by CI and local cibuildwheel runs.
 [tool.cibuildwheel]
+build-frontend = "build[uv]"
 build = "cp313-* cp314-* cp315-*"
 test-sources = ["bindings/python/tests"]
 test-requires = ["pytest>=8"]

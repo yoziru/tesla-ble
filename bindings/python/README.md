@@ -81,6 +81,9 @@ sets up QEMU explicitly. Every testable wheel runs the offline bindings suite.
 - Requires Python ≥ 3.13 (matching Home Assistant) and a C++23 compiler.
 - `Vehicle` is **not thread-safe**: call `loop()`, `on_rx_data()` and actions
   from a single thread (the Home Assistant integration uses the event loop).
+- Python infotainment polls default to `WakePolicy.WAKE_IF_NEEDED` and may
+  wake the vehicle. Pass `WakePolicy.NO_WAKE_SKIP` explicitly for background
+  telemetry polling; unlike Python, native C++ polls default to no wake.
 - `Vehicle` retains its Python BLE/storage adapters. Adapters must be non-null.
 - Storage `load()` exceptions propagate, including during construction. Exceptions
   from `save()` and `remove()` are reported through `sys.unraisablehook` and

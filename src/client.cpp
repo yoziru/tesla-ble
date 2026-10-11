@@ -694,13 +694,13 @@ bool Client::verify_session_info_tag(const Signatures_SessionInfo &session_info,
 int Client::build_universal_message_with_payload(pb_byte_t *payload, size_t payload_length,
                                                  UniversalMessage_Domain domain, pb_byte_t *output_buffer,
                                                  size_t *output_length, bool encrypt_payload) {
-  LOG_DEBUG("[build_universal_message_with_payload] Called with payload=%p, payload_length=%zu, domain=%d", payload,
-            payload_length, static_cast<int>(domain));
+  LOG_DEBUG("[build_universal_message_with_payload] Called with payload=%p, payload_length=%zu, domain=%d",
+            static_cast<void *>(payload), payload_length, static_cast<int>(domain));
 
   // Reject empty or null payloads
   if (payload == nullptr || payload_length == 0) {
-    LOG_ERROR("[build_universal_message_with_payload] Payload is null or empty (payload=%p, length=%zu)", payload,
-              payload_length);
+    LOG_ERROR("[build_universal_message_with_payload] Payload is null or empty (payload=%p, length=%zu)",
+              static_cast<void *>(payload), payload_length);
     return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
   }
 

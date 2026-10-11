@@ -413,6 +413,7 @@ class Vehicle {
   std::shared_ptr<Command> peek_command_() const;
   void process_command_queue_();
   void handle_message_(const UniversalMessage_RoutableMessage &msg);
+  bool response_matches_request_(const UniversalMessage_RoutableMessage &msg, UniversalMessage_Domain &domain) const;
   void process_idle_command_(const std::shared_ptr<Command> &command);
   void process_authenticating_command_(const std::shared_ptr<Command> &command);
   void process_auth_response_waiting_command_(const std::shared_ptr<Command> &command);
@@ -454,15 +455,16 @@ class Vehicle {
   void initialize_rx_buffer();
 
  private:
-  void handle_vcsec_message_(const UniversalMessage_RoutableMessage &msg);
-  void handle_carserver_message_(const UniversalMessage_RoutableMessage &msg);
-  void handle_session_info_message_(const UniversalMessage_RoutableMessage &msg);
+  void handle_vcsec_message_(const UniversalMessage_RoutableMessage &msg, bool matches_request);
+  void handle_carserver_message_(const UniversalMessage_RoutableMessage &msg, bool matches_request);
+  void handle_session_info_message_(const UniversalMessage_RoutableMessage &msg, UniversalMessage_Domain domain);
   void handle_auth_timeout_common_(const std::shared_ptr<Command> &command, const std::string &domain_name,
                                    CommandState retry_state);
   void handle_vcsec_auth_timeout_(const std::shared_ptr<Command> &command);
   void handle_infotainment_auth_timeout_(const std::shared_ptr<Command> &command);
   void handle_wake_response_timeout_(const std::shared_ptr<Command> &command);
-  void handle_signed_message_error_(const UniversalMessage_RoutableMessage &msg, bool &has_session_error);
+  void handle_signed_message_error_(const UniversalMessage_RoutableMessage &msg, UniversalMessage_Domain domain,
+                                    bool &has_session_error);
   void send_infotainment_poll_(const std::string &name, int32_t data_type, WakePolicy wake_policy);
   void initiate_auth_for_domain_(const std::shared_ptr<Command> &command, UniversalMessage_Domain domain,
                                  CommandState waiting_state, const std::string &domain_name);

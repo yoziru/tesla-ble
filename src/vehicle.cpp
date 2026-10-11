@@ -391,6 +391,7 @@ void TeslaBLE::Vehicle::initiate_auth_for_domain_(const std::shared_ptr<Command>
     if (client_->build_session_info_request_message(domain, buffer.data(), &len) == 0) {
       std::vector<uint8_t> data(buffer.begin(), buffer.begin() + len);
       if (ble_adapter_->write(data)) {
+        command->current_auth_domain = domain;
         command->state = waiting_state;
         command->last_tx_at = std::chrono::steady_clock::now();
         command->auth_request = std::move(data);
@@ -800,6 +801,33 @@ void TeslaBLE::Vehicle::process_complete_message() {
   }
 }
 
+bool TeslaBLE::Vehicle::response_matches_request_(const UniversalMessage_RoutableMessage &msg,
+                                                  UniversalMessage_Domain &domain) const {
+  const auto cmd = peek_command_();
+  auto expected_domain =
+      cmd ? (cmd->state == CommandState::AUTH_RESPONSE_WAITING ? cmd->current_auth_domain : cmd->domain)
+          : UniversalMessage_Domain_DOMAIN_BROADCAST;
+  if (cmd && expected_domain == UniversalMessage_Domain_DOMAIN_BROADCAST &&
+      cmd->state == CommandState::AUTH_RESPONSE_WAITING) {
+    expected_domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
+  }
+  domain = expected_domain;
+  if (msg.has_from_destination &&
+      msg.from_destination.which_sub_destination == UniversalMessage_Destination_domain_tag) {
+    domain = msg.from_destination.sub_destination.domain;
+  }
+  if (cmd && domain != expected_domain) {
+    return false;
+  }
+  if (msg.request_uuid.size == 0) {
+    return true;
+  }
+  std::array<pb_byte_t, 16> uuid{};
+  size_t length = uuid.size();
+  return client_->get_last_request_uuid(domain, uuid.data(), &length) && msg.request_uuid.size == length &&
+         std::equal(msg.request_uuid.bytes, msg.request_uuid.bytes + msg.request_uuid.size, uuid.begin());
+}
+
 void TeslaBLE::Vehicle::handle_message_(const UniversalMessage_RoutableMessage &msg) {
   const auto generation = connection_generation_;
   if (message_callback_) {
@@ -808,15 +836,20 @@ void TeslaBLE::Vehicle::handle_message_(const UniversalMessage_RoutableMessage &
   if (generation != connection_generation_) {
     return;
   }
+  UniversalMessage_Domain domain = UniversalMessage_Domain_DOMAIN_BROADCAST;
+  const bool matches_request = response_matches_request_(msg, domain);
   bool has_session_error = false;
-  if (msg.has_signedMessageStatus) {
-    handle_signed_message_error_(msg, has_session_error);
+  if (matches_request && msg.has_signedMessageStatus) {
+    handle_signed_message_error_(msg, domain, has_session_error);
   }
   if (generation != connection_generation_) {
     return;
   }
   if (msg.which_payload == UniversalMessage_RoutableMessage_session_info_tag) {
-    handle_session_info_message_(msg);
+    if (!matches_request) {
+      return;
+    }
+    handle_session_info_message_(msg, domain);
     auto cmd = peek_command_();
     if (has_session_error && cmd && (cmd->awaiting_response() || cmd->state == CommandState::AUTH_RESPONSE_WAITING)) {
       LOG_INFO("Retrying command after session recovery");
@@ -838,10 +871,12 @@ void TeslaBLE::Vehicle::handle_message_(const UniversalMessage_RoutableMessage &
   if (msg.from_destination.which_sub_destination == UniversalMessage_Destination_domain_tag) {
     switch (msg.from_destination.sub_destination.domain) {
       case UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY:
-        handle_vcsec_message_(msg);
+        handle_vcsec_message_(msg, matches_request);
         break;
       case UniversalMessage_Domain_DOMAIN_INFOTAINMENT:
-        handle_carserver_message_(msg);
+        if (matches_request || msg.request_uuid.size == 0) {
+          handle_carserver_message_(msg, matches_request);
+        }
         break;
       default:
         LOG_DEBUG("Message from unknown domain: %d", static_cast<int>(msg.from_destination.sub_destination.domain));
@@ -850,14 +885,8 @@ void TeslaBLE::Vehicle::handle_message_(const UniversalMessage_RoutableMessage &
   }
 }
 
-void TeslaBLE::Vehicle::handle_session_info_message_(const UniversalMessage_RoutableMessage &msg) {
-  UniversalMessage_Domain domain = UniversalMessage_Domain_DOMAIN_BROADCAST;
-  if (msg.has_from_destination &&
-      msg.from_destination.which_sub_destination == UniversalMessage_Destination_domain_tag) {
-    domain = msg.from_destination.sub_destination.domain;
-  } else if (!command_queue_.empty()) {
-    domain = command_queue_.front()->domain;
-  }
+void TeslaBLE::Vehicle::handle_session_info_message_(const UniversalMessage_RoutableMessage &msg,
+                                                     UniversalMessage_Domain domain) {
   if (domain != UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY &&
       domain != UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
     LOG_ERROR("Could not determine valid domain for session info update");
@@ -939,7 +968,7 @@ void TeslaBLE::Vehicle::handle_session_info_message_(const UniversalMessage_Rout
   }
 }
 
-void TeslaBLE::Vehicle::handle_vcsec_message_(const UniversalMessage_RoutableMessage &msg) {
+void TeslaBLE::Vehicle::handle_vcsec_message_(const UniversalMessage_RoutableMessage &msg, bool matches_request) {
   const auto generation = connection_generation_;
   LOG_DEBUG("Processing VCSEC message");
   if (msg.which_payload != UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag) {
@@ -1004,7 +1033,7 @@ void TeslaBLE::Vehicle::handle_vcsec_message_(const UniversalMessage_RoutableMes
     case VCSEC_FromVCSECMessage_commandStatus_tag:
       log_vcsec_command_status(TESLA_LOG_TAG, &vcsec_msg.sub_message.commandStatus);
       if (auto cmd = peek_command_()) {
-        if (cmd->domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY &&
+        if (matches_request && cmd->domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY &&
             (cmd->awaiting_response() || cmd->state == CommandState::AUTH_RESPONSE_WAITING)) {
           const auto &status = vcsec_msg.sub_message.commandStatus;
           const bool has_whitelist = status.which_sub_message == VCSEC_CommandStatus_whitelistOperationStatus_tag;
@@ -1050,7 +1079,7 @@ void TeslaBLE::Vehicle::handle_vcsec_message_(const UniversalMessage_RoutableMes
       if (generation != connection_generation_) {
         return;
       }
-      if (auto cmd = peek_command_()) {
+      if (auto cmd = peek_command_(); cmd && matches_request) {
         handle_vehicle_status_command_update_(cmd, vcsec_msg.sub_message.vehicleStatus);
       }
       break;
@@ -1058,7 +1087,7 @@ void TeslaBLE::Vehicle::handle_vcsec_message_(const UniversalMessage_RoutableMes
       break;
     case VCSEC_FromVCSECMessage_nominalError_tag:
       LOG_ERROR("VCSEC Nominal Error: %s", generic_error_to_string(vcsec_msg.sub_message.nominalError.genericError));
-      if (auto cmd = peek_command_()) {
+      if (auto cmd = peek_command_(); cmd && matches_request) {
         mark_command_failed_(cmd, CommandError::authentication_failed("VCSEC"));
       }
       break;
@@ -1067,20 +1096,9 @@ void TeslaBLE::Vehicle::handle_vcsec_message_(const UniversalMessage_RoutableMes
   }
 }
 
-void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_RoutableMessage &msg) {
+void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_RoutableMessage &msg, bool matches_request) {
   const auto generation = connection_generation_;
   LOG_DEBUG("Processing CarServer message");
-  if (msg.request_uuid.size > 0) {
-    pb_byte_t expected_uuid[16] = {0};
-    size_t expected_uuid_length = sizeof(expected_uuid);
-    if (!client_->get_last_request_uuid(UniversalMessage_Domain_DOMAIN_INFOTAINMENT, expected_uuid,
-                                        &expected_uuid_length) ||
-        msg.request_uuid.size != expected_uuid_length ||
-        !std::equal(msg.request_uuid.bytes, msg.request_uuid.bytes + msg.request_uuid.size, expected_uuid)) {
-      LOG_WARNING("Ignoring CarServer response for a different request");
-      return;
-    }
-  }
   const Signatures_SignatureData *sig_data = nullptr;
   if (msg.which_sub_sigData == UniversalMessage_RoutableMessage_signature_data_tag) {
     sig_data = &msg.sub_sigData.signature_data;
@@ -1133,7 +1151,8 @@ void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_Routabl
     return;
   }
   auto cmd = peek_command_();
-  if (cmd && cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT && cmd->awaiting_response()) {
+  if (matches_request && cmd && cmd->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT &&
+      cmd->awaiting_response()) {
     if (response.has_actionStatus) {
       bool already_set = response.actionStatus.has_result_reason &&
                          response.actionStatus.result_reason.which_reason == CarServer_ResultReason_plain_text_tag &&
@@ -1952,17 +1971,9 @@ void TeslaBLE::Vehicle::regenerate_key(const Command::OperationResultCallback &o
 }
 
 void TeslaBLE::Vehicle::handle_signed_message_error_(const UniversalMessage_RoutableMessage &msg,
-                                                     bool &has_session_error) {
+                                                     UniversalMessage_Domain domain, bool &has_session_error) {
   if (msg.signedMessageStatus.operation_status != UniversalMessage_OperationStatus_E_OPERATIONSTATUS_ERROR) {
     return;
-  }
-
-  UniversalMessage_Domain domain = UniversalMessage_Domain_DOMAIN_BROADCAST;
-  if (msg.has_from_destination &&
-      msg.from_destination.which_sub_destination == UniversalMessage_Destination_domain_tag) {
-    domain = msg.from_destination.sub_destination.domain;
-  } else if (auto cmd = peek_command_()) {
-    domain = cmd->domain;
   }
 
   auto fault = msg.signedMessageStatus.signed_message_fault;

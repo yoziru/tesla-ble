@@ -1,0 +1,76 @@
+[build-system]
+requires = ["scikit-build-core>=1.0", "pybind11>=3.1,<4"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "tesla-ble"
+dynamic = ["version"]
+description = "Python bindings for TeslaBLE: control Tesla vehicles over BLE"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "TeslaBLE contributors" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+    "Topic :: Software Development :: Embedded Systems",
+]
+
+[project.urls]
+Homepage = "https://github.com/yoziru/tesla-ble"
+
+[dependency-groups]
+dev = ["pytest>=8", "pybind11>=3.1", "ruff", "mypy"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["scripts/check_dist.py", "bindings/python/tools/gen_state_dicts.py"]
+strict = true
+
+# The pyproject lives at the repository root so source distributions contain
+# the whole C++ library and can build wheels standalone. The Python package
+# sources stay under bindings/python/.
+[[tool.dynamic-metadata]]
+provider = "scikit_build_core.metadata.regex"
+field = "version"
+input = "VERSION"
+regex = "(?P<value>[0-9.]+)"
+
+[tool.scikit-build]
+cmake.source-dir = "bindings/python"
+cmake.build-type = "Release"
+wheel.packages = ["bindings/python/src/tesla_ble"]
+install.components = ["python"]
+sdist.exclude = [
+    "build/**",
+    "build-*/**",
+    ".zvec-grep/**",
+    "bindings/python/.venv/**",
+    "bindings/python/dist/**",
+    "bindings/python/.pytest_cache/**",
+    "**/__pycache__/**",
+]
+
+# Wheel matrix: Home Assistant runs on Linux (HA OS/Container) and macOS, on
+# both x86_64 and arm64/aarch64. Shared by CI and local cibuildwheel runs.
+[tool.cibuildwheel]
+build = "cp313-* cp314-* cp315-*"
+test-sources = ["bindings/python/tests"]
+test-requires = ["pytest>=8"]
+test-command = "python -m pytest bindings/python/tests -q"
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64", "aarch64"]
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]

@@ -1,0 +1,2 @@
+tesla_ble\._tesla_ble\.(BleAdapter|StorageAdapter|CommandResult|Vehicle|InfotainmentPollPolicy|SimulatedVehicle)$
+tesla_ble\._tesla_ble\.(LogLevel|SleepState|SeatPosition|WakePolicy|OperationOutcome|KeysRole|Domain)\.__pybind11_native_enum__$

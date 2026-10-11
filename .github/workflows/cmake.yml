@@ -2,9 +2,8 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: ["main", "develop"]
+    branches: ["main"]
   pull_request:
-    branches: ["main", "develop"]
 
 # Prevent redundant runs on the same branch
 concurrency:
@@ -17,6 +16,38 @@ env:
   CLANG_VERSION: 21
 
 jobs:
+  python_quality:
+    name: Python lint, format and types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: "3.13"
+      - run: uv sync --locked --only-dev
+      - run: uv run --no-sync ruff check bindings/python scripts
+      - run: uv run --no-sync ruff format --check bindings/python scripts
+      - run: uv run --no-sync mypy
+
+  python:
+    name: Python ${{ matrix.python }} bindings and packaging
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.13", "3.14", "3.15"]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --locked --only-dev
+      - run: uv build
+      - run: uv run --no-sync python scripts/check_dist.py dist
+      - run: uv pip install --python .venv/bin/python dist/*.whl
+      - run: uv run --no-sync pytest bindings/python/tests -q
+      - run: uv run --no-sync mypy --strict bindings/python/tests/typing_contract.py
+      - run: uv run --no-sync python -m mypy.stubtest tesla_ble._tesla_ble --allowlist bindings/python/tests/stubtest_allowlist.txt
+
   checks:
     name: ${{ matrix.check-name }}
     runs-on: ubuntu-latest
@@ -79,6 +110,18 @@ jobs:
       - name: Install python dependencies
         if: matrix.check == 'test' || matrix.check == 'examples'
         run: python3 -m pip install protobuf grpcio-tools
+
+      - name: Use a supported Python for clang-tidy
+        if: matrix.check == 'tidy'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Prepare bindings environment for clang-tidy
+        if: matrix.check == 'tidy'
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install "pybind11>=3.1"
 
       - name: Setup ccache
         # Skip ccache for format check as it doesn't compile code

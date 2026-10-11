@@ -35,6 +35,7 @@ set(TEST_FILES
     test_message_building.cpp
     test_message_parsing.cpp
     test_message_processor.cpp
+    test_polling_policy.cpp
     test_protocol_authentication.cpp
     test_protocol_edge_cases.cpp
     test_protocol_compliance.cpp
@@ -42,6 +43,7 @@ set(TEST_FILES
     test_protocol_vectors.cpp
     test_session_management.cpp
     test_session_recovery.cpp
+    test_state_text.cpp
     test_tb_utils.cpp
     test_vehicle.cpp
     test_vin_utils.cpp

@@ -12,7 +12,9 @@ CarServer.ResultReason.plain_text max_size:100 type:FT_STATIC
 
 # CarServer.DrivingClearSpeedLimitPinAction.pin type:FT_IGNORE
 # CarServer.DrivingSpeedLimitAction.pin type:FT_IGNORE
-# CarServer.HvacSeatHeaterActions.hvacSeatHeaterAction type:FT_IGNORE
+CarServer.HvacSeatHeaterActions.hvacSeatHeaterAction max_count:1
+CarServer.AutoSeatClimateAction.carseat max_count:1
+CarServer.HvacSeatCoolerActions.hvacSeatCoolerAction max_count:1
 
 # CarServer.HvacSeatCoolerActions.hvacSeatCoolerAction
 # CarServer.HvacSetPreconditioningMaxAction.manual_override_mode

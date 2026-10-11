@@ -173,12 +173,6 @@ int Peer::load_tesla_key(const uint8_t *public_key_buffer, size_t public_key_siz
 
   is_valid_ = true;
   LOG_DEBUG("Tesla key loaded and session established successfully");
-  LOG_VERBOSE(
-      "Session key (first 16 bytes): %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-      shared_secret_sha1_.at(0), shared_secret_sha1_.at(1), shared_secret_sha1_.at(2), shared_secret_sha1_.at(3),
-      shared_secret_sha1_.at(4), shared_secret_sha1_.at(5), shared_secret_sha1_.at(6), shared_secret_sha1_.at(7),
-      shared_secret_sha1_.at(8), shared_secret_sha1_.at(9), shared_secret_sha1_.at(10), shared_secret_sha1_.at(11),
-      shared_secret_sha1_.at(12), shared_secret_sha1_.at(13), shared_secret_sha1_.at(14), shared_secret_sha1_.at(15));
 
   return TeslaBLE_Status_E_OK;
 }

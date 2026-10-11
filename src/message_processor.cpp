@@ -24,6 +24,14 @@ void MessageProcessor::queue_message(const UniversalMessage_RoutableMessage &msg
   }
 }
 
+void MessageProcessor::clear() {
+  std::scoped_lock lock(queue_mutex_);
+  while (!message_queue_.empty()) {
+    message_queue_.pop();
+  }
+  ++generation_;
+}
+
 size_t MessageProcessor::process_messages() {
   // Called on every loop, usually with nothing queued. It used to build a
   // local std::queue first: a std::deque allocates its map and a node (one
@@ -32,6 +40,7 @@ size_t MessageProcessor::process_messages() {
   // with exceptions disabled, aborted (seen on an ESP32). Now nothing is
   // allocated: messages are taken off the queue one at a time.
   size_t to_process;
+  uint64_t generation;
   {
     std::scoped_lock lock(queue_mutex_);
     if (message_queue_.empty()) {
@@ -39,6 +48,7 @@ size_t MessageProcessor::process_messages() {
     }
     // Only what is queued now; messages queued meanwhile wait for the next call
     to_process = message_queue_.size();
+    generation = generation_;
   }
 
   size_t processed = 0;
@@ -46,7 +56,7 @@ size_t MessageProcessor::process_messages() {
     UniversalMessage_RoutableMessage msg = UniversalMessage_RoutableMessage_init_default;
     {
       std::scoped_lock lock(queue_mutex_);
-      if (message_queue_.empty()) {
+      if (message_queue_.empty() || generation != generation_) {
         break;
       }
       msg = message_queue_.front();

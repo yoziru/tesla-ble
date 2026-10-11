@@ -53,6 +53,7 @@ class MessageProcessor {
    * Returns the number of messages processed.
    */
   size_t process_messages();
+  void clear();
 
  private:
   // Messages are processed on every loop, so a long backlog means something is
@@ -61,6 +62,7 @@ class MessageProcessor {
   MessageHandler message_handler_;
   std::queue<UniversalMessage_RoutableMessage> message_queue_;
   mutable std::mutex queue_mutex_;
+  uint64_t generation_{0};
 };
 
 }  // namespace TeslaBLE

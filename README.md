@@ -13,7 +13,10 @@ The main purpose of this library is to locally manage charging of the vehicle to
 
 This project is intended to be used as a library in your own project. It is not a standalone application.
 
-[yoziru/esphome-tesla-ble](https://github.com/yoziru/esphome-tesla-ble) is an ESPHome project that uses this library to control your Tesla vehicle charging.
+Hosts built on this library:
+
+- [yoziru/esphome-tesla-ble](https://github.com/yoziru/esphome-tesla-ble) - ESPHome component (ESP32 talks to the car directly).
+- [yoziru/ha-tesla-ble](https://github.com/yoziru/ha-tesla-ble) - Home Assistant integration via the [Python bindings](bindings/python), working over local adapters or ESPHome Bluetooth proxies.
 
 Several examples are included for your convenience.
 
@@ -22,6 +25,38 @@ cd examples/simple/
 cmake .
 make
 ```
+
+The host contract is small: implement `BleAdapter` (write frames) and
+`StorageAdapter` (persist keys/sessions), construct the `Vehicle` **after**
+storage is loaded, then call `loop()` periodically, feed notifications to
+`on_rx_data()` and connection state to `set_connected()`. Successful actions
+queue their own follow-up state polls; `has_private_key()` and
+`pending_command_count()` cover pairing state and in-flight work.
+
+Disconnect cancels unfinished commands, decoded replies, partial frames and
+delayed refreshes; do not replay controls automatically on reconnection. Keep
+vehicle credentials, pairing evidence and host-owned last-known telemetry.
+`BleAdapter::write()` means queue acceptance, not delivery. A successful result
+means the protocol completion condition was received, not that refreshed
+telemetry proves the requested state. A lost reply can leave an unknown outcome
+even after retries; retries reuse the encoded request within the same session.
+Command names are diagnostic labels, not authentication or refresh policy.
+
+`set_seat_climate()` sends one heat/cool request; the car handles exclusivity.
+Off clears cooling when supported, then heating, with one completion callback.
+Cooling support describes observed hardware, not current levels. Failure stops
+later steps without rollback. Climate/preconditioning or Climate Keeper must be
+on for seat commands; the library does not turn climate on implicitly. Optional UI exposure
+and retention/freshness remain host-native, best effort rather than parity.
+
+State callbacks are observations: absent optional fields are unknown, not zero,
+Off or proof that hardware was removed. The library does not merge telemetry.
+HA replaces each reported state group, keeps capability evidence separately and
+retains sleeping-car values while VCSEC remains reachable. ESPHome retains
+individual sensor values and uses last-known charging/sentry state for its native
+poll cadence; those retained values are not new observations or per-field
+freshness guarantees. Neither host should optimistically publish a commanded
+state as observed merely because the command completed.
 
 ## Building and Testing
 
@@ -173,10 +208,9 @@ This script will:
 
 The project uses GitHub Actions for CI/CD with the following features:
 
-- **Cross-platform testing**: Ubuntu, Windows, macOS
-- **Multiple build types**: Debug and Release
-- **Code coverage**: Automatic coverage reporting to Codecov
-- **Static analysis**: cppcheck integration
+- **C++ build, tests, examples and clang checks**: Ubuntu
+- **Python bindings and sdist-to-wheel builds**: CPython 3.13 and 3.14 on Ubuntu
+- **Release wheels and offline wheel tests**: Linux x86_64/aarch64 and macOS arm64/x86_64
 - **Memory testing**: Valgrind is available locally via `./scripts/run_tests.sh --valgrind` (not run in CI)
 - **Coverage**: Coverage analysis is available locally via `./scripts/run_tests.sh --coverage` (not run in CI)
 

@@ -35,6 +35,10 @@ struct MediaNowPlaying {
  */
 bool extract_media_now_playing(const pb_byte_t *response, size_t length, MediaNowPlaying *output);
 
+// The software-update version is an unbounded string in the generated struct;
+// it is extracted from the raw response separately.
+bool extract_software_update_version(const pb_byte_t *response, size_t length, std::string &output);
+
 /**
  * @brief Main client class for Tesla BLE communication
  *
@@ -54,13 +58,13 @@ class Client {
    */
   ~Client() = default;
 
-  // Delete copy constructor and assignment operator
+  // Delete copy and move: peers hold an aliasing shared_ptr to
+  // crypto_context_, so moving would leave them pointing at a moved-from
+  // object's member.
   Client(const Client &) = delete;
   Client &operator=(const Client &) = delete;
-
-  // Allow move constructor and assignment
-  Client(Client &&) = default;
-  Client &operator=(Client &&) = default;
+  Client(Client &&) = delete;
+  Client &operator=(Client &&) = delete;
 
   // Configuration methods
   void set_vin(const std::string &vin);
@@ -128,7 +132,8 @@ class Client {
                                         Signatures_SignatureData *signature_data, pb_size_t which_sub_sig_data,
                                         UniversalMessage_MessageFault_E signed_message_fault, uint32_t response_flags,
                                         CarServer_Response *output, uint32_t *response_counter = nullptr,
-                                        MediaNowPlaying *media_now_playing = nullptr);
+                                        MediaNowPlaying *media_now_playing = nullptr,
+                                        std::string *software_update_version = nullptr);
 
   const pb_byte_t *get_last_request_hash(UniversalMessage_Domain domain, size_t *length) const;
   bool get_last_request_uuid(UniversalMessage_Domain domain, pb_byte_t *uuid, size_t *uuid_length) const;

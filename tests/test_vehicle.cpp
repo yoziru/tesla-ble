@@ -4,6 +4,7 @@
 #include "mocks/mock_adapters.h"
 #include "tb_utils.h"
 #include "test_constants.h"
+#include "test_command_helpers.h"
 
 #include <pb_decode.h>
 
@@ -11,6 +12,7 @@
 #include <array>
 #include <cstring>
 #include <vector>
+#include <thread>
 
 using TeslaBLE::Command;
 using TeslaBLE::CommandError;
@@ -69,6 +71,18 @@ std::array<pb_byte_t, 16> extract_request_uuid(const std::vector<uint8_t> &frame
     *uuid_length = request.uuid.size;
   }
   return uuid;
+}
+
+std::vector<uint8_t> with_request_uuid(const std::vector<uint8_t> &frame, const std::array<pb_byte_t, 16> &uuid) {
+  Client parser;
+  UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
+  if (frame.size() <= 2 || parser.parse_universal_message(const_cast<pb_byte_t *>(frame.data() + 2), frame.size() - 2,
+                                                          &message) != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+  message.request_uuid.size = uuid.size();
+  std::copy(uuid.begin(), uuid.end(), message.request_uuid.bytes);
+  return frame_universal_message(message);
 }
 
 std::vector<uint8_t> make_session_info_response(const pb_byte_t *request_uuid, size_t request_uuid_length,
@@ -341,7 +355,8 @@ std::vector<uint8_t> make_session_info_no_hmac_tag(UniversalMessage_Domain domai
   return frame_universal_message(response);
 }
 
-std::vector<uint8_t> make_vcsec_vehicle_status_awake_message() {
+std::vector<uint8_t> make_vcsec_vehicle_status_awake_message(
+    VCSEC_VehicleSleepStatus_E sleep = VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_AWAKE) {
   VCSEC_FromVCSECMessage vcsec_message = VCSEC_FromVCSECMessage_init_default;
   vcsec_message.which_sub_message = VCSEC_FromVCSECMessage_vehicleStatus_tag;
 
@@ -349,7 +364,7 @@ std::vector<uint8_t> make_vcsec_vehicle_status_awake_message() {
   status.has_closureStatuses = true;
   status.closureStatuses.chargePort = VCSEC_ClosureState_E_CLOSURESTATE_OPEN;
   status.vehicleLockState = VCSEC_VehicleLockState_E_VEHICLELOCKSTATE_LOCKED;
-  status.vehicleSleepStatus = VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_AWAKE;
+  status.vehicleSleepStatus = sleep;
   status.userPresence = VCSEC_UserPresence_E_VEHICLE_USER_PRESENCE_NOT_PRESENT;
 
   pb_byte_t vcsec_buffer[256];
@@ -373,6 +388,28 @@ std::vector<uint8_t> make_vcsec_vehicle_status_awake_message() {
   message.payload.protobuf_message_as_bytes.size = vcsec_length;
   std::copy_n(vcsec_buffer, vcsec_length, message.payload.protobuf_message_as_bytes.bytes);
 
+  return frame_universal_message(message);
+}
+std::vector<uint8_t> make_vcsec_command_status(VCSEC_OperationStatus_E operation,
+                                               const VCSEC_WhitelistOperation_status *whitelist = nullptr) {
+  VCSEC_FromVCSECMessage response = VCSEC_FromVCSECMessage_init_default;
+  response.which_sub_message = VCSEC_FromVCSECMessage_commandStatus_tag;
+  response.sub_message.commandStatus.operationStatus = operation;
+  if (whitelist) {
+    response.sub_message.commandStatus.which_sub_message = VCSEC_CommandStatus_whitelistOperationStatus_tag;
+    response.sub_message.commandStatus.sub_message.whitelistOperationStatus = *whitelist;
+  }
+  UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
+  message.has_from_destination = true;
+  message.from_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;
+  message.from_destination.sub_destination.domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
+  message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
+  size_t length = sizeof(message.payload.protobuf_message_as_bytes.bytes);
+  if (TeslaBLE::pb_encode_fields(message.payload.protobuf_message_as_bytes.bytes, &length,
+                                 VCSEC_FromVCSECMessage_fields, &response) != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+  message.payload.protobuf_message_as_bytes.size = length;
   return frame_universal_message(message);
 }
 }  // namespace
@@ -455,8 +492,8 @@ TEST_F(VehicleTest, InfotainmentPollCompletesOnResponse) {
   bool callback_called = false;
   bool callback_success = false;
 
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Infotainment Poll",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Infotainment Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_car_server_get_vehicle_data_message(buff, len,
                                                                  CarServer_GetVehicleData_getChargeState_tag);
@@ -639,8 +676,8 @@ TEST_F(VehicleTest, InfotainmentActionFailureSurfacesPlainTextReason) {
   bool callback_called = false;
   std::unique_ptr<CommandError> captured_error;
 
-  vehicle_->send_command(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Climate On",
+  TeslaBLE::TestHelpers::send_command_error_callback(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Climate On",
       [](Client *client, uint8_t *buff, size_t *len) {
         bool enabled = true;
         return client->build_car_server_vehicle_action_message(buff, len, CarServer_VehicleAction_hvacAutoAction_tag,
@@ -751,6 +788,22 @@ TEST_F(VehicleTest, SetChargingLimitSendsData) {
   EXPECT_GE(writes.size(), 1) << "Set charging limit should initiate communication";
 }
 
+TEST_F(VehicleTest, ScheduleSoftwareUpdateRejectsNegativeOffset) {
+  bool callback_called = false;
+  bool callback_success = true;
+
+  vehicle_->set_connected(true);
+  vehicle_->schedule_software_update(-1, [&](auto result) {
+    callback_called = true;
+    callback_success = result.is_success();
+  });
+  vehicle_->loop();
+
+  EXPECT_TRUE(callback_called) << "Rejected offset should invoke the callback";
+  EXPECT_FALSE(callback_success) << "Negative offset must fail";
+  EXPECT_TRUE(mock_ble_->get_written_data().empty()) << "No command should be sent";
+}
+
 // ============================================================================
 // Command Callback Tests
 // ============================================================================
@@ -760,8 +813,8 @@ TEST_F(VehicleTest, CommandCallbackIsInvokedOnSuccess) {
   bool callback_result = false;
 
   vehicle_->set_connected(true);
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_WAKE_VEHICLE, buff, len);
       },
@@ -796,8 +849,8 @@ TEST_F(VehicleTest, CommandCallbackReceivesFailureOnDisconnect) {
   bool callback_called = false;
   bool callback_success = true;  // Will be set to false if properly failed
 
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test",
       [](Client *, uint8_t *, size_t *len) {
         *len = 10;
         return TeslaBLE_Status_E_OK;
@@ -816,8 +869,8 @@ TEST_F(VehicleTest, CommandCallbackReceivesFailureOnDisconnect) {
 
 TEST_F(VehicleTest, NullCallbackIsHandledSafely) {
   // Enqueue command without callback - should not crash
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "No Callback Command",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "No Callback Command",
       [](Client *, uint8_t *, size_t *len) {
         *len = 10;
         return TeslaBLE_Status_E_OK;
@@ -853,8 +906,8 @@ TEST_F(VehicleTest, ReceivingValidSessionInfoCompletesAuth) {
   vehicle_->set_connected(true);
 
   bool callback_called = false;
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test",
       [](Client *, uint8_t *buffer, size_t *len) {
         *len = 4;
         std::fill_n(buffer, 4, 0x42);
@@ -958,20 +1011,87 @@ TEST_F(VehicleTest, MalformedProtobufBeforeValidFrameIsSkipped) {
   EXPECT_EQ(message_count, 1U);
 }
 
-TEST_F(VehicleTest, DuplicateFragmentDoesNotMisalignFollowingFrames) {
+TEST_F(VehicleTest, IdenticalNotificationsAcrossReconnectArePreserved) {
   size_t message_count = 0;
   vehicle_->set_message_callback([&](const UniversalMessage_RoutableMessage &) { message_count++; });
   auto frame = frame_bytes(MOCK_VCSEC_MESSAGE, sizeof(MOCK_VCSEC_MESSAGE));
-  auto second_frame = frame_bytes(MOCK_INFOTAINMENT_MESSAGE, sizeof(MOCK_INFOTAINMENT_MESSAGE));
-  constexpr size_t duplicate_length = 17;
 
-  vehicle_->on_rx_data(std::vector<uint8_t>(frame.begin(), frame.begin() + duplicate_length));
-  vehicle_->on_rx_data(std::vector<uint8_t>(frame.begin(), frame.begin() + duplicate_length));
-  vehicle_->on_rx_data(std::vector<uint8_t>(frame.begin() + duplicate_length, frame.end()));
-  vehicle_->on_rx_data(second_frame);
+  vehicle_->set_connected(true);
+  vehicle_->on_rx_data(frame);
   vehicle_->loop();
-
+  vehicle_->set_connected(false);
+  vehicle_->set_connected(true);
+  vehicle_->on_rx_data(frame);
+  vehicle_->loop();
   EXPECT_EQ(message_count, 2U);
+}
+
+TEST_F(VehicleTest, DisconnectDiscardsDecodedRepliesBeforeReconnect) {
+  int observations = 0;
+  vehicle_->set_vehicle_status_callback([&](const VCSEC_VehicleStatus &) { ++observations; });
+  vehicle_->set_connected(true);
+  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->set_connected(false);
+  vehicle_->set_connected(true);
+  vehicle_->loop();
+  EXPECT_EQ(observations, 0);
+  EXPECT_EQ(vehicle_->sleep_state(), TeslaBLE::SleepState::UNKNOWN);
+  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->loop();
+  EXPECT_EQ(observations, 1);
+  EXPECT_EQ(vehicle_->sleep_state(), TeslaBLE::SleepState::AWAKE);
+}
+
+TEST_F(VehicleTest, UnknownSleepObservationDoesNotMeanAwake) {
+  vehicle_->set_connected(true);
+  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->loop();
+  ASSERT_EQ(vehicle_->sleep_state(), TeslaBLE::SleepState::AWAKE);
+  vehicle_->on_rx_data(
+      make_vcsec_vehicle_status_awake_message(VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_UNKNOWN));
+  vehicle_->loop();
+  EXPECT_EQ(vehicle_->sleep_state(), TeslaBLE::SleepState::UNKNOWN);
+}
+
+TEST_F(VehicleTest, DisconnectDuringObservationDefersNewConnectionMessages) {
+  int observations = 0;
+  const auto frame = make_vcsec_vehicle_status_awake_message();
+  vehicle_->set_vehicle_status_callback([&](const VCSEC_VehicleStatus &) {
+    if (++observations == 1) {
+      vehicle_->set_connected(false);
+      vehicle_->set_connected(true);
+      vehicle_->on_rx_data(frame);
+    }
+  });
+  vehicle_->set_connected(true);
+  vehicle_->on_rx_data(frame);
+  vehicle_->on_rx_data(frame);
+  vehicle_->loop();
+  EXPECT_EQ(observations, 1);
+  vehicle_->loop();
+  EXPECT_EQ(observations, 2);
+}
+
+TEST_F(VehicleTest, DisconnectDuringMessageCallbackDiscardsCurrentObservation) {
+  int messages = 0;
+  int observations = 0;
+  const auto frame = make_vcsec_vehicle_status_awake_message();
+  vehicle_->set_message_callback([&](const UniversalMessage_RoutableMessage &) {
+    if (++messages == 1) {
+      vehicle_->set_connected(false);
+      vehicle_->set_connected(true);
+      vehicle_->on_rx_data(frame);
+    }
+  });
+  vehicle_->set_vehicle_status_callback([&](const VCSEC_VehicleStatus &) { ++observations; });
+  vehicle_->set_connected(true);
+  vehicle_->on_rx_data(frame);
+  vehicle_->loop();
+  EXPECT_EQ(observations, 0);
+  EXPECT_EQ(vehicle_->sleep_state(), TeslaBLE::SleepState::UNKNOWN);
+  vehicle_->loop();
+  EXPECT_EQ(observations, 1);
+  EXPECT_EQ(vehicle_->sleep_state(), TeslaBLE::SleepState::AWAKE);
 }
 
 // ============================================================================
@@ -1005,8 +1125,8 @@ TEST_F(VehicleTest, DisconnectClearsAllPendingCommands) {
   bool callback2_success = true;
 
   // Enqueue multiple commands
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Command 1",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Command 1",
       [](Client *, uint8_t *, size_t *len) {
         *len = 10;
         return TeslaBLE_Status_E_OK;
@@ -1016,8 +1136,8 @@ TEST_F(VehicleTest, DisconnectClearsAllPendingCommands) {
         callback1_success = success;
       });
 
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Command 2",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Command 2",
       [](Client *, uint8_t *, size_t *len) {
         *len = 10;
         return TeslaBLE_Status_E_OK;
@@ -1049,8 +1169,8 @@ TEST_F(VehicleTest, SessionInfoKeyNotOnWhitelistHmacVerificationPasses) {
   vehicle_->set_connected(true);
 
   // Send a command that requires authentication
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command",
       [](Client *, uint8_t *buffer, size_t *len) {
         *len = 10;
         std::fill_n(buffer, 10, 0x42);
@@ -1097,8 +1217,8 @@ TEST_F(VehicleTest, SessionInfoKeyNotOnWhitelistDoesNotUpdatePeerSession) {
 
   // Send a command
   bool callback_called = false;
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command",
       [](Client *, uint8_t *buffer, size_t *len) {
         *len = 10;
         return TeslaBLE_Status_E_OK;
@@ -1122,8 +1242,8 @@ TEST_F(VehicleTest, SessionInfoKeyNotOnWhitelistDoesNotUpdatePeerSession) {
 
   // Send another command - should require auth again since session wasn't updated
   bool callback2_called = false;
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command 2",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command 2",
       [](Client *, uint8_t *buffer, size_t *len) {
         *len = 10;
         return TeslaBLE_Status_E_OK;
@@ -1174,8 +1294,8 @@ TEST_F(VehicleTest, MultipleDisconnectsOnlyCallbackOnce) {
   vehicle_->set_connected(true);
 
   int callback_count = 0;
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test",
       [](Client *, uint8_t *, size_t *len) {
         *len = 10;
         return TeslaBLE_Status_E_OK;
@@ -1198,6 +1318,7 @@ TEST(VehiclePairingTest, PairPersistsGeneratedKeyAndSendsDirectWhitelistRequest)
   vehicle->set_vin(TEST_VIN);
   vehicle->set_connected(true);
   vehicle->pair(Keys_Role_ROLE_DRIVER);
+  vehicle->get_command_queue_for_testing().front()->name = "Pair vehicle";
 
   std::vector<uint8_t> stored_key;
   ASSERT_TRUE(storage->load("private_key", stored_key)) << "Pairing should persist the generated private key";
@@ -1230,12 +1351,12 @@ TEST_F(VehicleTest, PairingWhitelistRequestUsesCommandTimeout) {
   vehicle_->pair();
   vehicle_->loop();
 
-  auto &command_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
+  auto &command_queue = vehicle_->get_command_queue_for_testing();
   ASSERT_FALSE(command_queue.empty()) << "Pairing command should remain pending while waiting for a response";
 
   auto command = command_queue.front();
   ASSERT_NE(command, nullptr);
-  ASSERT_EQ(command->name, "Whitelist Add Key");
+  command->name = "Pair vehicle";
 
   command->state = CommandState::WAITING_FOR_RESPONSE;
   command->retry_count = 0;
@@ -1253,8 +1374,8 @@ TEST_F(VehicleTest, PairingWhitelistRequestUsesCommandTimeout) {
 TEST_F(VehicleTest, InfotainmentWakeTransitionResetsCommandTimeoutBudget) {
   vehicle_->set_connected(true);
 
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Infotainment Poll",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Infotainment Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_car_server_get_vehicle_data_message(buff, len,
                                                                  CarServer_GetVehicleData_getChargeState_tag);
@@ -1274,7 +1395,7 @@ TEST_F(VehicleTest, InfotainmentWakeTransitionResetsCommandTimeoutBudget) {
   vehicle_->on_rx_data(vcsec_session);
   vehicle_->loop();
 
-  auto &command_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
+  auto &command_queue = vehicle_->get_command_queue_for_testing();
   ASSERT_FALSE(command_queue.empty()) << "Infotainment command should be pending";
 
   auto command = command_queue.front();
@@ -1315,8 +1436,8 @@ TEST_F(VehicleTest, InfotainmentWakeTransitionResetsCommandTimeoutBudget) {
 
 TEST_F(VehicleTest, WakeStatusBurstSendsOneInfotainmentSessionRequest) {
   vehicle_->set_connected(true);
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Infotainment Poll",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Infotainment Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_car_server_get_vehicle_data_message(buff, len,
                                                                  CarServer_GetVehicleData_getChargeState_tag);
@@ -1358,8 +1479,8 @@ TEST_F(VehicleTest, WakeStatusBurstSendsOneInfotainmentSessionRequest) {
 
 TEST_F(VehicleTest, UnansweredSessionRequestIsResentUnchangedEverySecond) {
   vehicle_->set_connected(true);
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Infotainment Poll",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Infotainment Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_car_server_get_vehicle_data_message(buff, len,
                                                                  CarServer_GetVehicleData_getChargeState_tag);
@@ -1407,13 +1528,18 @@ TEST_F(VehicleTest, UnansweredSessionRequestIsResentUnchangedEverySecond) {
 TEST_F(VehicleTest, ResponseTimeoutResendsTheSameMessage) {
   vehicle_->set_connected(true);
   vehicle_->set_sleep_state(TeslaBLE::SleepState::AWAKE);
-  vehicle_->send_command_bool(
+  std::unique_ptr<CommandError> error;
+  int completions = 0;
+  vehicle_->send_command_result(
       UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Infotainment Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_car_server_get_vehicle_data_message(buff, len,
                                                                  CarServer_GetVehicleData_getChargeState_tag);
       },
-      nullptr, true);
+      [&](TeslaBLE::OperationResult result) {
+        ++completions;
+        error = result.release_error();
+      });
   vehicle_->loop();
 
   auto writes = mock_ble_->get_written_data();
@@ -1447,6 +1573,19 @@ TEST_F(VehicleTest, ResponseTimeoutResendsTheSameMessage) {
 
   const auto resend = mock_ble_->get_written_data().back();
   EXPECT_EQ(resend, first_send) << "A resend must be the identical message (same counter), not a rebuilt one";
+  for (int i = 0; i < 6 && !command_queue.empty(); ++i) {
+    command->last_tx_at = std::chrono::steady_clock::now() - std::chrono::seconds(2);
+    vehicle_->loop();
+    command->next_retry_time = std::chrono::steady_clock::now() - std::chrono::milliseconds(1);
+    vehicle_->loop();
+  }
+  EXPECT_TRUE(command_queue.empty());
+  EXPECT_EQ(completions, 1);
+  ASSERT_NE(error, nullptr);
+  EXPECT_TRUE(error->may_have_succeeded()) << "A lost reply is not proof that the vehicle did not execute";
+  for (size_t i = 2; i < mock_ble_->get_written_data().size(); ++i) {
+    EXPECT_EQ(mock_ble_->get_written_data()[i], first_send);
+  }
 }
 
 // ============================================================================
@@ -1496,66 +1635,302 @@ TEST_F(VehicleTest, ErrorTimeExpiredTriggersSessionResetAndReAuth) {
   // retries go through fresh authentication) rather than leaving the stale
   // session in place where retries would keep failing.
 
+  for (int scenario = 0; scenario < 4; ++scenario) {
+    SCOPED_TRACE(scenario);
+    mock_ble_->clear_written_data();
+    vehicle_->set_connected(true);
+
+    // Send a VCSEC poll command
+    vehicle_->vcsec_poll(TeslaBLE::WakePolicy::NO_WAKE_SKIP);
+
+    vehicle_->loop();
+
+    // Step 1 — initial auth: vehicle sends session info request
+    auto writes = mock_ble_->get_written_data();
+    ASSERT_GE(writes.size(), 1) << "Should send session info request";
+    size_t req_uuid_len = 0;
+    auto req_uuid = extract_request_uuid(writes[0], &req_uuid_len);
+    ASSERT_EQ(req_uuid_len, 16);
+
+    // Step 2 — establish session with valid HMAC response
+    auto session_resp = make_vcsec_session_info_with_valid_hmac(req_uuid.data(), req_uuid_len);
+    ASSERT_GT(session_resp.size(), 0);
+    vehicle_->on_rx_data(session_resp);
+    vehicle_->loop();
+
+    // Step 3 — command should be sent (encrypted, now that session is valid)
+    auto writes_before = mock_ble_->get_written_data();
+    ASSERT_GT(writes_before.size(), writes.size()) << "Should send command after auth";
+
+    auto command = vehicle_->get_command_queue_for_testing().front();
+    if (scenario % 2 != 0) {
+      command->last_tx_at = std::chrono::steady_clock::now() - std::chrono::seconds(2);
+      vehicle_->loop();
+      ASSERT_TRUE(command->awaiting_response());
+      ASSERT_EQ(command->state, CommandState::READY);
+      command->next_retry_time = std::chrono::steady_clock::now() - std::chrono::milliseconds(1);
+    }
+
+    // Step 4 — inject ERROR_TIME_EXPIRED response
+    auto error_frame = make_error_time_expired_message(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+    ASSERT_GT(error_frame.size(), 0) << "Should build error message";
+    if (scenario >= 2) {
+      Client parser;
+      UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
+      ASSERT_EQ(parser.parse_universal_message(error_frame.data() + 2, error_frame.size() - 2, &message),
+                TeslaBLE_Status_E_OK);
+      message.which_payload = 0;
+      error_frame = frame_universal_message(message);
+      ASSERT_FALSE(error_frame.empty());
+    }
+
+    mock_ble_->clear_written_data();
+    vehicle_->on_rx_data(error_frame);
+    vehicle_->loop();
+
+    // Step 5 — recovery: must send a NEW session info request
+    // (proving the peer was reset on ERROR_TIME_EXPIRED)
+    auto recovery_writes = mock_ble_->get_written_data();
+    ASSERT_GE(recovery_writes.size(), 1) << "Should send new session info request after ERROR_TIME_EXPIRED";
+    Client parser;
+    UniversalMessage_RoutableMessage recovery_request = UniversalMessage_RoutableMessage_init_default;
+    ASSERT_EQ(parser.parse_universal_message(recovery_writes.front().data() + 2, recovery_writes.front().size() - 2,
+                                             &recovery_request),
+              TeslaBLE_Status_E_OK);
+    ASSERT_EQ(recovery_request.which_payload, UniversalMessage_RoutableMessage_session_info_request_tag);
+
+    size_t recovery_uuid_len = 0;
+    auto recovery_uuid = extract_request_uuid(recovery_writes[0], &recovery_uuid_len);
+    ASSERT_EQ(recovery_uuid_len, 16) << "Recovery should start with fresh session info request";
+
+    // Step 6 — complete recovery with valid HMAC response for the new request
+    auto recovery_session_resp = make_vcsec_session_info_with_valid_hmac(recovery_uuid.data(), recovery_uuid_len);
+    ASSERT_GT(recovery_session_resp.size(), 0);
+    vehicle_->on_rx_data(recovery_session_resp);
+    vehicle_->loop();
+
+    // Step 7 — command retried and sent after recovery
+    auto final_writes = mock_ble_->get_written_data();
+    ASSERT_GT(final_writes.size(), recovery_writes.size()) << "Command should be re-sent after session recovery";
+    vehicle_->set_connected(false);
+  }
+}
+
+TEST_F(VehicleTest, SignedMessageRejectionCompletesDuringRetryBackoff) {
   vehicle_->set_connected(true);
-
-  // Send a VCSEC poll command
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Poll",
-      [](Client *, uint8_t *buffer, size_t *len) {
-        *len = 4;
-        std::fill_n(buffer, 4, 0x42);
-        return TeslaBLE_Status_E_OK;
-      },
-      nullptr,
-      false);  // poll commands don't require wake
-
+  int completions = 0;
+  vehicle_->vcsec_poll(TeslaBLE::WakePolicy::NO_WAKE_SKIP, [&](TeslaBLE::OperationResult result) {
+    ++completions;
+    EXPECT_TRUE(result.is_failure());
+    ASSERT_NE(result.error(), nullptr);
+    EXPECT_EQ(result.error()->outcome(), CommandError::Outcome::DEFINITELY_FAILED);
+  });
   vehicle_->loop();
-
-  // Step 1 — initial auth: vehicle sends session info request
-  auto writes = mock_ble_->get_written_data();
-  ASSERT_GE(writes.size(), 1) << "Should send session info request";
-  size_t req_uuid_len = 0;
-  auto req_uuid = extract_request_uuid(writes[0], &req_uuid_len);
-  ASSERT_EQ(req_uuid_len, 16);
-
-  // Step 2 — establish session with valid HMAC response
-  auto session_resp = make_vcsec_session_info_with_valid_hmac(req_uuid.data(), req_uuid_len);
-  ASSERT_GT(session_resp.size(), 0);
-  vehicle_->on_rx_data(session_resp);
+  size_t uuid_length = 0;
+  auto uuid = extract_request_uuid(mock_ble_->get_written_data().front(), &uuid_length);
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), uuid_length));
   vehicle_->loop();
-
-  // Step 3 — command should be sent (encrypted, now that session is valid)
-  auto writes_before = mock_ble_->get_written_data();
-  ASSERT_GT(writes_before.size(), writes.size()) << "Should send command after auth";
-
-  // Step 4 — inject ERROR_TIME_EXPIRED response
-  auto error_frame = make_error_time_expired_message(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
-  ASSERT_GT(error_frame.size(), 0) << "Should build error message";
-
-  mock_ble_->clear_written_data();
-  vehicle_->on_rx_data(error_frame);
+  auto command = vehicle_->get_command_queue_for_testing().front();
+  ASSERT_EQ(command->state, CommandState::WAITING_FOR_RESPONSE);
+  command->last_tx_at = std::chrono::steady_clock::now() - std::chrono::seconds(2);
   vehicle_->loop();
+  ASSERT_EQ(command->state, CommandState::READY);
+  command->next_retry_time = std::chrono::steady_clock::now() - std::chrono::milliseconds(1);
+  const auto writes_before = mock_ble_->get_written_data().size();
 
-  // Step 5 — recovery: must send a NEW session info request
-  // (proving the peer was reset on ERROR_TIME_EXPIRED)
-  auto recovery_writes = mock_ble_->get_written_data();
-  ASSERT_GE(recovery_writes.size(), 1) << "Should send new session info request after ERROR_TIME_EXPIRED";
-
-  size_t recovery_uuid_len = 0;
-  auto recovery_uuid = extract_request_uuid(recovery_writes[0], &recovery_uuid_len);
-  ASSERT_EQ(recovery_uuid_len, 16) << "Recovery should start with fresh session info request";
-
-  // Step 6 — complete recovery with valid HMAC response for the new request
-  auto recovery_session_resp = make_vcsec_session_info_with_valid_hmac(recovery_uuid.data(), recovery_uuid_len);
-  ASSERT_GT(recovery_session_resp.size(), 0);
-  vehicle_->on_rx_data(recovery_session_resp);
+  UniversalMessage_RoutableMessage rejection = UniversalMessage_RoutableMessage_init_default;
+  rejection.has_from_destination = true;
+  rejection.from_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;
+  rejection.from_destination.sub_destination.domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
+  rejection.has_signedMessageStatus = true;
+  rejection.signedMessageStatus.operation_status = UniversalMessage_OperationStatus_E_OPERATIONSTATUS_ERROR;
+  rejection.signedMessageStatus.signed_message_fault =
+      UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INSUFFICIENT_PRIVILEGES;
+  vehicle_->on_rx_data(frame_universal_message(rejection));
   vehicle_->loop();
+  EXPECT_EQ(completions, 1);
+  EXPECT_EQ(vehicle_->pending_command_count(), 0U);
+  EXPECT_EQ(mock_ble_->get_written_data().size(), writes_before);
+  vehicle_->set_connected(false);
+  EXPECT_EQ(completions, 1);
+}
 
-  // Step 7 — command retried and sent after recovery
-  // (callback won't fire here because we don't inject a response for
-  // the dummy command body; the recovery itself is the important part)
-  auto final_writes = mock_ble_->get_written_data();
-  ASSERT_GT(final_writes.size(), recovery_writes.size()) << "Command should be re-sent after session recovery";
+TEST_F(VehicleTest, SignedMessageCorrelationProtectsPendingControl) {
+  for (auto fault : {UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_COMMAND,
+                     UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_TIME_EXPIRED}) {
+    for (int scenario = 0; scenario < 3; ++scenario) {
+      SCOPED_TRACE(static_cast<int>(fault));
+      SCOPED_TRACE(scenario);
+      mock_ble_->clear_written_data();
+      vehicle_->set_connected(true);
+      int completions = 0;
+      vehicle_->lock([&](TeslaBLE::OperationResult result) {
+        ++completions;
+        EXPECT_TRUE(result.is_success());
+      });
+      vehicle_->loop();
+      size_t length = 0;
+      const auto auth_uuid = extract_request_uuid(mock_ble_->get_written_data().front(), &length);
+      ASSERT_EQ(length, auth_uuid.size());
+      vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(auth_uuid.data(), length));
+      vehicle_->loop();
+      const auto request_uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+      ASSERT_EQ(length, request_uuid.size());
+      const auto writes_before = mock_ble_->get_written_data().size();
+
+      UniversalMessage_RoutableMessage error = UniversalMessage_RoutableMessage_init_default;
+      error.has_from_destination = true;
+      error.from_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;
+      error.from_destination.sub_destination.domain =
+          scenario == 0 ? UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY : UniversalMessage_Domain_DOMAIN_INFOTAINMENT;
+      error.has_signedMessageStatus = true;
+      error.signedMessageStatus.operation_status = UniversalMessage_OperationStatus_E_OPERATIONSTATUS_ERROR;
+      error.signedMessageStatus.signed_message_fault = fault;
+      if (scenario != 1) {
+        const auto &uuid = scenario == 0 ? auth_uuid : request_uuid;
+        error.request_uuid.size = uuid.size();
+        std::copy(uuid.begin(), uuid.end(), error.request_uuid.bytes);
+      }
+      vehicle_->on_rx_data(frame_universal_message(error));
+      vehicle_->loop();
+      EXPECT_EQ(completions, 0);
+      ASSERT_FALSE(vehicle_->get_command_queue_for_testing().empty());
+      EXPECT_EQ(vehicle_->get_command_queue_for_testing().front()->state, CommandState::WAITING_FOR_RESPONSE);
+      EXPECT_EQ(mock_ble_->get_written_data().size(), writes_before);
+
+      const auto response =
+          with_request_uuid(make_vcsec_command_status(VCSEC_OperationStatus_E_OPERATIONSTATUS_OK), request_uuid);
+      ASSERT_FALSE(response.empty());
+      vehicle_->on_rx_data(response);
+      vehicle_->on_rx_data(response);
+      vehicle_->loop();
+      EXPECT_EQ(completions, 1);
+      vehicle_->set_connected(false);
+      EXPECT_EQ(completions, 1);
+    }
+  }
+}
+
+TEST_F(VehicleTest, StaleVcsecResponsesObserveButDoNotCompleteNewControl) {
+  for (int scenario = 0; scenario < 3; ++scenario) {
+    SCOPED_TRACE(scenario);
+    mock_ble_->clear_written_data();
+    vehicle_->set_connected(true);
+    vehicle_->vcsec_poll();
+    vehicle_->loop();
+    size_t length = 0;
+    auto uuid = extract_request_uuid(mock_ble_->get_written_data().front(), &length);
+    ASSERT_EQ(length, uuid.size());
+    vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), length));
+    vehicle_->loop();
+    const auto poll_uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+    ASSERT_EQ(length, poll_uuid.size());
+    vehicle_->on_rx_data(with_request_uuid(make_vcsec_vehicle_status_awake_message(), poll_uuid));
+    vehicle_->loop();
+    ASSERT_EQ(vehicle_->pending_command_count(), 0U);
+
+    int observations = 0;
+    int completions = 0;
+    vehicle_->set_vehicle_status_callback([&](const VCSEC_VehicleStatus &) { ++observations; });
+    vehicle_->lock([&](TeslaBLE::OperationResult result) {
+      ++completions;
+      EXPECT_EQ(result.is_success(), scenario != 2);
+    });
+    vehicle_->loop();
+    vehicle_->loop();
+    uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+    ASSERT_EQ(length, uuid.size());
+    ASSERT_NE(uuid, poll_uuid);
+    const auto payload = scenario == 0
+                             ? make_vcsec_vehicle_status_awake_message()
+                             : make_vcsec_command_status(scenario == 1 ? VCSEC_OperationStatus_E_OPERATIONSTATUS_OK
+                                                                       : VCSEC_OperationStatus_E_OPERATIONSTATUS_ERROR);
+    vehicle_->on_rx_data(with_request_uuid(payload, poll_uuid));
+    vehicle_->loop();
+    EXPECT_EQ(observations, scenario == 0 ? 1 : 0);
+    EXPECT_EQ(completions, 0);
+    ASSERT_FALSE(vehicle_->get_command_queue_for_testing().empty());
+    EXPECT_EQ(vehicle_->get_command_queue_for_testing().front()->state, CommandState::WAITING_FOR_RESPONSE);
+
+    const auto response = with_request_uuid(payload, uuid);
+    ASSERT_FALSE(response.empty());
+    vehicle_->on_rx_data(response);
+    vehicle_->on_rx_data(response);
+    vehicle_->loop();
+    EXPECT_EQ(completions, 1);
+    vehicle_->set_connected(false);
+    EXPECT_EQ(completions, 1);
+    vehicle_->set_vehicle_status_callback(nullptr);
+  }
+}
+
+TEST_F(VehicleTest, SessionCorrelationUsesAuthAndWakePrerequisiteDomains) {
+  vehicle_->set_connected(true);
+  int completions = 0;
+  vehicle_->set_climate(true, [&](TeslaBLE::OperationResult result) {
+    ++completions;
+    EXPECT_TRUE(result.is_success());
+  });
+  vehicle_->loop();
+  size_t length = 0;
+  const auto auth_uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+  ASSERT_EQ(length, auth_uuid.size());
+  auto session = make_vcsec_session_info_with_valid_hmac(auth_uuid.data(), length);
+  ASSERT_FALSE(session.empty());
+  auto wrong_uuid = auth_uuid;
+  wrong_uuid[0] ^= 1;
+  vehicle_->on_rx_data(with_request_uuid(session, wrong_uuid));
+  vehicle_->loop();
+  EXPECT_EQ(mock_ble_->get_written_data().size(), 1U);
+  ASSERT_FALSE(vehicle_->get_command_queue_for_testing().empty());
+  ASSERT_EQ(vehicle_->get_command_queue_for_testing().front()->current_auth_domain,
+            UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  Client parser;
+  UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
+  ASSERT_EQ(parser.parse_universal_message(session.data() + 2, session.size() - 2, &message), TeslaBLE_Status_E_OK);
+  message.has_from_destination = false;
+  session = frame_universal_message(message);
+  vehicle_->on_rx_data(session);
+  vehicle_->loop();
+  ASSERT_EQ(completions, 0);
+  ASSERT_FALSE(vehicle_->get_command_queue_for_testing().empty());
+  EXPECT_EQ(vehicle_->get_command_queue_for_testing().front()->current_auth_domain,
+            UniversalMessage_Domain_DOMAIN_BROADCAST);
+  const auto wake_uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+  ASSERT_EQ(length, wake_uuid.size());
+  ASSERT_NE(wake_uuid, auth_uuid);
+  vehicle_->on_rx_data(with_request_uuid(make_vcsec_vehicle_status_awake_message(), wake_uuid));
+  vehicle_->loop();
+  ASSERT_FALSE(vehicle_->get_command_queue_for_testing().empty());
+  ASSERT_EQ(vehicle_->get_command_queue_for_testing().front()->current_auth_domain,
+            UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+  const auto info_uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+  ASSERT_EQ(length, info_uuid.size());
+  const auto writes_before = mock_ble_->get_written_data().size();
+
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(wake_uuid.data(), wake_uuid.size()));
+  vehicle_->loop();
+  EXPECT_EQ(mock_ble_->get_written_data().size(), writes_before);
+  session = make_infotainment_session_info_with_valid_hmac(info_uuid.data(), info_uuid.size());
+  vehicle_->on_rx_data(with_request_uuid(session, auth_uuid));
+  vehicle_->loop();
+  EXPECT_EQ(mock_ble_->get_written_data().size(), writes_before);
+  EXPECT_EQ(completions, 0);
+  ASSERT_FALSE(vehicle_->get_command_queue_for_testing().empty());
+  EXPECT_EQ(vehicle_->get_command_queue_for_testing().front()->state, CommandState::AUTH_RESPONSE_WAITING);
+
+  vehicle_->on_rx_data(session);
+  vehicle_->loop();
+  const auto action_uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+  ASSERT_EQ(length, action_uuid.size());
+  ASSERT_NE(action_uuid, info_uuid);
+  const auto response = make_plain_infotainment_response(action_uuid.data(), action_uuid.size());
+  vehicle_->on_rx_data(response);
+  vehicle_->on_rx_data(response);
+  vehicle_->loop();
+  EXPECT_EQ(completions, 1);
+  vehicle_->set_connected(false);
+  EXPECT_EQ(completions, 1);
 }
 
 // ============================================================================
@@ -1568,8 +1943,8 @@ TEST_F(VehicleTest, MissingSessionInfoHmacTagFailsAuthGracefully) {
 
   vehicle_->set_connected(true);
 
-  vehicle_->send_command(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command",
+  TeslaBLE::TestHelpers::send_command_error_callback(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Test Command",
       [](Client *, uint8_t *buffer, size_t *len) {
         *len = 4;
         std::fill_n(buffer, 4, 0x42);
@@ -1606,8 +1981,8 @@ TEST_F(VehicleTest, MissingSessionInfoHmacTagDoesNotBlockSubsequentCommands) {
 
   vehicle_->set_connected(true);
 
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "First Command",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "First Command",
       [](Client *, uint8_t *buffer, size_t *len) {
         *len = 4;
         std::fill_n(buffer, 4, 0x42);
@@ -1626,8 +2001,8 @@ TEST_F(VehicleTest, MissingSessionInfoHmacTagDoesNotBlockSubsequentCommands) {
   vehicle_->loop();
   ASSERT_TRUE(first_callback_called) << "First command should fail";
 
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Second Command",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Second Command",
       [](Client *, uint8_t *buffer, size_t *len) {
         *len = 4;
         std::fill_n(buffer, 4, 0x42);
@@ -1656,8 +2031,8 @@ TEST_F(VehicleTest, PairingBypassesAuthEvenWhenVcsecAuthIsFailing) {
   vehicle_->set_connected(true);
 
   bool poll_failed = false;
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "VCSEC Poll",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "VCSEC Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_vcsec_information_request_message(
             VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS, buff, len);
@@ -1696,8 +2071,8 @@ TEST_F(VehicleTest, NoWakeSkipSkipsWhenVehicleAsleep) {
   bool callback_called = false;
   bool callback_success = false;
 
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "NoWakeSkip Poll",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "NoWakeSkip Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_car_server_get_vehicle_data_message(buff, len,
                                                                  CarServer_GetVehicleData_getChargeState_tag);
@@ -1723,8 +2098,8 @@ TEST_F(VehicleTest, NoWakeFailWhenVehicleAsleep) {
   bool callback_called = false;
   bool callback_success = true;
 
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "NoWakeFail Poll",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "NoWakeFail Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_car_server_get_vehicle_data_message(buff, len,
                                                                  CarServer_GetVehicleData_getChargeState_tag);
@@ -1747,8 +2122,8 @@ TEST_F(VehicleTest, WakeIfNeededProceedsWhenAwake) {
   vehicle_->set_connected(true);
   vehicle_->set_sleep_state(TeslaBLE::SleepState::AWAKE);
 
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "WakeIfNeeded Poll",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "WakeIfNeeded Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_car_server_get_vehicle_data_message(buff, len,
                                                                  CarServer_GetVehicleData_getChargeState_tag);
@@ -1765,8 +2140,8 @@ TEST_F(VehicleTest, WakeIfNeededTriggersWakeWhenAsleep) {
   vehicle_->set_connected(true);
   vehicle_->set_sleep_state(TeslaBLE::SleepState::ASLEEP);
 
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "WakeIfNeeded Asleep",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "WakeIfNeeded Asleep",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_car_server_get_vehicle_data_message(buff, len,
                                                                  CarServer_GetVehicleData_getChargeState_tag);
@@ -1839,8 +2214,8 @@ TEST_F(VehicleTest, WakePolicyRichOutcomeCallbackDistinguishesFailed) {
 TEST_F(VehicleTest, WakePhaseTimeoutDoesNotConsumeFinalResponseBudget) {
   vehicle_->set_connected(true);
 
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Post-Wake Poll",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Post-Wake Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_car_server_get_vehicle_data_message(buff, len,
                                                                  CarServer_GetVehicleData_getChargeState_tag);
@@ -1862,7 +2237,7 @@ TEST_F(VehicleTest, WakePhaseTimeoutDoesNotConsumeFinalResponseBudget) {
 
   // At this point, sleep state is Unknown and WakeIfNeeded initiates wake.
   // Simulate the wake phase timing out without a response.
-  auto &command_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
+  auto &command_queue = vehicle_->get_command_queue_for_testing();
   ASSERT_FALSE(command_queue.empty());
   auto command = command_queue.front();
   ASSERT_NE(command, nullptr);
@@ -1887,8 +2262,8 @@ TEST_F(VehicleTest, AuthPhaseTimeoutIndependentFromFinalResponseTimeout) {
   vehicle_->set_connected(true);
   vehicle_->set_sleep_state(TeslaBLE::SleepState::AWAKE);
 
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Auth Timeout Poll",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Auth Timeout Poll",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_car_server_get_vehicle_data_message(buff, len,
                                                                  CarServer_GetVehicleData_getChargeState_tag);
@@ -1902,7 +2277,7 @@ TEST_F(VehicleTest, AuthPhaseTimeoutIndependentFromFinalResponseTimeout) {
   ASSERT_GE(writes.size(), 1);
   mock_ble_->clear_written_data();
 
-  auto &command_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
+  auto &command_queue = vehicle_->get_command_queue_for_testing();
   ASSERT_FALSE(command_queue.empty());
   auto command = command_queue.front();
 
@@ -2016,7 +2391,7 @@ class VehicleInternalTest : public ::testing::Test {
 
 TEST_F(VehicleInternalTest, ExpectedLengthIncludesHeader) {
   std::vector<uint8_t> data = {0x00, 0x0A};
-  vehicle_->rx_buffer_ = data;
+  vehicle_->rx_buffer_for_testing() = data;
 
   EXPECT_EQ(vehicle_->get_expected_message_length(), 12);
 }
@@ -2024,8 +2399,8 @@ TEST_F(VehicleInternalTest, ExpectedLengthIncludesHeader) {
 TEST_F(VehicleInternalTest, CommandCompletesAfterTimeoutWithPartialData) {
   bool completed = false;
   bool success = false;
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Test Command",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, "Test Command",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_car_server_get_vehicle_data_message(buff, len,
                                                                  CarServer_GetVehicleData_getChargeState_tag);
@@ -2053,20 +2428,20 @@ TEST_F(VehicleInternalTest, CommandCompletesAfterTimeoutWithPartialData) {
   vehicle_->on_rx_data(make_infotainment_session_info_with_valid_hmac(uuid.data(), uuid_len));
   vehicle_->loop();
 
-  auto &cmd_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
+  auto &cmd_queue = vehicle_->get_command_queue_for_testing();
   ASSERT_FALSE(cmd_queue.empty());
   auto cmd = cmd_queue.front();
   ASSERT_EQ(cmd->state, CommandState::WAITING_FOR_RESPONSE);
 
   vehicle_->on_rx_data({0xFF});
-  ASSERT_FALSE(vehicle_->rx_buffer_.empty());
+  ASSERT_FALSE(vehicle_->rx_buffer_for_testing().empty());
 
   cmd->retry_count = 0;
   cmd->last_tx_at = std::chrono::steady_clock::now() - std::chrono::seconds(5);
   mock_ble_->clear_written_data();
   vehicle_->loop();
 
-  EXPECT_TRUE(vehicle_->rx_buffer_.empty());
+  EXPECT_TRUE(vehicle_->rx_buffer_for_testing().empty());
   EXPECT_EQ(cmd->state, CommandState::READY);
 
   // The retry is delayed by the backoff; once the delay elapses the command is re-sent.
@@ -2090,8 +2465,8 @@ TEST_F(VehicleTest, AuthStallReportsFailureOnceAndDisconnects) {
   int callback_count = 0;
   std::unique_ptr<CommandError> captured_error;
 
-  vehicle_->send_command(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Stuck Command",
+  TeslaBLE::TestHelpers::send_command_error_callback(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Stuck Command",
       [](Client *, uint8_t *buffer, size_t *len) {
         *len = 4;
         std::fill_n(buffer, 4, 0x42);
@@ -2106,7 +2481,7 @@ TEST_F(VehicleTest, AuthStallReportsFailureOnceAndDisconnects) {
   auto writes = mock_ble_->get_written_data();
   ASSERT_GE(writes.size(), 1) << "Should send session info request";
 
-  auto &command_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
+  auto &command_queue = vehicle_->get_command_queue_for_testing();
   ASSERT_FALSE(command_queue.empty());
   auto command = command_queue.front();
 
@@ -2127,8 +2502,8 @@ TEST_F(VehicleTest, AuthStallReportsFailureOnceAndDisconnects) {
 TEST_F(VehicleTest, AuthTimeoutRaisesRetryLevelBeforeFailing) {
   vehicle_->set_connected(true);
 
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Slow Auth Command",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Slow Auth Command",
       [](Client *, uint8_t *buffer, size_t *len) {
         *len = 4;
         std::fill_n(buffer, 4, 0x42);
@@ -2139,7 +2514,7 @@ TEST_F(VehicleTest, AuthTimeoutRaisesRetryLevelBeforeFailing) {
   vehicle_->loop();
   ASSERT_GE(mock_ble_->get_written_data().size(), 1);
 
-  auto &command_queue = const_cast<std::queue<std::shared_ptr<Command>> &>(vehicle_->get_command_queue_for_testing());
+  auto &command_queue = vehicle_->get_command_queue_for_testing();
   ASSERT_FALSE(command_queue.empty());
   auto command = command_queue.front();
   ASSERT_EQ(command->state, CommandState::AUTH_RESPONSE_WAITING);
@@ -2196,4 +2571,390 @@ TEST_F(VehicleTest, RegenerateKeyResetsSessionsAndStoredCredentials) {
             TeslaBLE_Status_E_OK);
   EXPECT_EQ(first_write.which_payload, UniversalMessage_RoutableMessage_session_info_request_tag)
       << "Sessions derived from the old key must be discarded";
+}
+
+// ============================================================================
+// High-level action result callback tests
+// ============================================================================
+
+TEST_F(VehicleTest, LockActionCallbackReceivesFailureWhenDisconnected) {
+  bool called = false;
+  TeslaBLE::OperationResult captured = TeslaBLE::OperationResult::success();
+  vehicle_->lock([&](TeslaBLE::OperationResult result) {
+    called = true;
+    captured = std::move(result);
+  });
+
+  ASSERT_TRUE(called) << "Callback must fire immediately when disconnected";
+  EXPECT_TRUE(captured.is_failure());
+  ASSERT_NE(captured.error(), nullptr);
+  EXPECT_NE(captured.error()->message().find("Connection lost"), std::string::npos);
+}
+
+TEST_F(VehicleTest, WakeActionCallbackReceivesSkippedWhenAwake) {
+  vehicle_->set_awake(true);
+  bool called = false;
+  bool skipped = false;
+  vehicle_->wake([&](TeslaBLE::OperationResult result) {
+    called = true;
+    skipped = result.is_skipped();
+  });
+
+  ASSERT_TRUE(called) << "Wake callback must fire even when the wake is skipped";
+  EXPECT_TRUE(skipped);
+}
+
+TEST_F(VehicleTest, SetChargingAmpsCallbackReceivesBuildFailureForInvalidValue) {
+  bool called = false;
+  bool failed = false;
+  vehicle_->set_charging_amps(-1, [&](TeslaBLE::OperationResult result) {
+    called = true;
+    failed = result.is_failure();
+  });
+
+  ASSERT_TRUE(called);
+  EXPECT_TRUE(failed);
+}
+
+TEST_F(VehicleTest, SetClimateActionCallbackReceivesSuccessOnAlreadySet) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::AWAKE);
+
+  TeslaBLE::OperationOutcome outcome = TeslaBLE::OperationOutcome::FAILED;
+  vehicle_->set_climate(true, [&](TeslaBLE::OperationResult result) { outcome = result.outcome(); });
+
+  vehicle_->loop();
+  auto initial_writes = mock_ble_->get_written_data();
+  ASSERT_GE(initial_writes.size(), 1);
+  size_t request_uuid_length = 0;
+  auto request_uuid = extract_request_uuid(initial_writes.front(), &request_uuid_length);
+  ASSERT_EQ(request_uuid_length, request_uuid.size());
+
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(request_uuid.data(), request_uuid_length));
+  vehicle_->loop();
+
+  auto info_writes = mock_ble_->get_written_data();
+  ASSERT_GE(info_writes.size(), 2);
+  auto infotainment_request_uuid = extract_request_uuid(info_writes.back(), &request_uuid_length);
+  vehicle_->on_rx_data(
+      make_infotainment_session_info_with_valid_hmac(infotainment_request_uuid.data(), request_uuid_length));
+  vehicle_->loop();
+
+  vehicle_->on_rx_data(make_plain_infotainment_action_error_response("already_set"));
+  vehicle_->loop();
+
+  EXPECT_EQ(outcome, TeslaBLE::OperationOutcome::SUCCESS);
+}
+
+TEST_F(VehicleTest, RegenerateKeyCallbackReceivesSuccess) {
+  bool called = false;
+  bool success = false;
+  vehicle_->regenerate_key([&](TeslaBLE::OperationResult result) {
+    called = true;
+    success = result.is_success();
+  });
+
+  ASSERT_TRUE(called);
+  EXPECT_TRUE(success);
+  EXPECT_NE(mock_storage_->get_storage().count("private_key"), 0U);
+}
+
+// ============================================================================
+// Shared host primitives: pending count, pairing state, follow-up polls
+// ============================================================================
+
+TEST_F(VehicleTest, PendingCommandCountTracksQueue) {
+  EXPECT_EQ(vehicle_->pending_command_count(), 0U);
+  vehicle_->set_connected(true);
+  vehicle_->lock();
+  EXPECT_EQ(vehicle_->pending_command_count(), 1U);
+  vehicle_->set_connected(false);  // fails the queued command
+  EXPECT_EQ(vehicle_->pending_command_count(), 0U);
+}
+
+TEST_F(VehicleTest, HasPrivateKeyReflectsStorage) {
+  // The fixture seeds a private key.
+  EXPECT_TRUE(vehicle_->has_private_key());
+
+  auto empty_storage = std::make_shared<MockStorageAdapter>();
+  auto vehicle_without_key = std::make_shared<Vehicle>(mock_ble_, empty_storage);
+  EXPECT_FALSE(vehicle_without_key->has_private_key());
+}
+
+TEST_F(VehicleTest, SuccessfulActionSchedulesFollowUpPoll) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::AWAKE);
+  vehicle_->lock();
+
+  vehicle_->loop();
+  auto initial_writes = mock_ble_->get_written_data();
+  ASSERT_GE(initial_writes.size(), 1);
+  size_t request_uuid_length = 0;
+  auto request_uuid = extract_request_uuid(initial_writes.front(), &request_uuid_length);
+  ASSERT_EQ(request_uuid_length, request_uuid.size());
+
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(request_uuid.data(), request_uuid_length));
+  vehicle_->loop();
+
+  // The lock command completes on the next vehicle status; a VCSEC poll must
+  // then be queued so hosts get fresh lock state without extra bookkeeping.
+  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->loop();
+
+  const auto &queue = vehicle_->get_command_queue_for_testing();
+  EXPECT_TRUE(queue.empty());
+  EXPECT_EQ(vehicle_->pending_command_count(), 1U);
+  std::this_thread::sleep_for(std::chrono::milliseconds(1600));
+  vehicle_->loop();
+  ASSERT_FALSE(queue.empty()) << "A follow-up poll should be queued after a successful action";
+  EXPECT_EQ(queue.front()->name, "VCSEC Poll");
+  EXPECT_EQ(queue.front()->wake_policy, TeslaBLE::WakePolicy::NO_WAKE_SKIP);
+}
+
+TEST_F(VehicleTest, ClimateActionSchedulesChargeIndependentFollowUp) {
+  vehicle_->set_connected(true);
+  vehicle_->set_sleep_state(TeslaBLE::SleepState::AWAKE);
+  vehicle_->set_climate(true);
+  vehicle_->get_command_queue_for_testing().front()->name = "Start HVAC";
+
+  vehicle_->loop();
+  auto initial_writes = mock_ble_->get_written_data();
+  ASSERT_GE(initial_writes.size(), 1);
+  size_t request_uuid_length = 0;
+  auto request_uuid = extract_request_uuid(initial_writes.front(), &request_uuid_length);
+
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(request_uuid.data(), request_uuid_length));
+  vehicle_->loop();
+
+  auto info_writes = mock_ble_->get_written_data();
+  ASSERT_GE(info_writes.size(), 2);
+  auto infotainment_request_uuid = extract_request_uuid(info_writes.back(), &request_uuid_length);
+  vehicle_->on_rx_data(
+      make_infotainment_session_info_with_valid_hmac(infotainment_request_uuid.data(), request_uuid_length));
+  vehicle_->loop();
+
+  vehicle_->on_rx_data(make_plain_infotainment_action_error_response("already_set"));
+  vehicle_->loop();
+
+  const auto &queue = vehicle_->get_command_queue_for_testing();
+  EXPECT_TRUE(queue.empty());
+  EXPECT_EQ(vehicle_->pending_command_count(), 1U);
+  std::this_thread::sleep_for(std::chrono::milliseconds(1600));
+  vehicle_->loop();
+  ASSERT_FALSE(queue.empty());
+  EXPECT_EQ(queue.front()->name, "Climate State Poll");
+  EXPECT_EQ(queue.front()->wake_policy, TeslaBLE::WakePolicy::NO_WAKE_SKIP);
+}
+
+TEST_F(VehicleTest, PairingWaitsForWhitelistConfirmation) {
+  vehicle_->set_connected(true);
+  std::vector<TeslaBLE::OperationOutcome> outcomes;
+  vehicle_->pair(Keys_Role_ROLE_OWNER, [&](TeslaBLE::OperationResult result) { outcomes.push_back(result.outcome()); });
+  vehicle_->get_command_queue_for_testing().front()->name = "Pair vehicle";
+  vehicle_->loop();
+  vehicle_->loop();
+  vehicle_->on_rx_data(make_vcsec_command_status(VCSEC_OperationStatus_E_OPERATIONSTATUS_WAIT));
+  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->on_rx_data(make_vcsec_command_status(VCSEC_OperationStatus_E_OPERATIONSTATUS_OK));
+  vehicle_->loop();
+  EXPECT_TRUE(outcomes.empty());
+  EXPECT_EQ(vehicle_->pending_command_count(), 1U);
+  VCSEC_WhitelistOperation_status whitelist = VCSEC_WhitelistOperation_status_init_default;
+  whitelist.operationStatus = VCSEC_OperationStatus_E_OPERATIONSTATUS_WAIT;
+  vehicle_->on_rx_data(make_vcsec_command_status(VCSEC_OperationStatus_E_OPERATIONSTATUS_OK, &whitelist));
+  vehicle_->loop();
+  EXPECT_TRUE(outcomes.empty());
+  whitelist.operationStatus = VCSEC_OperationStatus_E_OPERATIONSTATUS_OK;
+  vehicle_->on_rx_data(make_vcsec_command_status(VCSEC_OperationStatus_E_OPERATIONSTATUS_OK, &whitelist));
+  vehicle_->loop();
+  ASSERT_EQ(outcomes.size(), 1U);
+  EXPECT_EQ(outcomes.front(), TeslaBLE::OperationOutcome::SUCCESS);
+}
+
+TEST_F(VehicleTest, PairingRejectsOuterAndNestedErrors) {
+  for (int rejection = 0; rejection < 3; ++rejection) {
+    SCOPED_TRACE(rejection);
+    vehicle_->set_connected(true);
+    int callbacks = 0;
+    vehicle_->pair(Keys_Role_ROLE_OWNER, [&](TeslaBLE::OperationResult result) {
+      ++callbacks;
+      EXPECT_TRUE(result.is_failure());
+      ASSERT_NE(result.error(), nullptr);
+      EXPECT_EQ(result.error()->outcome(), CommandError::Outcome::DEFINITELY_FAILED);
+    });
+    vehicle_->loop();
+    vehicle_->loop();
+    VCSEC_WhitelistOperation_status whitelist = VCSEC_WhitelistOperation_status_init_default;
+    if (rejection == 1)
+      whitelist.operationStatus = VCSEC_OperationStatus_E_OPERATIONSTATUS_ERROR;
+    if (rejection == 2) {
+      whitelist.whitelistOperationInformation =
+          VCSEC_WhitelistOperation_information_E_WHITELISTOPERATION_INFORMATION_LOCAL_ENTITY_AUTH_FAILED_UI_DENIED;
+    }
+    vehicle_->on_rx_data(make_vcsec_command_status(
+        rejection == 0 ? VCSEC_OperationStatus_E_OPERATIONSTATUS_ERROR : VCSEC_OperationStatus_E_OPERATIONSTATUS_OK,
+        &whitelist));
+    vehicle_->loop();
+    EXPECT_EQ(callbacks, 1);
+    EXPECT_EQ(vehicle_->pending_command_count(), 0U);
+    vehicle_->set_connected(false);
+    EXPECT_EQ(callbacks, 1);
+  }
+}
+
+TEST_F(VehicleTest, CompletionCanDisconnectWithoutReportingAgain) {
+  vehicle_->set_connected(true);
+  int callbacks = 0;
+  vehicle_->lock([&](TeslaBLE::OperationResult result) {
+    ++callbacks;
+    EXPECT_TRUE(result.is_success());
+    if (result.is_success())
+      vehicle_->set_connected(false);
+    vehicle_->loop();
+  });
+  vehicle_->loop();
+  const auto writes = mock_ble_->get_written_data();
+  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->on_rx_data(make_vcsec_command_status(VCSEC_OperationStatus_E_OPERATIONSTATUS_OK));
+  vehicle_->loop();
+  EXPECT_EQ(callbacks, 0);
+  EXPECT_EQ(mock_ble_->get_written_data().size(), writes.size());
+  size_t length = 0;
+  auto uuid = extract_request_uuid(writes.front(), &length);
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), length));
+  vehicle_->loop();
+  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->loop();
+  EXPECT_EQ(callbacks, 1);
+  EXPECT_EQ(vehicle_->pending_command_count(), 0U);
+  EXPECT_FALSE(vehicle_->is_connected());
+}
+
+TEST_F(VehicleTest, DisconnectCallbacksCanDisconnectAndReconnect) {
+  vehicle_->set_connected(true);
+  int first = 0;
+  int second = 0;
+  vehicle_->lock([&](TeslaBLE::OperationResult result) {
+    ++first;
+    EXPECT_TRUE(result.is_failure());
+    if (first == 1) {
+      vehicle_->set_connected(false);
+      vehicle_->set_connected(true);
+      vehicle_->vcsec_poll();
+    }
+  });
+  vehicle_->unlock([&](TeslaBLE::OperationResult result) {
+    ++second;
+    EXPECT_TRUE(result.is_failure());
+  });
+  vehicle_->set_connected(false);
+  EXPECT_EQ(first, 1);
+  EXPECT_EQ(second, 1);
+  EXPECT_TRUE(vehicle_->is_connected());
+  EXPECT_EQ(vehicle_->pending_command_count(), 1U);
+}
+
+TEST_F(VehicleTest, PhaseCallbacksCanCancelWithoutSendingOrCompletingTwice) {
+  for (auto cancel_phase : {TeslaBLE::OperationPhase::QUEUED, TeslaBLE::OperationPhase::ENSURING_VCSEC_SESSION,
+                            TeslaBLE::OperationPhase::SENDING_REQUEST, TeslaBLE::OperationPhase::TERMINAL}) {
+    SCOPED_TRACE(static_cast<int>(cancel_phase));
+    vehicle_->set_connected(true);
+    mock_ble_->clear_written_data();
+    int callbacks = 0;
+    bool cancelled = false;
+    vehicle_->send_command_result(
+        cancel_phase == TeslaBLE::OperationPhase::ENSURING_VCSEC_SESSION
+            ? UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY
+            : UniversalMessage_Domain_DOMAIN_BROADCAST,
+        "Reentrant", [](Client *, uint8_t *, size_t *) { return -1; },
+        [&](TeslaBLE::OperationResult result) {
+          ++callbacks;
+          EXPECT_TRUE(result.is_failure());
+        },
+        TeslaBLE::WakePolicy::NO_WAKE_SKIP,
+        [&](TeslaBLE::OperationPhase phase) {
+          if (phase == cancel_phase) {
+            cancelled = true;
+            vehicle_->set_connected(false);
+          }
+          vehicle_->loop();
+        });
+    vehicle_->loop();
+    vehicle_->loop();
+    EXPECT_EQ(callbacks, 1);
+    EXPECT_TRUE(cancelled);
+    EXPECT_EQ(vehicle_->pending_command_count(), 0U);
+    EXPECT_TRUE(mock_ble_->get_written_data().empty());
+  }
+}
+
+TEST_F(VehicleTest, FollowUpPollsCoalesceAndClearOnDisconnect) {
+  vehicle_->set_connected(true);
+  VCSEC_WhitelistOperation_status whitelist = VCSEC_WhitelistOperation_status_init_default;
+  for (int i = 0; i < 2; ++i) {
+    // Identical status bytes are legitimate for separate requests; real
+    // requests are spaced well beyond the duplicate-notification window.
+    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+    vehicle_->pair();
+    vehicle_->loop();
+    vehicle_->loop();
+    vehicle_->on_rx_data(make_vcsec_command_status(VCSEC_OperationStatus_E_OPERATIONSTATUS_OK, &whitelist));
+    vehicle_->loop();
+    EXPECT_TRUE(vehicle_->get_command_queue_for_testing().empty());
+    EXPECT_EQ(vehicle_->pending_command_count(), 1U);
+  }
+  vehicle_->set_connected(false);
+  vehicle_->set_connected(true);
+  std::this_thread::sleep_for(std::chrono::milliseconds(1600));
+  mock_ble_->clear_written_data();
+  vehicle_->loop();
+  EXPECT_EQ(vehicle_->pending_command_count(), 0U);
+  EXPECT_TRUE(mock_ble_->get_written_data().empty());
+}
+
+TEST_F(VehicleTest, FullQueueRetainsDeferredFollowUpUntilSpaceIsAvailable) {
+  vehicle_->set_connected(true);
+  vehicle_->pair(Keys_Role_ROLE_OWNER, [&](TeslaBLE::OperationResult result) {
+    EXPECT_TRUE(result.is_success());
+    for (size_t i = 0; i < Vehicle::MAX_COMMAND_QUEUE_SIZE; ++i)
+      vehicle_->vcsec_poll();
+  });
+  vehicle_->loop();
+  vehicle_->loop();
+  VCSEC_WhitelistOperation_status whitelist = VCSEC_WhitelistOperation_status_init_default;
+  vehicle_->on_rx_data(make_vcsec_command_status(VCSEC_OperationStatus_E_OPERATIONSTATUS_OK, &whitelist));
+  vehicle_->loop();
+  std::this_thread::sleep_for(std::chrono::milliseconds(1600));
+  vehicle_->loop();
+  EXPECT_EQ(vehicle_->pending_command_count(), Vehicle::MAX_COMMAND_QUEUE_SIZE + 1);
+  auto writes = mock_ble_->get_written_data();
+  size_t length = 0;
+  auto uuid = extract_request_uuid(writes.back(), &length);
+  ASSERT_EQ(length, uuid.size());
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), length));
+  vehicle_->loop();
+  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->loop();
+  EXPECT_EQ(vehicle_->pending_command_count(), Vehicle::MAX_COMMAND_QUEUE_SIZE);
+  EXPECT_EQ(vehicle_->get_command_queue_for_testing().size(), Vehicle::MAX_COMMAND_QUEUE_SIZE);
+  EXPECT_EQ(vehicle_->get_command_queue_for_testing().back()->wake_policy, TeslaBLE::WakePolicy::NO_WAKE_SKIP);
+}
+
+TEST_F(VehicleTest, VcsecPollCallbackReportsCompletion) {
+  vehicle_->set_connected(true);
+  int callbacks = 0;
+  vehicle_->vcsec_poll(TeslaBLE::WakePolicy::NO_WAKE_SKIP, [&](TeslaBLE::OperationResult result) {
+    ++callbacks;
+    EXPECT_TRUE(result.is_success());
+  });
+  vehicle_->loop();
+  const auto writes = mock_ble_->get_written_data();
+  size_t length = 0;
+  auto uuid = extract_request_uuid(writes.front(), &length);
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), length));
+  vehicle_->loop();
+  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->loop();
+  EXPECT_EQ(callbacks, 1);
+  EXPECT_EQ(vehicle_->pending_command_count(), 0U);
 }

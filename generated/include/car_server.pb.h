@@ -198,10 +198,6 @@ typedef struct _CarServer_HvacAutoAction {
   bool manual_override;
 } CarServer_HvacAutoAction;
 
-typedef struct _CarServer_HvacSeatHeaterActions {
-  pb_callback_t hvacSeatHeaterAction;
-} CarServer_HvacSeatHeaterActions;
-
 typedef struct _CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction {
   pb_size_t which_seat_heater_level;
   union {
@@ -226,14 +222,20 @@ typedef struct _CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction {
   } seat_position;
 } CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction;
 
-typedef struct _CarServer_HvacSeatCoolerActions {
-  pb_callback_t hvacSeatCoolerAction;
-} CarServer_HvacSeatCoolerActions;
+typedef struct _CarServer_HvacSeatHeaterActions {
+  pb_size_t hvacSeatHeaterAction_count;
+  CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction hvacSeatHeaterAction[1];
+} CarServer_HvacSeatHeaterActions;
 
 typedef struct _CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction {
   CarServer_HvacSeatCoolerActions_HvacSeatCoolerLevel_E seat_cooler_level;
   CarServer_HvacSeatCoolerActions_HvacSeatCoolerPosition_E seat_position;
 } CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction;
+
+typedef struct _CarServer_HvacSeatCoolerActions {
+  pb_size_t hvacSeatCoolerAction_count;
+  CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction hvacSeatCoolerAction[1];
+} CarServer_HvacSeatCoolerActions;
 
 typedef struct _CarServer_HvacSetPreconditioningMaxAction {
   bool on;
@@ -401,14 +403,15 @@ typedef struct _CarServer_HvacBioweaponModeAction {
   bool manual_override;
 } CarServer_HvacBioweaponModeAction;
 
-typedef struct _CarServer_AutoSeatClimateAction {
-  pb_callback_t carseat;
-} CarServer_AutoSeatClimateAction;
-
 typedef struct _CarServer_AutoSeatClimateAction_CarSeat {
   bool on;
   CarServer_AutoSeatClimateAction_AutoSeatPosition_E seat_position;
 } CarServer_AutoSeatClimateAction_CarSeat;
+
+typedef struct _CarServer_AutoSeatClimateAction {
+  pb_size_t carseat_count;
+  CarServer_AutoSeatClimateAction_CarSeat carseat[1];
+} CarServer_AutoSeatClimateAction;
 
 typedef struct _CarServer_Ping {
   int32_t ping_id;
@@ -760,9 +763,7 @@ extern "C" {
 #define CarServer_HvacAutoAction_init_default {0, 0}
 #define CarServer_HvacSeatHeaterActions_init_default \
   { \
-    { \
-      {NULL}, NULL \
-    } \
+    0, { CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction_init_default } \
   }
 #define CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction_init_default \
   { \
@@ -770,9 +771,7 @@ extern "C" {
   }
 #define CarServer_HvacSeatCoolerActions_init_default \
   { \
-    { \
-      {NULL}, NULL \
-    } \
+    0, { CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction_init_default } \
   }
 #define CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction_init_default \
   {_CarServer_HvacSeatCoolerActions_HvacSeatCoolerLevel_E_MIN, \
@@ -833,9 +832,7 @@ extern "C" {
 #define CarServer_HvacBioweaponModeAction_init_default {0, 0}
 #define CarServer_AutoSeatClimateAction_init_default \
   { \
-    { \
-      {NULL}, NULL \
-    } \
+    0, { CarServer_AutoSeatClimateAction_CarSeat_init_default } \
   }
 #define CarServer_AutoSeatClimateAction_CarSeat_init_default \
   {0, _CarServer_AutoSeatClimateAction_AutoSeatPosition_E_MIN}
@@ -950,9 +947,7 @@ extern "C" {
 #define CarServer_HvacAutoAction_init_zero {0, 0}
 #define CarServer_HvacSeatHeaterActions_init_zero \
   { \
-    { \
-      {NULL}, NULL \
-    } \
+    0, { CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction_init_zero } \
   }
 #define CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction_init_zero \
   { \
@@ -960,9 +955,7 @@ extern "C" {
   }
 #define CarServer_HvacSeatCoolerActions_init_zero \
   { \
-    { \
-      {NULL}, NULL \
-    } \
+    0, { CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction_init_zero } \
   }
 #define CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction_init_zero \
   {_CarServer_HvacSeatCoolerActions_HvacSeatCoolerLevel_E_MIN, \
@@ -1022,9 +1015,7 @@ extern "C" {
 #define CarServer_HvacBioweaponModeAction_init_zero {0, 0}
 #define CarServer_AutoSeatClimateAction_init_zero \
   { \
-    { \
-      {NULL}, NULL \
-    } \
+    0, { CarServer_AutoSeatClimateAction_CarSeat_init_zero } \
   }
 #define CarServer_AutoSeatClimateAction_CarSeat_init_zero {0, _CarServer_AutoSeatClimateAction_AutoSeatPosition_E_MIN}
 #define CarServer_Ping_init_zero {0}
@@ -1102,7 +1093,6 @@ extern "C" {
 #define CarServer_DrivingSpeedLimitAction_pin_tag 2
 #define CarServer_HvacAutoAction_power_on_tag 1
 #define CarServer_HvacAutoAction_manual_override_tag 2
-#define CarServer_HvacSeatHeaterActions_hvacSeatHeaterAction_tag 1
 #define CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction_SEAT_HEATER_UNKNOWN_tag 1
 #define CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction_SEAT_HEATER_OFF_tag 2
 #define CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction_SEAT_HEATER_LOW_tag 3
@@ -1118,9 +1108,10 @@ extern "C" {
 #define CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction_CAR_SEAT_REAR_RIGHT_BACK_tag 13
 #define CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction_CAR_SEAT_THIRD_ROW_LEFT_tag 14
 #define CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction_CAR_SEAT_THIRD_ROW_RIGHT_tag 15
-#define CarServer_HvacSeatCoolerActions_hvacSeatCoolerAction_tag 1
+#define CarServer_HvacSeatHeaterActions_hvacSeatHeaterAction_tag 1
 #define CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction_seat_cooler_level_tag 1
 #define CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction_seat_position_tag 2
+#define CarServer_HvacSeatCoolerActions_hvacSeatCoolerAction_tag 1
 #define CarServer_HvacSetPreconditioningMaxAction_on_tag 1
 #define CarServer_HvacSetPreconditioningMaxAction_manual_override_tag 2
 #define CarServer_HvacSetPreconditioningMaxAction_manual_override_mode_tag 3
@@ -1182,9 +1173,9 @@ extern "C" {
 #define CarServer_VehicleControlWindowAction_close_tag 4
 #define CarServer_HvacBioweaponModeAction_on_tag 1
 #define CarServer_HvacBioweaponModeAction_manual_override_tag 2
-#define CarServer_AutoSeatClimateAction_carseat_tag 1
 #define CarServer_AutoSeatClimateAction_CarSeat_on_tag 1
 #define CarServer_AutoSeatClimateAction_CarSeat_seat_position_tag 2
+#define CarServer_AutoSeatClimateAction_carseat_tag 1
 #define CarServer_Ping_ping_id_tag 1
 #define CarServer_Response_actionStatus_tag 1
 #define CarServer_Response_vehicleData_tag 2
@@ -1677,8 +1668,8 @@ extern "C" {
 #define CarServer_HvacAutoAction_CALLBACK NULL
 #define CarServer_HvacAutoAction_DEFAULT NULL
 
-#define CarServer_HvacSeatHeaterActions_FIELDLIST(X, a) X(a, CALLBACK, REPEATED, MESSAGE, hvacSeatHeaterAction, 1)
-#define CarServer_HvacSeatHeaterActions_CALLBACK pb_default_field_callback
+#define CarServer_HvacSeatHeaterActions_FIELDLIST(X, a) X(a, STATIC, REPEATED, MESSAGE, hvacSeatHeaterAction, 1)
+#define CarServer_HvacSeatHeaterActions_CALLBACK NULL
 #define CarServer_HvacSeatHeaterActions_DEFAULT NULL
 #define CarServer_HvacSeatHeaterActions_hvacSeatHeaterAction_MSGTYPE \
   CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction
@@ -1722,8 +1713,8 @@ extern "C" {
 #define CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction_seat_position_CAR_SEAT_THIRD_ROW_RIGHT_MSGTYPE \
   CarServer_Void
 
-#define CarServer_HvacSeatCoolerActions_FIELDLIST(X, a) X(a, CALLBACK, REPEATED, MESSAGE, hvacSeatCoolerAction, 1)
-#define CarServer_HvacSeatCoolerActions_CALLBACK pb_default_field_callback
+#define CarServer_HvacSeatCoolerActions_FIELDLIST(X, a) X(a, STATIC, REPEATED, MESSAGE, hvacSeatCoolerAction, 1)
+#define CarServer_HvacSeatCoolerActions_CALLBACK NULL
 #define CarServer_HvacSeatCoolerActions_DEFAULT NULL
 #define CarServer_HvacSeatCoolerActions_hvacSeatCoolerAction_MSGTYPE \
   CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction
@@ -1921,8 +1912,8 @@ extern "C" {
 #define CarServer_HvacBioweaponModeAction_CALLBACK NULL
 #define CarServer_HvacBioweaponModeAction_DEFAULT NULL
 
-#define CarServer_AutoSeatClimateAction_FIELDLIST(X, a) X(a, CALLBACK, REPEATED, MESSAGE, carseat, 1)
-#define CarServer_AutoSeatClimateAction_CALLBACK pb_default_field_callback
+#define CarServer_AutoSeatClimateAction_FIELDLIST(X, a) X(a, STATIC, REPEATED, MESSAGE, carseat, 1)
+#define CarServer_AutoSeatClimateAction_CALLBACK NULL
 #define CarServer_AutoSeatClimateAction_DEFAULT NULL
 #define CarServer_AutoSeatClimateAction_carseat_MSGTYPE CarServer_AutoSeatClimateAction_CarSeat
 
@@ -2241,15 +2232,12 @@ extern const pb_msgdesc_t CarServer_SetKeepAccessoryPowerModeAction_msg;
 /* CarServer_EncryptedData_size depends on runtime parameters */
 /* CarServer_DrivingClearSpeedLimitPinAction_size depends on runtime parameters */
 /* CarServer_DrivingSpeedLimitAction_size depends on runtime parameters */
-/* CarServer_HvacSeatHeaterActions_size depends on runtime parameters */
-/* CarServer_HvacSeatCoolerActions_size depends on runtime parameters */
 /* CarServer_HvacSetPreconditioningMaxAction_size depends on runtime parameters */
 /* CarServer_HvacTemperatureAdjustmentAction_size depends on runtime parameters */
 /* CarServer_NearbyChargingSites_size depends on runtime parameters */
 /* CarServer_Superchargers_size depends on runtime parameters */
 /* CarServer_VehicleControlSetValetModeAction_size depends on runtime parameters */
 /* CarServer_VehicleControlTriggerHomelinkAction_size depends on runtime parameters */
-/* CarServer_AutoSeatClimateAction_size depends on runtime parameters */
 /* CarServer_SetVehicleNameAction_size depends on runtime parameters */
 /* CarServer_VehicleControlSetPinToDriveAction_size depends on runtime parameters */
 /* CarServer_ParentalControlsClearPinAction_size depends on runtime parameters */
@@ -2257,6 +2245,7 @@ extern const pb_msgdesc_t CarServer_SetKeepAccessoryPowerModeAction_msg;
 #define CARSERVER_CAR_SERVER_PB_H_MAX_SIZE CarServer_ActionStatus_size
 #define CarServer_ActionStatus_size 105
 #define CarServer_AutoSeatClimateAction_CarSeat_size 4
+#define CarServer_AutoSeatClimateAction_size 7
 #define CarServer_BatchRemoveChargeSchedulesAction_size 6
 #define CarServer_BatchRemovePreconditionSchedulesAction_size 6
 #define CarServer_ChargePortDoorClose_size 0
@@ -2283,7 +2272,9 @@ extern const pb_msgdesc_t CarServer_SetKeepAccessoryPowerModeAction_msg;
 #define CarServer_HvacBioweaponModeAction_size 4
 #define CarServer_HvacClimateKeeperAction_size 4
 #define CarServer_HvacSeatCoolerActions_HvacSeatCoolerAction_size 4
+#define CarServer_HvacSeatCoolerActions_size 7
 #define CarServer_HvacSeatHeaterActions_HvacSeatHeaterAction_size 4
+#define CarServer_HvacSeatHeaterActions_size 7
 #define CarServer_HvacSteeringWheelHeaterAction_size 2
 #define CarServer_HvacTemperatureAdjustmentAction_HvacTemperatureZone_size 2
 #define CarServer_HvacTemperatureAdjustmentAction_Temperature_size 2

@@ -56,9 +56,14 @@ class CommandError {
                                           Outcome::DEFINITELY_FAILED);
   }
 
-  static std::unique_ptr<CommandError> max_retries_exceeded(const std::string &command) {
+  static std::unique_ptr<CommandError> max_retries_exceeded(const std::string &command, bool request_accepted = false) {
     return std::make_unique<CommandError>("Max retries exceeded for " + command, Severity::PERMANENT,
-                                          Outcome::DEFINITELY_FAILED);
+                                          request_accepted ? Outcome::MAY_HAVE_SUCCEEDED : Outcome::DEFINITELY_FAILED);
+  }
+
+  static std::unique_ptr<CommandError> write_failed(bool request_accepted) {
+    return std::make_unique<CommandError>("BLE write failed", Severity::PERMANENT,
+                                          request_accepted ? Outcome::MAY_HAVE_SUCCEEDED : Outcome::DEFINITELY_FAILED);
   }
 
   static std::unique_ptr<CommandError> session_expired(const std::string &domain) {
@@ -74,46 +79,6 @@ class CommandError {
     return std::make_unique<CommandError>(domain + " key not on whitelist - pairing required", Severity::PERMANENT,
                                           Outcome::DEFINITELY_FAILED);
   }
-
-  // Builder pattern for more flexible error creation
-  class Builder {
-   public:
-    Builder() = default;
-
-    Builder &with_message(const std::string &message) {
-      message_ = message;
-      return *this;
-    }
-
-    Builder &with_severity(Severity severity) {
-      severity_ = severity;
-      return *this;
-    }
-
-    Builder &with_outcome(Outcome outcome) {
-      outcome_ = outcome;
-      return *this;
-    }
-
-    Builder &may_have_succeeded(bool may_succeed = true) {
-      outcome_ = may_succeed ? Outcome::MAY_HAVE_SUCCEEDED : Outcome::DEFINITELY_FAILED;
-      return *this;
-    }
-
-    Builder &is_temporary(bool temporary = true) {
-      severity_ = temporary ? Severity::TEMPORARY : Severity::PERMANENT;
-      return *this;
-    }
-
-    std::unique_ptr<CommandError> build() { return std::make_unique<CommandError>(message_, severity_, outcome_); }
-
-   private:
-    std::string message_;
-    Severity severity_ = Severity::TEMPORARY;
-    Outcome outcome_ = Outcome::DEFINITELY_FAILED;
-  };
-
-  static Builder create() { return Builder(); }
 
  private:
   std::string message_;

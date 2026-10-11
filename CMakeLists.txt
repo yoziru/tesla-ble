@@ -10,6 +10,7 @@ set(TESLABLE_SRCS
     "src/message_builders.cpp"
     "src/message_processor.cpp"
     "src/peer.cpp"
+    "src/state_text.cpp"
     "src/tb_logging.cpp"
     "src/tb_utils.cpp"
     "src/vehicle.cpp"
@@ -33,11 +34,18 @@ set(TESLABLE_PROTO_SRCS
 
 # Public headers
 set(TESLABLE_PUBLIC_HEADERS
-    include/client.h
     include/adapters.h
+    include/client.h
+    include/command_error.h
+    include/crypto_context.h
+    include/defs.h
     include/errors.h
+    include/message_builders.h
     include/message_processor.h
     include/peer.h
+    include/polling_policy.h
+    include/sliding_window.h
+    include/state_text.h
     include/tb_logging.h
     include/tb_utils.h
     include/vehicle.h
@@ -133,7 +141,12 @@ else()
     set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
     set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
     set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(MBEDTLS_INSTALL OFF CACHE BOOL "" FORCE)
+
+    # nanopb's generator target shells out to a real protoc (and its
+    # find_program check can latch onto its own wrapper script). Our protobuf
+    # code is pre-generated under generated/, so skip it entirely - this keeps
+    # protoc out of the build environment (e.g. manylinux wheel builds).
+    set(nanopb_BUILD_GENERATOR OFF CACHE BOOL "" FORCE)
     
     FetchContent_Declare(
         nanopb

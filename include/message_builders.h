@@ -34,6 +34,10 @@ class VehicleActionBuilder {
   static int build_scheduled_charging(CarServer_VehicleAction &action, const void *data);
   static int build_hvac_auto_action(CarServer_VehicleAction &action, const void *data);
   static int build_hvac_steering_wheel_heater(CarServer_VehicleAction &action, const void *data);
+  static int build_seat_heater(CarServer_VehicleAction &action, const void *data);
+  static int build_seat_cooler(CarServer_VehicleAction &action, const void *data);
+  static int build_auto_seat_climate(CarServer_VehicleAction &action, const void *data);
+  static int build_sunroof(CarServer_VehicleAction &action, const void *data);
   static int build_vehicle_control_flash_lights(CarServer_VehicleAction &action, const void *data);
   static int build_vehicle_control_honk_horn(CarServer_VehicleAction &action, const void *data);
   static int build_vehicle_control_set_sentry_mode(CarServer_VehicleAction &action, const void *data);
@@ -61,13 +65,6 @@ class VehicleActionBuilder {
   static int build_set_cop_temp(CarServer_VehicleAction &action, const void *data);
   static int build_scheduled_departure(CarServer_VehicleAction &action, const void *data);
   static int build_set_keep_accessory_power_mode(CarServer_VehicleAction &action, const void *data);
-
-  // Map of action types to their builder functions - initialized lazily via get_builders()
-
-  // Helper functions
-  static int validate_input_parameters(const pb_byte_t *output_buffer, const size_t *output_length);
-  static int validate_charging_limit(int32_t percent);
-  static int validate_charging_amps(int32_t amps);
 };
 
 /**
@@ -77,7 +74,6 @@ class ParameterValidator {
  public:
   static bool is_valid_charging_limit(int32_t percent);
   static bool is_valid_charging_amps(int32_t amps);
-  static bool is_valid_ping_value(int32_t ping_value);
   static bool is_valid_vin(const char *vin);
   static bool is_valid_connection_id(const pb_byte_t *connection_id);
 };

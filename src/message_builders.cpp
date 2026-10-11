@@ -31,6 +31,10 @@ const std::unordered_map<pb_size_t, VehicleActionBuilder::BuilderFunction> &Vehi
       {CarServer_VehicleAction_scheduledChargingAction_tag, build_scheduled_charging},
       {CarServer_VehicleAction_hvacAutoAction_tag, build_hvac_auto_action},
       {CarServer_VehicleAction_hvacSteeringWheelHeaterAction_tag, build_hvac_steering_wheel_heater},
+      {CarServer_VehicleAction_hvacSeatHeaterActions_tag, build_seat_heater},
+      {CarServer_VehicleAction_hvacSeatCoolerActions_tag, build_seat_cooler},
+      {CarServer_VehicleAction_autoSeatClimateAction_tag, build_auto_seat_climate},
+      {CarServer_VehicleAction_vehicleControlSunroofOpenCloseAction_tag, build_sunroof},
       {CarServer_VehicleAction_vehicleControlFlashLightsAction_tag, build_vehicle_control_flash_lights},
       {CarServer_VehicleAction_vehicleControlHonkHornAction_tag, build_vehicle_control_honk_horn},
       {CarServer_VehicleAction_vehicleControlSetSentryModeAction_tag, build_vehicle_control_set_sentry_mode},
@@ -164,6 +168,54 @@ int VehicleActionBuilder::build_hvac_steering_wheel_heater(CarServer_VehicleActi
   bool is_on = *is_on_ptr;
   action.vehicle_action_msg.hvacSteeringWheelHeaterAction = CarServer_HvacSteeringWheelHeaterAction_init_default;
   action.vehicle_action_msg.hvacSteeringWheelHeaterAction.power_on = is_on;
+  return TeslaBLE_Status_E_OK;
+}
+
+int VehicleActionBuilder::build_seat_heater(CarServer_VehicleAction &action, const void *data) {
+  const auto *value = require_data<CarServer_HvacSeatHeaterActions>(data, "Seat heater action requires data");
+  if (!value || value->hvacSeatHeaterAction_count != 1) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  const auto &seat = value->hvacSeatHeaterAction[0];
+  if (seat.which_seat_position < 7 || seat.which_seat_position > 15 || seat.which_seat_heater_level < 2 ||
+      seat.which_seat_heater_level > 5) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  action.vehicle_action_msg.hvacSeatHeaterActions = *value;
+  return TeslaBLE_Status_E_OK;
+}
+
+int VehicleActionBuilder::build_seat_cooler(CarServer_VehicleAction &action, const void *data) {
+  const auto *value = require_data<CarServer_HvacSeatCoolerActions>(data, "Seat cooler action requires data");
+  if (!value || value->hvacSeatCoolerAction_count != 1) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  const auto &seat = value->hvacSeatCoolerAction[0];
+  if (seat.seat_position < 1 || seat.seat_position > 2 || seat.seat_cooler_level < 1 || seat.seat_cooler_level > 4) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  action.vehicle_action_msg.hvacSeatCoolerActions = *value;
+  return TeslaBLE_Status_E_OK;
+}
+
+int VehicleActionBuilder::build_auto_seat_climate(CarServer_VehicleAction &action, const void *data) {
+  const auto *value = require_data<CarServer_AutoSeatClimateAction>(data, "Auto seat climate action requires data");
+  if (!value || value->carseat_count != 1 || value->carseat[0].seat_position < 1 ||
+      value->carseat[0].seat_position > 2) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  action.vehicle_action_msg.autoSeatClimateAction = *value;
+  return TeslaBLE_Status_E_OK;
+}
+
+int VehicleActionBuilder::build_sunroof(CarServer_VehicleAction &action, const void *data) {
+  const auto *value =
+      require_data<CarServer_VehicleControlSunroofOpenCloseAction>(data, "Sunroof action requires data");
+  if (!value || value->which_sunroof_level != CarServer_VehicleControlSunroofOpenCloseAction_absolute_level_tag ||
+      value->sunroof_level.absolute_level < 0 || value->sunroof_level.absolute_level > 100) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  action.vehicle_action_msg.vehicleControlSunroofOpenCloseAction = *value;
   return TeslaBLE_Status_E_OK;
 }
 
@@ -457,24 +509,11 @@ int VehicleActionBuilder::build_scheduled_departure(CarServer_VehicleAction &act
   return TeslaBLE_Status_E_OK;
 }
 
-// Helper functions
-int VehicleActionBuilder::validate_input_parameters(const pb_byte_t *output_buffer, const size_t *output_length) {
-  if (!output_buffer || !output_length) {
-    LOG_ERROR("Invalid parameters: output_buffer and output_length cannot be null");
-    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
-  }
-  return TeslaBLE_Status_E_OK;
-}
-
 // Parameter validation implementations
 bool ParameterValidator::is_valid_charging_limit(int32_t percent) { return percent >= 50 && percent <= 100; }
 
 bool ParameterValidator::is_valid_charging_amps(int32_t amps) {
   return amps >= 0 && amps <= 80;  // Allow 0 to stop charging
-}
-
-bool ParameterValidator::is_valid_ping_value(int32_t ping_value) {
-  return ping_value >= 0;  // Any non-negative value should be valid
 }
 
 bool ParameterValidator::is_valid_vin(const char *vin) {

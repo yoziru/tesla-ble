@@ -52,10 +52,18 @@ TEST_F(VINUtilsTest, IsTeslaVehicleNameValidatesFormat) {
   EXPECT_TRUE(is_tesla_vehicle_name("S0000000000000000C"));
   EXPECT_TRUE(is_tesla_vehicle_name("SffffffffffffffffC"));
   EXPECT_TRUE(is_tesla_vehicle_name("SaAbBcCdDeEfFaAbBC"));
+  // Beacon letters beyond C (center): R=rear, D=driver, P=passenger
+  EXPECT_TRUE(is_tesla_vehicle_name("S0000000000000000R"));
+  EXPECT_TRUE(is_tesla_vehicle_name("S0000000000000000D"));
+  EXPECT_TRUE(is_tesla_vehicle_name("S0000000000000000P"));
+  // New naming scheme: "Tesla " + last 6 characters of the VIN
+  EXPECT_TRUE(is_tesla_vehicle_name("Tesla 130307"));
+  EXPECT_TRUE(is_tesla_vehicle_name("Tesla ABCDEF"));
 }
 
 TEST_F(VINUtilsTest, IsTeslaVehicleNameHandlesStringInput) {
   EXPECT_TRUE(is_tesla_vehicle_name(std::string("S0000000000000000C")));
+  EXPECT_TRUE(is_tesla_vehicle_name(std::string("Tesla 130307")));
 }
 
 TEST_F(VINUtilsTest, IsTeslaVehicleNameRejectsInvalidFormat) {
@@ -67,7 +75,7 @@ TEST_F(VINUtilsTest, IsTeslaVehicleNameRejectsInvalidFormat) {
   EXPECT_FALSE(is_tesla_vehicle_name("T0000000000000000C"));
 
   // Wrong end character
-  EXPECT_FALSE(is_tesla_vehicle_name("S0000000000000000D"));
+  EXPECT_FALSE(is_tesla_vehicle_name("S0000000000000000Z"));
 
   // Wrong length
   EXPECT_FALSE(is_tesla_vehicle_name("S000000000000000C"));
@@ -76,6 +84,12 @@ TEST_F(VINUtilsTest, IsTeslaVehicleNameRejectsInvalidFormat) {
   // Non-hex characters
   EXPECT_FALSE(is_tesla_vehicle_name("SG000000000000000C"));
   EXPECT_FALSE(is_tesla_vehicle_name("S0000000X0000000C"));
+
+  // New scheme must have exactly six trailing alphanumeric characters
+  EXPECT_FALSE(is_tesla_vehicle_name("Tesla 13030"));
+  EXPECT_FALSE(is_tesla_vehicle_name("Tesla 1303070"));
+  EXPECT_FALSE(is_tesla_vehicle_name("Tesla_130307"));
+  EXPECT_FALSE(is_tesla_vehicle_name("Tesla 13030-"));
 }
 
 // matches_vin
@@ -84,6 +98,15 @@ TEST_F(VINUtilsTest, MatchesVINVerifiesVINDeviceNamePairing) {
 
   EXPECT_TRUE(matches_vin(name, "5YJS0000000000000"));
   EXPECT_FALSE(matches_vin(name, "5YJS0000000000001"));
+
+  // Any beacon suffix letter belongs to the same vehicle
+  EXPECT_TRUE(matches_vin("S1a87a5a75f3df858R", "5YJS0000000000000"));
+  EXPECT_TRUE(matches_vin("S1a87a5a75f3df858D", "5YJS0000000000000"));
+  EXPECT_TRUE(matches_vin("S1a87a5a75f3df858P", "5YJS0000000000000"));
+
+  // New naming scheme: "Tesla " + last 6 characters of the VIN
+  EXPECT_TRUE(matches_vin("Tesla 000000", "5YJS0000000000000"));
+  EXPECT_FALSE(matches_vin("Tesla 000001", "5YJS0000000000000"));
 }
 
 TEST_F(VINUtilsTest, MatchesVINHandlesStringInput) {

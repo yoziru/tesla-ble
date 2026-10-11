@@ -65,11 +65,6 @@ EOF
         ;;
 esac
 
-if [ "$next_version" = "$current_version" ]; then
-    echo "Error: next version matches current version ($current_version)" >&2
-    exit 1
-fi
-
 if git rev-parse -q --verify "refs/tags/v$next_version" >/dev/null 2>&1; then
     echo "Error: tag v$next_version already exists" >&2
     exit 1
@@ -78,12 +73,10 @@ fi
 "$SCRIPT_DIR/set-version.sh" "$next_version"
 
 git add VERSION CMakeLists.txt library.json idf_component.yml
-if git diff --cached --quiet; then
-    echo "Error: no version changes to commit" >&2
-    exit 1
+if ! git diff --cached --quiet; then
+    git commit -m "release: v$next_version"
 fi
 
-git commit -m "release: v$next_version"
 git tag "v$next_version"
 git push origin main
 git push origin "v$next_version"

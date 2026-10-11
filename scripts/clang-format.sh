@@ -39,7 +39,7 @@ fi
 
 # Find all C++ source and header files
 cd "$ROOT_DIR"
-CPP_FILES=$(find src include tests examples -name "*.cpp" -o -name "*.h" | sort)
+CPP_FILES=$(find src include tests examples bindings/python/cpp -name "*.cpp" -o -name "*.h" | sort)
 
 if [ -z "$CPP_FILES" ]; then
     echo "No C++ files found to check"

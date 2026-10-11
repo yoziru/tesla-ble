@@ -17,6 +17,23 @@ env:
   CLANG_VERSION: 21
 
 jobs:
+  python:
+    name: Python ${{ matrix.python }} bindings and packaging
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.13", "3.14", "3.15"]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install build pytest
+      - run: python -m build
+      - run: python scripts/check_dist.py dist
+      - run: python -m pip install dist/*.whl
+      - run: python -m pytest bindings/python/tests -q
+
   checks:
     name: ${{ matrix.check-name }}
     runs-on: ubuntu-latest
@@ -79,6 +96,18 @@ jobs:
       - name: Install python dependencies
         if: matrix.check == 'test' || matrix.check == 'examples'
         run: python3 -m pip install protobuf grpcio-tools
+
+      - name: Use a supported Python for clang-tidy
+        if: matrix.check == 'tidy'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Prepare bindings environment for clang-tidy
+        if: matrix.check == 'tidy'
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install "pybind11>=3.1"
 
       - name: Setup ccache
         # Skip ccache for format check as it doesn't compile code

@@ -2,6 +2,7 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=intellij,c++,cmake,platformio,visualstudiocode
 .vscode
 .opencode
+.zvec-grep/
 openspec
 build/
 build-pr-full/
@@ -212,3 +213,10 @@ fabric.properties
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/intellij,c++,cmake,platformio,visualstudiocode
+
+# Python
+.venv/
+dist/
+.pytest_cache/
+__pycache__/
+build-bindings/

@@ -15,6 +15,16 @@ cd build && ctest -j 2>&1 | grep -E "(FAILED.*\]|^[0-9]+% tests|expected equalit
 ./scripts/clang-tidy.sh --fix        # Apply automatic fixes
 ```
 
+## Python Bindings
+Packaging lives at the repository root (`pyproject.toml`, scikit-build-core +
+pybind11 3.x); extension sources are in `bindings/python/`.
+```bash
+uv sync                                     # build + install tesla-ble and pytest
+uv run pytest bindings/python/tests -q      # offline tests (SimulatedVehicle)
+uv build                                    # wheels + sdist (sdist is self-contained)
+```
+The pb -> dict converters are generated: `python3 bindings/python/tools/gen_state_dicts.py`.
+
 ## Release
 From `main`, trigger the GitHub Actions workflow. Replace `X.Y.Z` in both commands.
 ```bash

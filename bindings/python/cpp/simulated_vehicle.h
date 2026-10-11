@@ -104,7 +104,6 @@ class SimulatedVehicle {
   CarServer_MediaState media_state_;
   CarServer_SoftwareUpdateState software_update_state_ = CarServer_SoftwareUpdateState_init_default;
   std::array<bool, 4> doors_open_ = {false, false, false, false};
-  std::array<bool, 4> windows_open_ = {false, false, false, false};
   bool charge_port_open_ = false;
   bool front_trunk_open_ = false;
   bool rear_trunk_open_ = false;

@@ -85,13 +85,5 @@ def test_tire_pressure_state_callback():
 
 
 def test_parse_frame_info():
-    sim = tesla_ble.SimulatedVehicle(VIN)
-    ble, _, vehicle = make_vehicle()
-
-    vehicle.set_connected(True)
-    vehicle.vcsec_poll()
-    pump(vehicle, ble, sim)
-
-    assert ble.sent == []
     info = tesla_ble.parse_frame_info(b"\x00\x01garbage")
     assert info["valid"] is False

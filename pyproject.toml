@@ -49,9 +49,6 @@ sdist.exclude = [
     "**/__pycache__/**",
 ]
 
-[tool.scikit-build.cmake.define]
-CMAKE_POSITION_INDEPENDENT_CODE = "ON"
-
 # Wheel matrix: Home Assistant runs on Linux (HA OS/Container) and macOS, on
 # both x86_64 and arm64/aarch64. Shared by CI and local cibuildwheel runs.
 [tool.cibuildwheel]

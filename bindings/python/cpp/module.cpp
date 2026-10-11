@@ -326,9 +326,6 @@ using namespace tesla_ble_python;  // NOLINT(google-build-using-namespace) - loc
 PYBIND11_MODULE(_tesla_ble, m) {
   m.doc() = "Python bindings for the TeslaBLE C++ library";
   m.attr("_log_callback") = py::none();
-#ifndef TESLA_BLE_VERSION
-#define TESLA_BLE_VERSION "0.0.0"
-#endif
   m.attr("__version__") = TESLA_BLE_VERSION;
 
   // -------------------------------------------------------------------------

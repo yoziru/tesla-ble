@@ -176,9 +176,9 @@ def test_closure_raw_keys_match_text_keys():
     assert states[-1]["closures"].keys() == states[-1]["closures_raw"].keys()
 
 
-def test_simulator_rejects_malformed_and_unsupported_payloads():
+def test_simulator_rejects_unsigned_non_status_payloads():
     sim = tesla_ble.SimulatedVehicle(VIN)
-    # Infotainment payload "bad"; VCSEC unsupported RKE action 99; unsupported oneof.
+    # Unsigned infotainment payload; VCSEC RKE action; non-status VCSEC oneof.
     for frame in ["0009320208035203626164", "00083202080252021063", "00083202080252021801"]:
         assert sim.on_client_frame(bytes.fromhex(frame)) == []
 

@@ -21,17 +21,6 @@ class FakeBleAdapter(tesla_ble.BleAdapter):
     def __init__(self):
         super().__init__()
         self.sent = []
-        self.connected = False
-        self.connect_calls = []
-        self.disconnect_calls = 0
-
-    def connect(self, address):
-        self.connected = True
-        self.connect_calls.append(address)
-
-    def disconnect(self):
-        self.connected = False
-        self.disconnect_calls += 1
 
     def write(self, data):
         self.sent.append(bytes(data))
@@ -44,14 +33,12 @@ class FakeStorage(tesla_ble.StorageAdapter):
     def __init__(self):
         super().__init__()
         self.data = {}
-        self.save_calls = []
 
     def load(self, key):
         return self.data.get(key)
 
     def save(self, key, data):
         self.data[key] = bytes(data)
-        self.save_calls.append(key)
         return True
 
     def remove(self, key):
@@ -95,9 +82,3 @@ def pump(vehicle, ble, sim, max_iterations=500):
         else:
             idle = 0
     raise AssertionError("state machine did not settle")
-
-
-def collect_callbacks():
-    """Returns (results, callback) collecting CommandResults in a list."""
-    results = []
-    return results, results.append

@@ -319,7 +319,9 @@ bool SimulatedVehicle::apply_vcsec_action_(const std::vector<pb_byte_t> &payload
           open = move != VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE;
         }
       };
-      apply(closure.frontDriverDoor, doors_open_[0]);
+      if (closure.frontDriverDoor) {
+        set_door_open("driver_front", closure.frontDriverDoor != VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE);
+      }
       apply(closure.frontTrunk, front_trunk_open_);
       apply(closure.rearTrunk, rear_trunk_open_);
       bool charge_port = charge_port_open_;
@@ -865,7 +867,6 @@ void SimulatedVehicle::set_window_open(const std::string &window, bool open) {
   if (index < 0) {
     return;
   }
-  windows_open_[index] = open;
   switch (index) {
     case 0:
       closures_state_.which_optional_window_open_driver_front = CarServer_ClosuresState_window_open_driver_front_tag;

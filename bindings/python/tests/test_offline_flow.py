@@ -3,7 +3,7 @@
 import tesla_ble
 import pytest
 
-from conftest import VIN, FakeStorage, collect_callbacks, make_vehicle, pump
+from conftest import VIN, FakeStorage, make_vehicle, pump
 
 
 def test_vcsec_poll_reports_vehicle_status():
@@ -24,6 +24,24 @@ def test_vcsec_poll_reports_vehicle_status():
     assert status["locked"] is False
     assert status["asleep"] is False
     assert status["closures"]["front_driver_door"] == "closed"
+
+
+def test_unlatch_driver_door_updates_vcsec_and_closures_state():
+    sim = tesla_ble.SimulatedVehicle(VIN)
+    sim.set_door_open("driver_front", False)
+    ble, _, vehicle = make_vehicle()
+    status, closures, results = [], [], []
+    vehicle.set_vehicle_status_callback(status.append)
+    vehicle.set_closures_state_callback(closures.append)
+    vehicle.set_connected(True)
+    vehicle.set_awake(True)
+    vehicle.unlatch_driver_door(results.append)
+    pump(vehicle, ble, sim)
+    vehicle.closures_state_poll()
+    pump(vehicle, ble, sim)
+    assert len(results) == 1 and results[0].success
+    assert status[-1]["closures"]["front_driver_door"] == "open"
+    assert closures[-1]["door_open_driver_front"] is True
 
 
 def test_seat_cabin_and_sunroof_commands_report_protocol_state():
@@ -246,27 +264,27 @@ def test_software_update_schedule_and_cancel_commands():
     sim.set_software_update_state(4)  # Available
 
     ble, _, vehicle = make_vehicle()
-    results, callback = collect_callbacks()
+    results = []
     states = []
     vehicle.set_software_update_state_callback(states.append)
 
     vehicle.set_connected(True)
     vehicle.set_awake(True)
 
-    vehicle.schedule_software_update(0, callback)
+    vehicle.schedule_software_update(0, results.append)
     pump(vehicle, ble, sim)
     assert results and results[-1].success, results[-1]
 
     assert states[-1]["status"] == 3, "scheduling must report Scheduled"
 
-    vehicle.cancel_software_update(callback)
+    vehicle.cancel_software_update(results.append)
     pump(vehicle, ble, sim)
     assert results[-1].success, results[-1]
 
     assert states[-1]["status"] == 4, "cancel must report Available"
 
     # Negative offsets are rejected before hitting the wire.
-    vehicle.schedule_software_update(-1, callback)
+    vehicle.schedule_software_update(-1, results.append)
     assert not results[-1].success
 
 
@@ -304,12 +322,12 @@ def test_lock_command_completes_with_success():
     sim.set_locked(False)
 
     ble, _, vehicle = make_vehicle()
-    results, callback = collect_callbacks()
+    results = []
     states = []
     vehicle.set_vehicle_status_callback(states.append)
 
     vehicle.set_connected(True)
-    vehicle.lock(callback)
+    vehicle.lock(results.append)
     pump(vehicle, ble, sim)
 
     assert results, "lock callback must fire"
@@ -322,13 +340,13 @@ def test_charging_command_completes_with_success():
     sim = tesla_ble.SimulatedVehicle(VIN)
 
     ble, _, vehicle = make_vehicle()
-    results, callback = collect_callbacks()
+    results = []
     states = []
     vehicle.set_charge_state_callback(states.append)
 
     vehicle.set_connected(True)
     vehicle.set_awake(True)
-    vehicle.set_charging_state(True, callback)
+    vehicle.set_charging_state(True, results.append)
     pump(vehicle, ble, sim)
 
     assert results, "charging callback must fire"
@@ -362,10 +380,10 @@ def test_pairing_persists_private_key():
     sim = tesla_ble.SimulatedVehicle(VIN)
 
     ble, storage, vehicle = make_vehicle(with_key=False)
-    results, callback = collect_callbacks()
+    results = []
 
     vehicle.set_connected(True)
-    vehicle.pair(tesla_ble.KeysRole.OWNER, callback)
+    vehicle.pair(tesla_ble.KeysRole.OWNER, results.append)
     pump(vehicle, ble, sim)
 
     assert results and results[-1].success, results
@@ -389,10 +407,10 @@ def test_session_is_persisted_after_auth():
 
 def test_invalid_parameter_reports_build_failure():
     ble, _, vehicle = make_vehicle()
-    results, callback = collect_callbacks()
+    results = []
 
     vehicle.set_connected(True)
-    vehicle.set_charging_amps(200, callback)
+    vehicle.set_charging_amps(200, results.append)
 
     assert results and results[-1].failure
     assert "Failed to build" in results[-1].error_message
@@ -401,9 +419,9 @@ def test_invalid_parameter_reports_build_failure():
 
 def test_disconnected_command_reports_failure():
     _, _, vehicle = make_vehicle()
-    results, callback = collect_callbacks()
+    results = []
 
-    vehicle.lock(callback)
+    vehicle.lock(results.append)
 
     assert results and results[-1].failure
     assert "Connection lost" in results[-1].error_message
@@ -415,11 +433,11 @@ def test_disconnected_command_reports_failure():
 def test_disconnect_fails_queued_command():
     sim = tesla_ble.SimulatedVehicle(VIN)
     ble, _, vehicle = make_vehicle()
-    results, callback = collect_callbacks()
+    results = []
 
     vehicle.set_connected(True)
     vehicle.set_awake(True)
-    vehicle.set_charging_state(True, callback)
+    vehicle.set_charging_state(True, results.append)
     vehicle.set_connected(False)
 
     assert results and results[-1].failure
@@ -430,10 +448,10 @@ def test_unpaired_vehicle_reports_key_not_on_whitelist():
     sim.set_paired(False)
 
     ble, _, vehicle = make_vehicle()
-    results, callback = collect_callbacks()
+    results = []
 
     vehicle.set_connected(True)
-    vehicle.lock(callback)
+    vehicle.lock(results.append)
     pump(vehicle, ble, sim)
 
     assert results and results[-1].failure
@@ -444,11 +462,11 @@ def test_skip_wake_when_already_awake():
     sim = tesla_ble.SimulatedVehicle(VIN)
 
     _, _, vehicle = make_vehicle()
-    results, callback = collect_callbacks()
+    results = []
 
     vehicle.set_connected(True)
     vehicle.set_awake(True)
-    vehicle.wake(callback)
+    vehicle.wake(results.append)
 
     assert results and results[-1].skipped
     assert results[-1].terminal_reason == "none"

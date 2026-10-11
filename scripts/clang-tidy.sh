@@ -73,6 +73,10 @@ if [ -n "$BINDINGS_FILES" ]; then
                 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Release \
                 -Dpybind11_DIR="$PYBIND11_DIR" -DPython_EXECUTABLE="$BINDINGS_PYTHON" \
                 -DCMAKE_MESSAGE_LOG_LEVEL=ERROR >/dev/null 2>&1 || {
+                if [ "$CHECK_MODE" -eq 1 ]; then
+                    echo "Error: Failed to configure bindings build for clang-tidy"
+                    exit 1
+                fi
                 echo "Warning: could not configure bindings build; skipping bindings clang-tidy"
                 BINDINGS_FILES=""
             }

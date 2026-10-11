@@ -19,14 +19,18 @@ class BleAdapter {
 
   /**
    * @brief Connect to a specific BLE device.
+   *
+   * Optional: the library never calls this itself, connection lifecycle is
+   * owned by the host. Defaults to a no-op.
+   *
    * @param address The MAC address or identifier of the device.
    */
-  virtual void connect(const std::string &address) = 0;
+  virtual void connect(const std::string &address) {}
 
   /**
-   * @brief Disconnect from the current device.
+   * @brief Disconnect from the current device. Optional, defaults to a no-op.
    */
-  virtual void disconnect() = 0;
+  virtual void disconnect() {}
 
   /**
    * @brief Write data to the vehicle.

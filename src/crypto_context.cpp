@@ -347,10 +347,6 @@ TeslaBLE_Status_E CryptoContext::perform_tesla_ecdh(const uint8_t *tesla_public_
     mbedtls_platform_zeroize(sha1_hash, sizeof(sha1_hash));
 
     LOG_DEBUG("Tesla ECDH completed successfully");
-    LOG_VERBOSE("Session key: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-                session_key[0], session_key[1], session_key[2], session_key[3], session_key[4], session_key[5],
-                session_key[6], session_key[7], session_key[8], session_key[9], session_key[10], session_key[11],
-                session_key[12], session_key[13], session_key[14], session_key[15]);
 
     ecdh_status = TeslaBLE_Status_E_OK;
 

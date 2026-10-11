@@ -23,6 +23,10 @@
 #include "vehicle.pb.h"
 
 #include <pb_decode.h>
+
+#include <chrono>
+#include <cstdint>
+
 #include "tb_logging.h"
 #include <pb_encode.h>
 
@@ -114,6 +118,21 @@ std::string truncate_utf8(const pb_byte_t *data, size_t length, size_t max_lengt
 }  // namespace
 
 namespace TeslaBLE {
+
+namespace {
+
+// Last-resort entropy when the platform RNG fails (not expected to run):
+// xorshift64* seeded from the clock and a stack address.
+uint64_t fallback_random_u64() {
+  static uint64_t state = static_cast<uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count()) ^
+                          reinterpret_cast<uintptr_t>(&state);
+  state ^= state >> 12;
+  state ^= state << 25;
+  state ^= state >> 27;
+  return state * 0x2545F4914F6CDD1DULL;
+}
+
+}  // namespace
 Client::Client() { initialize_peers_(); }
 
 void Client::initialize_peers_() {
@@ -425,11 +444,35 @@ bool extract_media_now_playing(const pb_byte_t *response, size_t length, MediaNo
   return true;
 }
 
+bool extract_software_update_version(const pb_byte_t *response, size_t length, std::string &output) {
+  output.clear();
+  if (!response) {
+    return false;
+  }
+  const pb_byte_t *vehicle_data = nullptr;
+  size_t vehicle_data_length = 0;
+  const pb_byte_t *update_state = nullptr;
+  size_t update_state_length = 0;
+  if (!find_wire_bytes(response, length, CarServer_Response_vehicleData_tag, &vehicle_data, &vehicle_data_length) ||
+      !find_wire_bytes(vehicle_data, vehicle_data_length, CarServer_VehicleData_software_update_state_tag,
+                       &update_state, &update_state_length)) {
+    return false;
+  }
+  const pb_byte_t *text = nullptr;
+  size_t text_length = 0;
+  if (!find_wire_bytes(update_state, update_state_length, CarServer_SoftwareUpdateState_version_tag, &text,
+                       &text_length)) {
+    return false;
+  }
+  output.assign(reinterpret_cast<const char *>(text), std::min<size_t>(text_length, 32));
+  return true;
+}
+
 int Client::parse_payload_car_server_response(
     UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
     Signatures_SignatureData *signature_data, pb_size_t which_sub_sig_data,
     UniversalMessage_MessageFault_E signed_message_fault, uint32_t response_flags, CarServer_Response *output,
-    uint32_t *response_counter, MediaNowPlaying *media_now_playing) {
+    uint32_t *response_counter, MediaNowPlaying *media_now_playing, std::string *software_update_version) {
   uint32_t counter = 0;
 
   // If encrypted, decrypt the payload
@@ -468,6 +511,9 @@ int Client::parse_payload_car_server_response(
         if (media_now_playing) {
           extract_media_now_playing(decrypt_buffer.bytes, decrypt_buffer.size, media_now_playing);
         }
+        if (software_update_version) {
+          extract_software_update_version(decrypt_buffer.bytes, decrypt_buffer.size, *software_update_version);
+        }
         break;
       }
       default:
@@ -483,6 +529,9 @@ int Client::parse_payload_car_server_response(
     }
     if (media_now_playing) {
       extract_media_now_playing(input_buffer->bytes, input_buffer->size, media_now_playing);
+    }
+    if (software_update_version) {
+      extract_software_update_version(input_buffer->bytes, input_buffer->size, *software_update_version);
     }
   }
 
@@ -1068,18 +1117,24 @@ void Client::prepare_routable_message_(UniversalMessage_RoutableMessage &msg, Un
 
 void Client::generate_connection_id_() {
   if (crypto_context_.generate_random_bytes(connection_id_.data(), connection_id_.size()) != TeslaBLE_Status_E_OK) {
-    LOG_ERROR("Failed to generate connection ID, falling back to arc4random()");
-    for (auto &byte : connection_id_) {
-      byte = static_cast<pb_byte_t>(arc4random() % 256);
+    LOG_ERROR("Failed to generate connection ID, falling back to local PRNG");
+    for (size_t i = 0; i < connection_id_.size(); i += sizeof(uint64_t)) {
+      const uint64_t value = fallback_random_u64();
+      for (size_t j = 0; j < sizeof(uint64_t) && i + j < connection_id_.size(); ++j) {
+        connection_id_[i + j] = static_cast<pb_byte_t>((value >> (8 * j)) & 0xFF);
+      }
     }
   }
 }
 
 void Client::generate_uuid_(pb_byte_t uuid[16]) {
   if (this->crypto_context_.generate_random_bytes(uuid, 16) != TeslaBLE_Status_E_OK) {
-    LOG_ERROR("Failed to generate robust random UUID, falling back to arc4random()");
-    for (int i = 0; i < 16; i++) {
-      uuid[i] = arc4random() % 256;
+    LOG_ERROR("Failed to generate robust random UUID, falling back to local PRNG");
+    for (int i = 0; i < 16; i += static_cast<int>(sizeof(uint64_t))) {
+      const uint64_t value = fallback_random_u64();
+      for (size_t j = 0; j < sizeof(uint64_t) && i + static_cast<int>(j) < 16; ++j) {
+        uuid[i + static_cast<int>(j)] = static_cast<pb_byte_t>((value >> (8 * j)) & 0xFF);
+      }
     }
   }
 }

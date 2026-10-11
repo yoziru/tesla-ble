@@ -17,6 +17,7 @@
 
 #include "mocks/mock_adapters.h"
 #include "test_constants.h"
+#include "test_command_helpers.h"
 
 #include <car_server.pb.h>
 #include <signatures.pb.h>
@@ -28,6 +29,7 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <thread>
 #include <vector>
 
 using TeslaBLE::Client;
@@ -267,6 +269,21 @@ TEST_F(EncryptedResponseTest, InfotainmentCommandCompletesWithEncryptedResponse)
   EXPECT_EQ(outcome, OperationOutcome::SUCCESS) << "Encrypted response should complete the command";
 }
 
+TEST_F(EncryptedResponseTest, DelayedEncryptedResponseCompletesDuringRetryBackoff) {
+  OperationOutcome outcome = OperationOutcome::FAILED;
+  auto request = send_climate_command(&outcome);
+  ASSERT_FALSE(request.empty());
+  auto response = make_ok_infotainment_response(request, 1);
+  ASSERT_FALSE(response.empty());
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+  vehicle_->loop();
+  ASSERT_EQ(mock_ble_->get_written_data().size(), 1U);
+  vehicle_->on_rx_data(response);
+  vehicle_->loop();
+  EXPECT_EQ(outcome, OperationOutcome::SUCCESS);
+  EXPECT_EQ(mock_ble_->get_written_data().size(), 1U);
+}
+
 TEST_F(EncryptedResponseTest, TamperedResponseTagIsRejected) {
   OperationOutcome outcome = OperationOutcome::FAILED;
   auto request = send_climate_command(&outcome);
@@ -290,6 +307,29 @@ TEST_F(EncryptedResponseTest, TamperedResponseTagIsRejected) {
   EXPECT_EQ(outcome, OperationOutcome::FAILED) << "Tampered response must not complete the command";
 }
 
+TEST_F(EncryptedResponseTest, SoftwareUpdateVersionComesFromDecryptedPayload) {
+  std::string version;
+  int status = 0;
+  vehicle_->set_software_update_state_callback([&](const auto &state, const auto &text) {
+    status = state.status.which_type;
+    version = text;
+  });
+  vehicle_->software_update_poll();
+  vehicle_->loop();
+  vehicle_->loop();
+  const auto &writes = mock_ble_->get_written_data();
+  ASSERT_EQ(writes.size(), 1U);
+  const std::vector<pb_byte_t> payload = {0x12, 0x13, 0xba, 0x01, 0x10, 0x0a, 0x02, 0x22, 0x00, 0xda, 0x06,
+                                          0x09, '2',  '0',  '2',  '6',  '.',  '4',  '0',  '.',  '1'};
+  auto response = make_encrypted_response(*helper_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, 201, writes.front(),
+                                          payload.data(), payload.size());
+  ASSERT_FALSE(response.empty());
+  vehicle_->on_rx_data(response);
+  vehicle_->loop();
+  EXPECT_EQ(status, CarServer_SoftwareUpdateState_SoftwareUpdateStatus_Available_tag);
+  EXPECT_EQ(version, "2026.40.1");
+}
+
 TEST_F(EncryptedResponseTest, ResponseWithMismatchedCounterIsRejected) {
   OperationOutcome outcome = OperationOutcome::FAILED;
   auto request = send_climate_command(&outcome);
@@ -305,11 +345,11 @@ TEST_F(EncryptedResponseTest, ResponseWithMismatchedCounterIsRejected) {
   EXPECT_EQ(outcome, OperationOutcome::FAILED) << "Response authenticated with a different counter must be rejected";
 }
 
-TEST_F(EncryptedResponseTest, VcsecCommandCompletesWithEncryptedResponse) {
+TEST_F(EncryptedResponseTest, VcsecCommandCompletesWithDelayedEncryptedResponse) {
   bool completed = false;
   bool success = false;
-  vehicle_->send_command_bool(
-      UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Lock",
+  TeslaBLE::TestHelpers::send_command_bool(
+      *vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "Lock",
       [](Client *client, uint8_t *buff, size_t *len) {
         return client->build_vcsec_action_message(VCSEC_RKEAction_E_RKE_ACTION_LOCK, buff, len);
       },
@@ -336,11 +376,14 @@ TEST_F(EncryptedResponseTest, VcsecCommandCompletesWithEncryptedResponse) {
                                           writes.front(), payload, payload_length);
   ASSERT_FALSE(response.empty()) << "Encrypted response should be built";
 
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+  vehicle_->loop();
   vehicle_->on_rx_data(response);
   vehicle_->loop();
 
   EXPECT_TRUE(completed) << "Encrypted VCSEC response should complete the command";
   EXPECT_TRUE(success);
+  EXPECT_EQ(mock_ble_->get_written_data().size(), 1U);
 }
 
 TEST_F(EncryptedResponseTest, ClientKeepsRequestHashPerDomain) {

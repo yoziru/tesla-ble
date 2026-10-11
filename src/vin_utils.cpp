@@ -41,35 +41,53 @@ std::string get_vin_advertisement_name(const char *vin) {
 std::string get_vin_advertisement_name(const std::string &vin) { return get_vin_advertisement_name(vin.c_str()); }
 
 bool is_tesla_vehicle_name(const char *name) {
-  if (!name || strlen(name) != 18) {
+  if (!name) {
     return false;
   }
+  const size_t length = strlen(name);
 
-  if (name[0] != 'S' || name[17] != 'C') {
-    return false;
-  }
-
-  // Check that the middle 16 characters are valid hex
-  for (int i = 1; i < 17; ++i) {
-    if (!isxdigit(static_cast<unsigned char>(name[i]))) {
-      return false;
+  // Old scheme: 'S' + 16 hex chars + one of C/R/D/P (center/rear/driver/passenger beacon).
+  if (length == 18 && name[0] == 'S' && strchr("CDRP", toupper(static_cast<unsigned char>(name[17])))) {
+    for (int i = 1; i < 17; ++i) {
+      if (!isxdigit(static_cast<unsigned char>(name[i]))) {
+        return false;
+      }
     }
+    return true;
   }
 
-  return true;
+  // New scheme (2023+): "Tesla " + last 6 characters of the VIN.
+  if (length == 12 && strncmp(name, "Tesla ", 6) == 0) {
+    for (int i = 6; i < 12; ++i) {
+      if (!isalnum(static_cast<unsigned char>(name[i]))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
 }
 
 bool is_tesla_vehicle_name(const std::string &name) { return is_tesla_vehicle_name(name.c_str()); }
 
 bool matches_vin(const char *device_name, const char *vin) {
-  if (!device_name || !vin) {
+  if (!device_name || !vin || strlen(vin) != 17) {
     return false;
   }
   std::string expected_name = get_vin_advertisement_name(vin);
   if (expected_name.empty()) {
     return false;
   }
-  return expected_name == device_name;
+  std::string actual(device_name);
+  // Old scheme: same "S<16 hex>" prefix; the last character selects the
+  // beacon (center/rear/driver/passenger) and may differ from the default 'C'.
+  if (actual.size() == 18 && actual.compare(0, 17, expected_name, 0, 17) == 0 &&
+      strchr("CDRP", toupper(static_cast<unsigned char>(actual[17])))) {
+    return true;
+  }
+  // New scheme: "Tesla " + last 6 characters of the VIN.
+  return std::string("Tesla ") + (vin + 11) == actual;
 }
 
 bool matches_vin(const std::string &device_name, const std::string &vin) {

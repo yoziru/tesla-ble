@@ -38,16 +38,34 @@ uv run pytest bindings/python/tests -q
 uv run ruff check bindings/python scripts
 uv run ruff format --check bindings/python scripts
 uv run mypy
+uv run mypy --strict bindings/python/tests/typing_contract.py
+uv run python -m mypy.stubtest tesla_ble._tesla_ble --allowlist bindings/python/tests/stubtest_allowlist.txt
 ```
 
 `uv build` produces wheels/sdists; sdists contain the whole C++ library and
 build standalone, fetching the pinned nanopb and Mbed TLS dependencies.
 Run `python3 scripts/check_dist.py dist` to check archive contents and licenses.
 
-Ruff covers the Python package, tools and tests. Mypy strictly checks the
-standalone Python tools; checking the compiled API requires `.pyi` stubs,
-which are not shipped yet. Use `uv run ruff format bindings/python scripts`
-to apply formatting.
+Ruff covers the Python package, tools, tests and stubs. Mypy strictly checks
+the standalone tools and the public-API typing contract above. Use
+`uv run ruff format bindings/python scripts` to apply formatting.
+
+The wheel ships `_tesla_ble.pyi` and `py.typed`: adapters, results and callbacks
+are typed; telemetry dictionaries remain `dict[str, Any]`. Stubs are checked
+in and maintained alongside `cpp/module.cpp`, not generated during wheel
+builds (including cross-compilation). CI checks signatures against the
+installed wheel with `stubtest`; its allowlist covers only pybind11 metaclass
+and native-enum implementation details.
+
+For an initial signature reference after adding bindings, generate into a
+temporary directory and review the changes rather than overwriting the
+refined callback and adapter annotations:
+
+```sh
+uv run --with pybind11-stubgen pybind11-stubgen tesla_ble._tesla_ble --exit-code \
+  --enum-class-locations 'WakePolicy:tesla_ble._tesla_ble' \
+  --enum-class-locations 'KeysRole:tesla_ble._tesla_ble' -o build/stubs
+```
 
 ## Wheels
 

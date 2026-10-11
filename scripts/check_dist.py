@@ -9,6 +9,7 @@ def check(path: Path) -> None:
     if path.suffix == ".whl":
         with zipfile.ZipFile(path) as archive:
             names = archive.namelist()
+            assert {"tesla_ble/_tesla_ble.pyi", "tesla_ble/py.typed"} <= set(names), path
             assert not any(
                 name.startswith(("include/", "lib/", "lib64/", "bin/")) for name in names
             ), path

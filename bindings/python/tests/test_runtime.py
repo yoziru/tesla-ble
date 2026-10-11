@@ -5,8 +5,7 @@ import weakref
 
 import pytest
 import tesla_ble
-
-from conftest import FakeBleAdapter, FakeStorage, VIN, make_vehicle, pump
+from conftest import VIN, FakeBleAdapter, FakeStorage, make_vehicle, pump
 
 
 def test_vehicle_retains_temporary_python_adapters():
@@ -30,14 +29,18 @@ def test_vehicle_retains_temporary_python_adapters():
 @pytest.mark.parametrize("missing", ["ble", "storage"])
 def test_null_adapter_is_rejected(missing):
     with pytest.raises(ValueError, match="must not be None"):
-        tesla_ble.Vehicle(None if missing == "ble" else FakeBleAdapter(),
-                          None if missing == "storage" else FakeStorage())
+        tesla_ble.Vehicle(
+            None if missing == "ble" else FakeBleAdapter(),
+            None if missing == "storage" else FakeStorage(),
+        )
 
 
 def test_installed_log_callback_is_safe_at_interpreter_exit():
     completed = subprocess.run(
         [sys.executable, "-c", "import tesla_ble; tesla_ble.set_log_callback(lambda *args: None)"],
-        capture_output=True, text=True, timeout=10,
+        capture_output=True,
+        text=True,
+        timeout=10,
     )
     assert completed.returncode == 0, completed.stderr
 
@@ -70,7 +73,10 @@ def test_media_callback_validation_and_clearing():
 
 def test_raw_callback_can_disconnect():
     completed = subprocess.run(
-        [sys.executable, "-c", '''
+        [
+            sys.executable,
+            "-c",
+            """
 import sys
 sys.path.insert(0, "bindings/python/tests")
 from conftest import make_vehicle
@@ -79,7 +85,11 @@ vehicle.set_connected(True)
 vehicle.set_raw_message_callback(lambda _: vehicle.set_connected(False))
 vehicle.on_rx_data(bytes.fromhex("000b3a02080352051203a20100"))
 assert not vehicle.is_connected
-'''], capture_output=True, text=True, timeout=10,
+""",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=10,
     )
     assert completed.returncode == 0, completed.stderr
 
@@ -96,7 +106,7 @@ def test_identical_consecutive_fragments_preserve_media_response():
     first = len(frame) - 80
     vehicle.on_rx_data(frame[:first])
     for offset in range(first, len(frame), 20):
-        vehicle.on_rx_data(frame[offset:offset + 20])
+        vehicle.on_rx_data(frame[offset : offset + 20])
     vehicle.loop()
     assert states[-1]["now_playing_artist"] == "a" * 80
 

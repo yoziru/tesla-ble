@@ -1,7 +1,8 @@
 """Shared fixtures and helpers for the tesla_ble binding tests."""
 
-import tesla_ble
 import time
+
+import tesla_ble
 
 VIN = "5YJ30123456789ABC"
 

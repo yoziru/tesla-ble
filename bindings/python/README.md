@@ -6,22 +6,25 @@ vehicles over BLE from Python.
 ```python
 import tesla_ble
 
+
 class MyBle(tesla_ble.BleAdapter):
     def connect(self, address): ...
     def disconnect(self): ...
     def write(self, data: bytes) -> bool: ...
+
 
 class MyStorage(tesla_ble.StorageAdapter):
     def load(self, key): ...
     def save(self, key, data): ...
     def remove(self, key): ...
 
+
 vehicle = tesla_ble.Vehicle(MyBle(), MyStorage())
 vehicle.set_vin("5YJ...")
 vehicle.set_connected(True)
 vehicle.set_charge_state_callback(lambda state: print(state["battery_level"]))
-vehicle.loop()          # drive the state machine from your event loop
-vehicle.on_rx_data(...) # feed BLE notifications
+vehicle.loop()  # drive the state machine from your event loop
+vehicle.on_rx_data(...)  # feed BLE notifications
 ```
 
 ## Development
@@ -32,15 +35,23 @@ extension sources are under `bindings/python/`.
 ```sh
 uv sync                    # creates .venv, builds and installs tesla-ble + pytest
 uv run pytest bindings/python/tests -q
+uv run ruff check bindings/python scripts
+uv run ruff format --check bindings/python scripts
+uv run mypy
 ```
 
 `uv build` produces wheels/sdists; sdists contain the whole C++ library and
 build standalone, fetching the pinned nanopb and Mbed TLS dependencies.
 Run `python3 scripts/check_dist.py dist` to check archive contents and licenses.
 
+Ruff covers the Python package, tools and tests. Mypy strictly checks the
+standalone Python tools; checking the compiled API requires `.pyi` stubs,
+which are not shipped yet. Use `uv run ruff format bindings/python scripts`
+to apply formatting.
+
 ## Wheels
 
-CI builds wheels for CPython 3.13 and 3.14 (see `[tool.cibuildwheel]` in
+CI builds wheels for CPython 3.13, 3.14 and 3.15 (see `[tool.cibuildwheel]` in
 `pyproject.toml`):
 
 | Platform | Architectures | Typical Home Assistant setup |
@@ -56,7 +67,7 @@ Local builds:
 uvx cibuildwheel --platform linux .
 
 # macOS: cibuildwheel requires the python.org framework CPythons.
-# Install the 3.13/3.14 installers from python.org (admin prompt), then:
+# Install the 3.13/3.14/3.15 installers from python.org (admin prompt), then:
 uvx cibuildwheel --platform macos .
 ```
 
@@ -94,7 +105,7 @@ sets up QEMU explicitly. Every testable wheel runs the offline bindings suite.
 
   ```python
   vehicle.set_connected(False)  # finish/fail pending action callbacks
-  vehicle.clear_callbacks()     # release state and raw-message callbacks
+  vehicle.clear_callbacks()  # release state and raw-message callbacks
   ```
 
   Release any adapter-to-owner references too. `set_log_callback(None)` removes

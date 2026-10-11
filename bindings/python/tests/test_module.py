@@ -1,7 +1,6 @@
 """Tests for module-level helpers: VIN names, state text, polling policy."""
 
 import tesla_ble
-
 from conftest import VIN, make_vehicle, pump
 
 

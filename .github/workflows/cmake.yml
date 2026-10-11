@@ -16,6 +16,19 @@ env:
   CLANG_VERSION: 21
 
 jobs:
+  python_quality:
+    name: Python lint, format and types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: "3.13"
+      - run: uv sync --locked --only-dev
+      - run: uv run --no-sync ruff check bindings/python scripts
+      - run: uv run --no-sync ruff format --check bindings/python scripts
+      - run: uv run --no-sync mypy
+
   python:
     name: Python ${{ matrix.python }} bindings and packaging
     runs-on: ubuntu-latest

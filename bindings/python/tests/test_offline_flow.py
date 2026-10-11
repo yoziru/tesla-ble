@@ -1,9 +1,8 @@
 """Offline end-to-end tests: Python Vehicle <-> SimulatedVehicle over fake BLE."""
 
-import tesla_ble
 import pytest
-
-from conftest import VIN, FakeStorage, make_vehicle, pump
+import tesla_ble
+from conftest import VIN, make_vehicle, pump
 
 
 def test_vcsec_poll_reports_vehicle_status():
@@ -70,7 +69,10 @@ def test_seat_cabin_and_sunroof_commands_report_protocol_state():
         pump(vehicle, ble, sim)
         assert results[-1].success
         assert climate[-1][field] == level
-    for seat, side in ((tesla_ble.SeatPosition.FRONT_LEFT, "left"), (tesla_ble.SeatPosition.FRONT_RIGHT, "right")):
+    for seat, side in (
+        (tesla_ble.SeatPosition.FRONT_LEFT, "left"),
+        (tesla_ble.SeatPosition.FRONT_RIGHT, "right"),
+    ):
         for level in range(4):
             vehicle.set_seat_cooler(seat, level, results.append)
             vehicle.climate_state_poll()
@@ -238,7 +240,9 @@ def test_charge_state_poll_reports_state():
 
 def test_software_update_poll_reports_state():
     sim = tesla_ble.SimulatedVehicle(VIN)
-    sim.set_software_update_state(4)  # CarServer_SoftwareUpdateState_SoftwareUpdateStatus_Available_tag
+    sim.set_software_update_state(
+        4
+    )  # CarServer_SoftwareUpdateState_SoftwareUpdateStatus_Available_tag
 
     ble, _, vehicle = make_vehicle()
     states = []
@@ -431,7 +435,6 @@ def test_disconnected_command_reports_failure():
 
 
 def test_disconnect_fails_queued_command():
-    sim = tesla_ble.SimulatedVehicle(VIN)
     ble, _, vehicle = make_vehicle()
     results = []
 
@@ -459,8 +462,6 @@ def test_unpaired_vehicle_reports_key_not_on_whitelist():
 
 
 def test_skip_wake_when_already_awake():
-    sim = tesla_ble.SimulatedVehicle(VIN)
-
     _, _, vehicle = make_vehicle()
     results = []
 
@@ -493,7 +494,9 @@ def test_raw_message_and_log_callbacks():
     assert all(isinstance(frame, bytes) for frame in raw_frames)
     assert log_lines, "log callback must receive messages"
     assert any("VCSEC" in message or "vehicle" in message.lower() for _, message in log_lines)
-    assert not any("Session key:" in message or "Session key (first" in message for _, message in log_lines)
+    assert not any(
+        "Session key:" in message or "Session key (first" in message for _, message in log_lines
+    )
 
 
 def test_simulated_vehicle_counts_frames():

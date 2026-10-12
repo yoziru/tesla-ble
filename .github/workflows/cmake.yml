@@ -126,7 +126,7 @@ jobs:
       - name: Setup ccache
         # Skip ccache for format check as it doesn't compile code
         if: matrix.check != 'format'
-        uses: hendrikmuhs/ccache-action@v1.2.20
+        uses: hendrikmuhs/ccache-action@v1.2.24
         with:
           key: checks-${{ matrix.check }}-${{ runner.os }}-mbedtls-3.6.6
 

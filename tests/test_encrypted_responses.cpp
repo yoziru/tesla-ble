@@ -165,6 +165,8 @@ std::vector<uint8_t> make_encrypted_response(Client &helper, UniversalMessage_Do
 
   UniversalMessage_RoutableMessage response = UniversalMessage_RoutableMessage_init_default;
   response.has_from_destination = true;
+  response.has_to_destination = true;
+  response.to_destination = request.from_destination;
   response.from_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;
   response.from_destination.sub_destination.domain = domain;
   response.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
@@ -420,4 +422,113 @@ TEST_F(EncryptedResponseTest, ClientKeepsRequestHashPerDomain) {
       << "VCSEC request hash must survive a later Infotainment request";
   EXPECT_TRUE(std::equal(info_hash, info_hash + info_hash_length, expected_info_hash.begin()))
       << "Infotainment request hash must match its request";
+}
+
+TEST_F(EncryptedResponseTest, WakeAndProbeKeepIndependentRoutingAndReplayContexts) {
+  for (bool explicit_wake : {false, true}) {
+    SCOPED_TRACE(explicit_wake);
+    vehicle_ = std::make_shared<Vehicle>(mock_ble_, mock_storage_);
+    vehicle_->set_vin(TEST_VIN);
+    vehicle_->set_connected(true);
+    vehicle_->set_sleep_state(TeslaBLE::SleepState::ASLEEP);
+    mock_ble_->clear_written_data();
+    int completions = 0;
+    auto completed = [&](TeslaBLE::OperationResult result) {
+      ++completions;
+      EXPECT_TRUE(result.is_success());
+    };
+    if (explicit_wake)
+      vehicle_->wake(completed);
+    else
+      vehicle_->set_climate(true, completed);
+    vehicle_->loop();
+    vehicle_->loop();
+    ASSERT_EQ(mock_ble_->get_written_data().size(), 1U);
+    const auto wake = mock_ble_->get_written_data().front();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+    vehicle_->loop();
+    ASSERT_EQ(mock_ble_->get_written_data().size(), 2U);
+    const auto probe_frame = mock_ble_->get_written_data().back();
+    UniversalMessage_RoutableMessage probe = UniversalMessage_RoutableMessage_init_default;
+    ASSERT_EQ(helper_->parse_universal_message(const_cast<pb_byte_t *>(probe_frame.data()) + 2, probe_frame.size() - 2,
+                                               &probe),
+              TeslaBLE_Status_E_OK);
+
+    VCSEC_FromVCSECMessage content = VCSEC_FromVCSECMessage_init_default;
+    content.which_sub_message = VCSEC_FromVCSECMessage_vehicleStatus_tag;
+    content.sub_message.vehicleStatus.vehicleSleepStatus = VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_ASLEEP;
+    pb_byte_t payload[256];
+    size_t length = sizeof(payload);
+    ASSERT_EQ(TeslaBLE::pb_encode_fields(payload, &length, VCSEC_FromVCSECMessage_fields, &content),
+              TeslaBLE_Status_E_OK);
+    const auto encrypted =
+        make_encrypted_response(*helper_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, 0, wake, payload, length);
+    UniversalMessage_RoutableMessage reply = UniversalMessage_RoutableMessage_init_default;
+    ASSERT_EQ(
+        helper_->parse_universal_message(const_cast<pb_byte_t *>(encrypted.data()) + 2, encrypted.size() - 2, &reply),
+        TeslaBLE_Status_E_OK);
+    reply.request_uuid.size = 0;
+    int observations = 0;
+    vehicle_->set_vehicle_status_callback([&](const auto &) { ++observations; });
+    auto forged_fault = reply;
+    forged_fault.has_signedMessageStatus = true;
+    forged_fault.signedMessageStatus.operation_status = UniversalMessage_OperationStatus_E_OPERATIONSTATUS_ERROR;
+    forged_fault.signedMessageStatus.signed_message_fault =
+        UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_TOKEN_OR_COUNTER;
+    vehicle_->on_rx_data(frame_universal_message(forged_fault));
+    vehicle_->loop();
+    EXPECT_EQ(mock_ble_->get_written_data().size(), 2U);
+    EXPECT_EQ(completions, 0);
+    auto wrong_address = reply;
+    wrong_address.to_destination = probe.from_destination;
+    vehicle_->on_rx_data(frame_universal_message(wrong_address));
+    vehicle_->loop();
+    EXPECT_EQ(observations, 0);
+    const auto delayed = frame_universal_message(reply);
+    vehicle_->on_rx_data(delayed);
+    vehicle_->on_rx_data(delayed);
+    vehicle_->loop();
+    EXPECT_EQ(observations, 1);
+    EXPECT_EQ(completions, 0);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+    vehicle_->loop();
+    EXPECT_EQ(mock_ble_->get_written_data().back(), probe_frame);
+    content.sub_message.vehicleStatus.vehicleSleepStatus = VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_AWAKE;
+    length = sizeof(payload);
+    ASSERT_EQ(TeslaBLE::pb_encode_fields(payload, &length, VCSEC_FromVCSECMessage_fields, &content),
+              TeslaBLE_Status_E_OK);
+    reply = UniversalMessage_RoutableMessage_init_default;
+    reply.has_from_destination = true;
+    reply.from_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;
+    reply.from_destination.sub_destination.domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
+    reply.has_to_destination = true;
+    reply.to_destination = probe.from_destination;
+    reply.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
+    reply.payload.protobuf_message_as_bytes.size = length;
+    std::copy_n(payload, length, reply.payload.protobuf_message_as_bytes.bytes);
+    vehicle_->on_rx_data(frame_universal_message(reply));
+    vehicle_->loop();
+    if (!explicit_wake) {
+      vehicle_->loop();
+      vehicle_->on_rx_data(make_ok_infotainment_response(mock_ble_->get_written_data().back(), 0));
+      vehicle_->loop();
+    }
+    EXPECT_EQ(completions, 1);
+
+    vehicle_->lock();
+    vehicle_->loop();
+    vehicle_->loop();
+    const auto next_request = mock_ble_->get_written_data().back();
+    const auto before = observations;
+    vehicle_->on_rx_data(delayed);
+    vehicle_->loop();
+    EXPECT_EQ(observations, before);
+    vehicle_->on_rx_data(make_encrypted_response(*helper_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, 0,
+                                                 next_request, payload, length));
+    vehicle_->loop();
+    EXPECT_EQ(observations, before + 1);
+    EXPECT_TRUE(vehicle_->get_command_queue_for_testing().empty());
+    vehicle_->set_vehicle_status_callback(nullptr);
+  }
 }

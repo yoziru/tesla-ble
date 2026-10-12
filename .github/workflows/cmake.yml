@@ -77,7 +77,7 @@ jobs:
       - name: Cache LLVM repository setup
         if: matrix.check == 'format' || matrix.check == 'tidy'
         id: cache-llvm-repo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /etc/apt/sources.list.d/llvm.list
           key: llvm-repo-noble-${{ env.CLANG_VERSION }}-${{ hashFiles('.github/workflows/cmake.yml') }}

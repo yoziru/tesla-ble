@@ -52,7 +52,7 @@ std::vector<uint8_t> frame_bytes(const pb_byte_t *payload, size_t payload_length
   return framed;
 }
 
-std::array<pb_byte_t, 16> extract_request_uuid(const std::vector<uint8_t> &frame, size_t *uuid_length) {
+std::array<pb_byte_t, 16> extract_request_uuid(const std::vector<uint8_t> &frame, size_t *uuid_length = nullptr) {
   std::array<pb_byte_t, 16> uuid{};
   if (uuid_length) {
     *uuid_length = 0;
@@ -132,6 +132,7 @@ std::vector<uint8_t> make_session_info_response(const pb_byte_t *request_uuid, s
   std::copy(session_info_buffer, session_info_buffer + session_info_length, message.payload.session_info.bytes);
 
   message.request_uuid.size = request_uuid_length;
+  message.has_to_destination = false;
   std::copy(request_uuid, request_uuid + request_uuid_length, message.request_uuid.bytes);
 
   size_t vin_length = strlen(TEST_VIN);
@@ -376,10 +377,6 @@ std::vector<uint8_t> make_vcsec_vehicle_status_awake_message(
   }
 
   UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
-  message.has_to_destination = true;
-  message.to_destination.which_sub_destination = UniversalMessage_Destination_routing_address_tag;
-  message.to_destination.sub_destination.routing_address.size = 16;
-
   message.has_from_destination = true;
   message.from_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;
   message.from_destination.sub_destination.domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
@@ -530,7 +527,8 @@ TEST_F(VehicleTest, InfotainmentPollCompletesOnResponse) {
 
   ASSERT_FALSE(callback_called) << "Infotainment command should not complete before response";
 
-  auto response_frame = make_plain_infotainment_response();
+  auto response_frame =
+      with_request_uuid(make_plain_infotainment_response(), extract_request_uuid(mock_ble_->get_written_data().back()));
   ASSERT_FALSE(response_frame.empty());
   vehicle_->on_rx_data(response_frame);
   vehicle_->loop();
@@ -563,7 +561,8 @@ TEST_F(VehicleTest, PollAndChargingCommandResponsesStaySerialized) {
   vehicle_->loop();
   ASSERT_EQ(mock_ble_->get_written_data().size(), 2U);
 
-  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->on_rx_data(with_request_uuid(make_vcsec_vehicle_status_awake_message(),
+                                         extract_request_uuid(mock_ble_->get_written_data().back())));
   vehicle_->loop();
   writes = mock_ble_->get_written_data();
   ASSERT_EQ(writes.size(), 3U);
@@ -713,7 +712,9 @@ TEST_F(VehicleTest, InfotainmentActionFailureSurfacesPlainTextReason) {
   vehicle_->on_rx_data(infotainment_session);
   vehicle_->loop();
 
-  auto action_error_frame = make_plain_infotainment_action_error_response("climate keeper unavailable");
+  auto action_error_frame =
+      with_request_uuid(make_plain_infotainment_action_error_response("climate keeper unavailable"),
+                        extract_request_uuid(mock_ble_->get_written_data().back()));
   ASSERT_FALSE(action_error_frame.empty());
   vehicle_->on_rx_data(action_error_frame);
   vehicle_->loop();
@@ -757,7 +758,8 @@ TEST_F(VehicleTest, AlreadySetActionIsAnIdempotentSuccess) {
       make_infotainment_session_info_with_valid_hmac(infotainment_request_uuid.data(), request_uuid_length));
   vehicle_->loop();
 
-  vehicle_->on_rx_data(make_plain_infotainment_action_error_response("already_set"));
+  vehicle_->on_rx_data(with_request_uuid(make_plain_infotainment_action_error_response("already_set"),
+                                         extract_request_uuid(mock_ble_->get_written_data().back())));
   vehicle_->loop();
 
   EXPECT_EQ(outcome, TeslaBLE::OperationOutcome::SUCCESS);
@@ -1477,6 +1479,136 @@ TEST_F(VehicleTest, WakeStatusBurstSendsOneInfotainmentSessionRequest) {
   EXPECT_EQ(command->current_auth_domain, UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
 }
 
+TEST_F(VehicleTest, WakeWaitPollsStatusWithoutBlockingOnQueuedCommands) {
+  for (bool explicit_wake : {false, true}) {
+    SCOPED_TRACE(explicit_wake);
+    vehicle_->set_connected(false);
+    vehicle_->set_connected(true);
+    vehicle_->set_sleep_state(TeslaBLE::SleepState::ASLEEP);
+    mock_ble_->clear_written_data();
+    int completions = 0;
+    auto completed = [&](TeslaBLE::OperationResult result) {
+      ++completions;
+      EXPECT_TRUE(result.is_success());
+    };
+    if (explicit_wake) {
+      vehicle_->wake(completed);
+    } else {
+      vehicle_->set_climate(true, completed);
+    }
+    vehicle_->vcsec_poll();
+    vehicle_->loop();
+    size_t length = 0;
+    auto uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+    ASSERT_EQ(length, uuid.size());
+    vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), length));
+    vehicle_->loop();
+    const auto writes_after_wake = mock_ble_->get_written_data().size();
+    ASSERT_EQ(completions, 0);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+    vehicle_->loop();
+    auto writes = mock_ble_->get_written_data();
+    ASSERT_EQ(writes.size(), writes_after_wake + 1);
+    Client parser;
+    UniversalMessage_RoutableMessage probe = UniversalMessage_RoutableMessage_init_default;
+    ASSERT_EQ(parser.parse_universal_message(writes.back().data() + 2, writes.back().size() - 2, &probe),
+              TeslaBLE_Status_E_OK);
+    ASSERT_EQ(probe.to_destination.sub_destination.domain, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+    ASSERT_EQ(probe.which_sub_sigData, 0);
+    VCSEC_UnsignedMessage payload = VCSEC_UnsignedMessage_init_default;
+    auto stream = pb_istream_from_buffer(probe.payload.protobuf_message_as_bytes.bytes,
+                                         probe.payload.protobuf_message_as_bytes.size);
+    ASSERT_TRUE(pb_decode(&stream, VCSEC_UnsignedMessage_fields, &payload));
+    ASSERT_EQ(payload.which_sub_message, VCSEC_UnsignedMessage_InformationRequest_tag);
+    EXPECT_EQ(payload.sub_message.InformationRequest.informationRequestType,
+              VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS);
+    uuid = extract_request_uuid(writes.back(), &length);
+    ASSERT_EQ(length, uuid.size());
+    vehicle_->on_rx_data(with_request_uuid(
+        make_vcsec_vehicle_status_awake_message(VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_ASLEEP), uuid));
+    vehicle_->loop();
+    EXPECT_EQ(completions, 0);
+    EXPECT_EQ(mock_ble_->get_written_data().size(), writes.size());
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+    vehicle_->loop();
+    uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+    ASSERT_EQ(length, uuid.size());
+    vehicle_->on_rx_data(with_request_uuid(make_vcsec_vehicle_status_awake_message(), uuid));
+    vehicle_->loop();
+    if (!explicit_wake) {
+      uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+      vehicle_->on_rx_data(make_infotainment_session_info_with_valid_hmac(uuid.data(), length));
+      vehicle_->loop();
+      uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+      vehicle_->on_rx_data(make_plain_infotainment_response(uuid.data(), length));
+      vehicle_->loop();
+    }
+    EXPECT_EQ(completions, 1);
+    vehicle_->set_connected(false);
+    EXPECT_EQ(completions, 1);
+  }
+}
+
+TEST_F(VehicleTest, WakeSessionRecoveryRebuildsRequestsAndRemainsBounded) {
+  for (bool explicit_wake : {false, true}) {
+    for (auto fault : {UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_TOKEN_OR_COUNTER,
+                       UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INSUFFICIENT_PRIVILEGES}) {
+      SCOPED_TRACE(explicit_wake);
+      SCOPED_TRACE(fault);
+      vehicle_->set_connected(false);
+      vehicle_->set_connected(true);
+      mock_ble_->clear_written_data();
+      int failures = 0;
+      auto failed = [&](TeslaBLE::OperationResult result) {
+        ++failures;
+        EXPECT_TRUE(result.is_failure());
+      };
+      if (explicit_wake) {
+        vehicle_->wake(failed);
+      } else {
+        vehicle_->set_climate(true, failed);
+      }
+      vehicle_->loop();
+      size_t length = 0;
+      auto uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+      vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), length));
+      vehicle_->loop();
+      Client parser;
+      const int attempts = fault == UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_TOKEN_OR_COUNTER
+                               ? Vehicle::MAX_RETRIES
+                               : 0;
+      for (int attempt = 0; attempt <= attempts; ++attempt) {
+        uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+        ASSERT_EQ(length, uuid.size());
+        const uint32_t counter = 50 + attempt;
+        auto response = make_vcsec_session_info_with_counter(uuid.data(), length, counter);
+        UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
+        ASSERT_EQ(parser.parse_universal_message(response.data() + 2, response.size() - 2, &message),
+                  TeslaBLE_Status_E_OK);
+        message.has_signedMessageStatus = true;
+        message.signedMessageStatus.operation_status = UniversalMessage_OperationStatus_E_OPERATIONSTATUS_ERROR;
+        message.signedMessageStatus.signed_message_fault = fault;
+        vehicle_->on_rx_data(frame_universal_message(message));
+        vehicle_->loop();
+        vehicle_->loop();
+        if (attempt < attempts) {
+          ASSERT_EQ(failures, 0);
+          auto request = mock_ble_->get_written_data().back();
+          ASSERT_EQ(parser.parse_universal_message(request.data() + 2, request.size() - 2, &message),
+                    TeslaBLE_Status_E_OK);
+          EXPECT_EQ(message.sub_sigData.signature_data.sig_type.AES_GCM_Personalized_data.counter, counter + 1);
+        }
+      }
+      EXPECT_EQ(failures, 1);
+      EXPECT_TRUE(vehicle_->get_command_queue_for_testing().empty());
+      vehicle_->set_connected(false);
+      EXPECT_EQ(failures, 1);
+    }
+  }
+}
+
 TEST_F(VehicleTest, UnansweredSessionRequestIsResentUnchangedEverySecond) {
   vehicle_->set_connected(true);
   TeslaBLE::TestHelpers::send_command_bool(
@@ -1617,8 +1749,6 @@ static std::vector<uint8_t> make_error_time_expired_message(UniversalMessage_Dom
   error_msg.signedMessageStatus.signed_message_fault = UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_TIME_EXPIRED;
 
   // Embed the raw session_info bytes (re-use from mock message)
-  // The HMAC will not verify (wrong UUID), but that's fine —
-  // the peer was already reset so the command retries with fresh auth.
   error_msg.which_payload = UniversalMessage_RoutableMessage_session_info_tag;
   std::copy_n(mock_msg.payload.session_info.bytes, mock_msg.payload.session_info.size,
               error_msg.payload.session_info.bytes);
@@ -1672,13 +1802,21 @@ TEST_F(VehicleTest, ErrorTimeExpiredTriggersSessionResetAndReAuth) {
     }
 
     // Step 4 — inject ERROR_TIME_EXPIRED response
-    auto error_frame = make_error_time_expired_message(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+    auto error_frame =
+        with_request_uuid(make_error_time_expired_message(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY),
+                          extract_request_uuid(writes_before.back()));
     ASSERT_GT(error_frame.size(), 0) << "Should build error message";
-    if (scenario >= 2) {
+    {
       Client parser;
       UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
       ASSERT_EQ(parser.parse_universal_message(error_frame.data() + 2, error_frame.size() - 2, &message),
                 TeslaBLE_Status_E_OK);
+      if (scenario < 2) {
+        vehicle_->on_rx_data(error_frame);
+        vehicle_->loop();
+        EXPECT_TRUE(command->awaiting_response());
+        EXPECT_EQ(command->retry_count, scenario % 2);
+      }
       message.which_payload = 0;
       error_frame = frame_universal_message(message);
       ASSERT_FALSE(error_frame.empty());
@@ -1740,6 +1878,9 @@ TEST_F(VehicleTest, SignedMessageRejectionCompletesDuringRetryBackoff) {
 
   UniversalMessage_RoutableMessage rejection = UniversalMessage_RoutableMessage_init_default;
   rejection.has_from_destination = true;
+  auto command_uuid = extract_request_uuid(mock_ble_->get_written_data().back());
+  rejection.request_uuid.size = command_uuid.size();
+  std::copy(command_uuid.begin(), command_uuid.end(), rejection.request_uuid.bytes);
   rejection.from_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;
   rejection.from_destination.sub_destination.domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
   rejection.has_signedMessageStatus = true;
@@ -1962,7 +2103,8 @@ TEST_F(VehicleTest, MissingSessionInfoHmacTagFailsAuthGracefully) {
   ASSERT_GE(writes.size(), 1) << "Should send session info request";
   mock_ble_->clear_written_data();
 
-  auto no_hmac_resp = make_session_info_no_hmac_tag(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  auto no_hmac_resp = with_request_uuid(make_session_info_no_hmac_tag(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY),
+                                        extract_request_uuid(writes.back()));
   ASSERT_FALSE(no_hmac_resp.empty()) << "Should build no-HMAC session info response";
 
   vehicle_->on_rx_data(no_hmac_resp);
@@ -1974,6 +2116,41 @@ TEST_F(VehicleTest, MissingSessionInfoHmacTagFailsAuthGracefully) {
       << "Error should indicate auth failure: " << captured_error->message();
 
   EXPECT_TRUE(mock_ble_->get_written_data().empty()) << "No additional writes should occur after auth failure";
+}
+
+TEST_F(VehicleTest, SessionInfoOutsideLatencyWindowCannotRestoreSession) {
+  vehicle_->set_connected(true);
+  int completions = 0;
+  vehicle_->vcsec_poll(TeslaBLE::WakePolicy::NO_WAKE_SKIP, [&](TeslaBLE::OperationResult result) {
+    ++completions;
+    EXPECT_TRUE(result.is_failure());
+  });
+  vehicle_->loop();
+  const auto request = mock_ble_->get_written_data().back();
+  const auto uuid = extract_request_uuid(request);
+  const auto response = make_vcsec_session_info_with_valid_hmac(uuid.data(), uuid.size());
+  std::this_thread::sleep_for(Vehicle::CLOCK_SYNC_MAX_LATENCY + std::chrono::milliseconds(100));
+  vehicle_->on_rx_data(response);
+  vehicle_->loop();
+  EXPECT_EQ(completions, 0);
+  EXPECT_EQ(mock_storage_->get_storage().count("session_vcsec"), 0U);
+  EXPECT_NE(mock_ble_->get_written_data().back(), request);
+  const auto refreshed_uuid = extract_request_uuid(mock_ble_->get_written_data().back());
+  EXPECT_NE(refreshed_uuid, uuid);
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(refreshed_uuid.data(), refreshed_uuid.size()));
+  vehicle_->loop();
+  EXPECT_EQ(completions, 0);
+  EXPECT_EQ(mock_storage_->get_storage().count("session_vcsec"), 1U);
+  vehicle_->set_connected(false);
+  EXPECT_EQ(completions, 1);
+  vehicle_->set_connected(true);
+  vehicle_->vcsec_poll();
+  vehicle_->loop();
+  const auto fresh_request = mock_ble_->get_written_data().back();
+  vehicle_->on_rx_data(response);
+  vehicle_->loop();
+  EXPECT_EQ(mock_ble_->get_written_data().back(), fresh_request);
+  EXPECT_EQ(completions, 1);
 }
 
 TEST_F(VehicleTest, MissingSessionInfoHmacTagDoesNotBlockSubsequentCommands) {
@@ -1995,7 +2172,8 @@ TEST_F(VehicleTest, MissingSessionInfoHmacTagDoesNotBlockSubsequentCommands) {
   ASSERT_GE(writes.size(), 1);
   mock_ble_->clear_written_data();
 
-  auto no_hmac_resp = make_session_info_no_hmac_tag(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  auto no_hmac_resp = with_request_uuid(make_session_info_no_hmac_tag(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY),
+                                        extract_request_uuid(writes.back()));
   ASSERT_FALSE(no_hmac_resp.empty());
   vehicle_->on_rx_data(no_hmac_resp);
   vehicle_->loop();
@@ -2040,9 +2218,11 @@ TEST_F(VehicleTest, PairingBypassesAuthEvenWhenVcsecAuthIsFailing) {
       [&](bool success) { poll_failed = !success; });
 
   vehicle_->loop();
+  const auto auth_uuid = extract_request_uuid(mock_ble_->get_written_data().back());
   mock_ble_->clear_written_data();
 
-  auto no_hmac_resp = make_session_info_no_hmac_tag(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY);
+  auto no_hmac_resp =
+      with_request_uuid(make_session_info_no_hmac_tag(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY), auth_uuid);
   ASSERT_FALSE(no_hmac_resp.empty());
   vehicle_->on_rx_data(no_hmac_resp);
   vehicle_->loop();
@@ -2448,7 +2628,8 @@ TEST_F(VehicleInternalTest, CommandCompletesAfterTimeoutWithPartialData) {
   cmd->next_retry_time = std::chrono::steady_clock::now() - std::chrono::milliseconds(1);
 
   vehicle_->loop();
-  vehicle_->on_rx_data(make_plain_infotainment_response());
+  vehicle_->on_rx_data(with_request_uuid(make_plain_infotainment_response(),
+                                         extract_request_uuid(mock_ble_->get_written_data().back())));
   vehicle_->loop();
 
   ASSERT_TRUE(completed);
@@ -2548,7 +2729,8 @@ TEST_F(VehicleTest, RegenerateKeyResetsSessionsAndStoredCredentials) {
   ASSERT_NE(mock_storage_->get_storage().count("session_vcsec"), 0U)
       << "Session should be persisted while authenticated";
   // Finish the poll so the queue drains before regenerating.
-  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->on_rx_data(with_request_uuid(make_vcsec_vehicle_status_awake_message(),
+                                         extract_request_uuid(mock_ble_->get_written_data().back())));
   vehicle_->loop();
 
   vehicle_->regenerate_key();
@@ -2640,7 +2822,8 @@ TEST_F(VehicleTest, SetClimateActionCallbackReceivesSuccessOnAlreadySet) {
       make_infotainment_session_info_with_valid_hmac(infotainment_request_uuid.data(), request_uuid_length));
   vehicle_->loop();
 
-  vehicle_->on_rx_data(make_plain_infotainment_action_error_response("already_set"));
+  vehicle_->on_rx_data(with_request_uuid(make_plain_infotainment_action_error_response("already_set"),
+                                         extract_request_uuid(mock_ble_->get_written_data().back())));
   vehicle_->loop();
 
   EXPECT_EQ(outcome, TeslaBLE::OperationOutcome::SUCCESS);
@@ -2698,7 +2881,8 @@ TEST_F(VehicleTest, SuccessfulActionSchedulesFollowUpPoll) {
 
   // The lock command completes on the next vehicle status; a VCSEC poll must
   // then be queued so hosts get fresh lock state without extra bookkeeping.
-  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->on_rx_data(with_request_uuid(make_vcsec_vehicle_status_awake_message(),
+                                         extract_request_uuid(mock_ble_->get_written_data().back())));
   vehicle_->loop();
 
   const auto &queue = vehicle_->get_command_queue_for_testing();
@@ -2733,7 +2917,8 @@ TEST_F(VehicleTest, ClimateActionSchedulesChargeIndependentFollowUp) {
       make_infotainment_session_info_with_valid_hmac(infotainment_request_uuid.data(), request_uuid_length));
   vehicle_->loop();
 
-  vehicle_->on_rx_data(make_plain_infotainment_action_error_response("already_set"));
+  vehicle_->on_rx_data(with_request_uuid(make_plain_infotainment_action_error_response("already_set"),
+                                         extract_request_uuid(mock_ble_->get_written_data().back())));
   vehicle_->loop();
 
   const auto &queue = vehicle_->get_command_queue_for_testing();
@@ -2823,7 +3008,8 @@ TEST_F(VehicleTest, CompletionCanDisconnectWithoutReportingAgain) {
   auto uuid = extract_request_uuid(writes.front(), &length);
   vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), length));
   vehicle_->loop();
-  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->on_rx_data(with_request_uuid(make_vcsec_vehicle_status_awake_message(),
+                                         extract_request_uuid(mock_ble_->get_written_data().back())));
   vehicle_->loop();
   EXPECT_EQ(callbacks, 1);
   EXPECT_EQ(vehicle_->pending_command_count(), 0U);
@@ -2933,7 +3119,8 @@ TEST_F(VehicleTest, FullQueueRetainsDeferredFollowUpUntilSpaceIsAvailable) {
   ASSERT_EQ(length, uuid.size());
   vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), length));
   vehicle_->loop();
-  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->on_rx_data(with_request_uuid(make_vcsec_vehicle_status_awake_message(),
+                                         extract_request_uuid(mock_ble_->get_written_data().back())));
   vehicle_->loop();
   EXPECT_EQ(vehicle_->pending_command_count(), Vehicle::MAX_COMMAND_QUEUE_SIZE);
   EXPECT_EQ(vehicle_->get_command_queue_for_testing().size(), Vehicle::MAX_COMMAND_QUEUE_SIZE);
@@ -2953,7 +3140,8 @@ TEST_F(VehicleTest, VcsecPollCallbackReportsCompletion) {
   auto uuid = extract_request_uuid(writes.front(), &length);
   vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), length));
   vehicle_->loop();
-  vehicle_->on_rx_data(make_vcsec_vehicle_status_awake_message());
+  vehicle_->on_rx_data(with_request_uuid(make_vcsec_vehicle_status_awake_message(),
+                                         extract_request_uuid(mock_ble_->get_written_data().back())));
   vehicle_->loop();
   EXPECT_EQ(callbacks, 1);
   EXPECT_EQ(vehicle_->pending_command_count(), 0U);

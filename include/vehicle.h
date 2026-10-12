@@ -6,6 +6,7 @@
 #include "message_processor.h"
 #include "command_error.h"
 #include "polling_policy.h"
+#include "sliding_window.h"
 
 #include <memory>
 #include <functional>
@@ -140,6 +141,7 @@ struct Command {
   std::chrono::steady_clock::time_point started_at;
   std::chrono::steady_clock::time_point phase_started_at;
   std::chrono::steady_clock::time_point last_tx_at;
+  std::chrono::steady_clock::time_point wake_poll_at;
   uint8_t retry_count = 0;
   // Small members of the two blocks below, kept here to avoid padding
   bool resend_encoded = false;
@@ -376,6 +378,22 @@ class Vehicle {
   static constexpr double BACKOFF_MULTIPLIER = 2.0;
 
  private:
+  struct RequestContext {
+    UniversalMessage_Domain domain = UniversalMessage_Domain_DOMAIN_BROADCAST;
+    std::array<pb_byte_t, 16> uuid{};
+    std::array<pb_byte_t, 16> routing_address{};
+    std::array<pb_byte_t, 17> hash{};
+    size_t hash_length = 0;
+    std::chrono::steady_clock::time_point sent_at{};
+    SlidingWindow responses;
+    bool active = false;
+  };
+  RequestContext request_;
+  RequestContext wake_probe_;
+  std::vector<uint8_t> wake_probe_request_;
+  void capture_request_(const std::vector<uint8_t> &frame, RequestContext &context);
+  RequestContext *response_context_(const UniversalMessage_RoutableMessage &msg);
+  void clear_requests_();
   std::shared_ptr<BleAdapter> ble_adapter_;
   std::shared_ptr<StorageAdapter> storage_adapter_;
   std::shared_ptr<Client> client_;
@@ -412,8 +430,7 @@ class Vehicle {
   std::vector<uint8_t> rx_buffer_;
   std::shared_ptr<Command> peek_command_() const;
   void process_command_queue_();
-  void handle_message_(const UniversalMessage_RoutableMessage &msg);
-  bool response_matches_request_(const UniversalMessage_RoutableMessage &msg, UniversalMessage_Domain &domain) const;
+  void handle_message_(UniversalMessage_RoutableMessage msg);
   void process_idle_command_(const std::shared_ptr<Command> &command);
   void process_authenticating_command_(const std::shared_ptr<Command> &command);
   void process_auth_response_waiting_command_(const std::shared_ptr<Command> &command);
@@ -441,7 +458,7 @@ class Vehicle {
   void reset_all_sessions_and_connection_();
   bool attempt_buffer_recovery_(int &msg_len);
   void log_timeout_message_(const std::string &message, const std::shared_ptr<Command> &command);
-  void handle_vehicle_status_command_update_(const std::shared_ptr<Command> &cmd, const VCSEC_VehicleStatus &status);
+  void handle_vehicle_status_command_update_(const std::shared_ptr<Command> &cmd);
   bool is_vehicle_observed_awake_() const;
   bool is_vehicle_observed_asleep_() const;
 
@@ -455,16 +472,17 @@ class Vehicle {
   void initialize_rx_buffer();
 
  private:
-  void handle_vcsec_message_(const UniversalMessage_RoutableMessage &msg, bool matches_request);
-  void handle_carserver_message_(const UniversalMessage_RoutableMessage &msg, bool matches_request);
-  void handle_session_info_message_(const UniversalMessage_RoutableMessage &msg, UniversalMessage_Domain domain);
+  void handle_vcsec_message_(const UniversalMessage_RoutableMessage &msg, RequestContext *context,
+                             bool matches_request);
+  void handle_carserver_message_(const UniversalMessage_RoutableMessage &msg, RequestContext *context);
+  bool handle_session_info_message_(const UniversalMessage_RoutableMessage &msg, RequestContext &context);
   void handle_auth_timeout_common_(const std::shared_ptr<Command> &command, const std::string &domain_name,
                                    CommandState retry_state);
   void handle_vcsec_auth_timeout_(const std::shared_ptr<Command> &command);
   void handle_infotainment_auth_timeout_(const std::shared_ptr<Command> &command);
   void handle_wake_response_timeout_(const std::shared_ptr<Command> &command);
   void handle_signed_message_error_(const UniversalMessage_RoutableMessage &msg, UniversalMessage_Domain domain,
-                                    bool &has_session_error);
+                                    bool &has_session_error, bool session_updated = false);
   void send_infotainment_poll_(const std::string &name, int32_t data_type, WakePolicy wake_policy);
   void initiate_auth_for_domain_(const std::shared_ptr<Command> &command, UniversalMessage_Domain domain,
                                  CommandState waiting_state, const std::string &domain_name);

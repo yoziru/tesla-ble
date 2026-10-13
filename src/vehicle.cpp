@@ -1059,6 +1059,19 @@ bool TeslaBLE::Vehicle::handle_session_info_message_(const UniversalMessage_Rout
     return false;
   }
 
+  if (session_info.status != Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK) {
+    LOG_WARNING("Session info status not OK for %s: %d", domain_to_string(domain),
+                static_cast<int>(session_info.status));
+    auto cmd = peek_command_();
+    if (cmd && &context == &request_) {
+      mark_command_failed_(
+          cmd, session_info.status == Signatures_Session_Info_Status_SESSION_INFO_STATUS_KEY_NOT_ON_WHITELIST
+                   ? CommandError::key_not_paired(domain_to_string(domain))
+                   : CommandError::authentication_failed(domain_to_string(domain), false));
+    }
+    return false;
+  }
+
   if (msg.which_sub_sigData != UniversalMessage_RoutableMessage_signature_data_tag ||
       msg.sub_sigData.signature_data.which_sig_type != Signatures_SignatureData_session_info_tag_tag) {
     fail_auth("Missing session info HMAC tag for %s", domain_to_string(domain));
@@ -1079,19 +1092,6 @@ bool TeslaBLE::Vehicle::handle_session_info_message_(const UniversalMessage_Rout
 
   LOG_DEBUG("Parsed session info successfully for %s", domain_to_string(domain));
   log_session_info(TESLA_LOG_TAG, &session_info);
-
-  if (session_info.status != Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK) {
-    LOG_WARNING("Session info status not OK for %s: %d", domain_to_string(domain),
-                static_cast<int>(session_info.status));
-    auto cmd = peek_command_();
-    if (cmd && &context == &request_) {
-      mark_command_failed_(
-          cmd, session_info.status == Signatures_Session_Info_Status_SESSION_INFO_STATUS_KEY_NOT_ON_WHITELIST
-                   ? CommandError::key_not_paired(domain_to_string(domain))
-                   : CommandError::authentication_failed(domain_to_string(domain), false));
-    }
-    return false;
-  }
 
   auto *peer = client_->get_peer(domain);
   int update_result = peer ? peer->update_session(&session_info) : TeslaBLE_Status_E_ERROR_INVALID_SESSION;

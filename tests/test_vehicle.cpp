@@ -1897,8 +1897,11 @@ TEST_F(VehicleTest, SignedMessageRejectionCompletesDuringRetryBackoff) {
 }
 
 TEST_F(VehicleTest, SignedMessageCorrelationProtectsPendingControl) {
+  int key_rejections = 0;
+  vehicle_->set_key_not_paired_callback([&]() { ++key_rejections; });
   for (auto fault : {UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_INVALID_COMMAND,
-                     UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_TIME_EXPIRED}) {
+                     UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_TIME_EXPIRED,
+                     UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_UNKNOWN_KEY_ID}) {
     for (int scenario = 0; scenario < 3; ++scenario) {
       SCOPED_TRACE(static_cast<int>(fault));
       SCOPED_TRACE(scenario);
@@ -1938,6 +1941,7 @@ TEST_F(VehicleTest, SignedMessageCorrelationProtectsPendingControl) {
       ASSERT_FALSE(vehicle_->get_command_queue_for_testing().empty());
       EXPECT_EQ(vehicle_->get_command_queue_for_testing().front()->state, CommandState::WAITING_FOR_RESPONSE);
       EXPECT_EQ(mock_ble_->get_written_data().size(), writes_before);
+      EXPECT_EQ(key_rejections, 0);
 
       const auto response =
           with_request_uuid(make_vcsec_command_status(VCSEC_OperationStatus_E_OPERATIONSTATUS_OK), request_uuid);
@@ -1950,6 +1954,29 @@ TEST_F(VehicleTest, SignedMessageCorrelationProtectsPendingControl) {
       EXPECT_EQ(completions, 1);
     }
   }
+}
+
+TEST_F(VehicleTest, UnknownKeyDuringPollReportsPairingRequired) {
+  int key_rejections = 0;
+  vehicle_->set_key_not_paired_callback([&]() { ++key_rejections; });
+  vehicle_->set_connected(true);
+  vehicle_->vcsec_poll(TeslaBLE::WakePolicy::NO_WAKE_SKIP);
+  vehicle_->loop();
+  size_t length = 0;
+  const auto uuid = extract_request_uuid(mock_ble_->get_written_data().front(), &length);
+  UniversalMessage_RoutableMessage error = UniversalMessage_RoutableMessage_init_default;
+  error.has_from_destination = true;
+  error.from_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;
+  error.from_destination.sub_destination.domain = UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY;
+  error.has_signedMessageStatus = true;
+  error.signedMessageStatus.operation_status = UniversalMessage_OperationStatus_E_OPERATIONSTATUS_ERROR;
+  error.signedMessageStatus.signed_message_fault = UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_UNKNOWN_KEY_ID;
+  error.request_uuid.size = length;
+  std::copy_n(uuid.begin(), length, error.request_uuid.bytes);
+  vehicle_->on_rx_data(frame_universal_message(error));
+  vehicle_->loop();
+  EXPECT_EQ(key_rejections, 1);
+  EXPECT_EQ(vehicle_->pending_command_count(), 0U);
 }
 
 TEST_F(VehicleTest, StaleVcsecResponsesObserveButDoNotCompleteNewControl) {

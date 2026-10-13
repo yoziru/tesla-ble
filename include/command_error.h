@@ -30,6 +30,7 @@ class CommandError {
   // Go-inspired semantic methods
   bool is_temporary() const { return severity_ == Severity::TEMPORARY; }
   bool may_have_succeeded() const { return outcome_ == Outcome::MAY_HAVE_SUCCEEDED; }
+  bool is_key_not_paired() const { return key_not_paired_; }
 
   // Accessors
   const std::string &message() const { return message_; }
@@ -76,14 +77,17 @@ class CommandError {
   }
 
   static std::unique_ptr<CommandError> key_not_paired(const std::string &domain) {
-    return std::make_unique<CommandError>(domain + " key not on whitelist - pairing required", Severity::PERMANENT,
-                                          Outcome::DEFINITELY_FAILED);
+    auto error = std::make_unique<CommandError>(domain + " key not on whitelist - pairing required",
+                                                Severity::PERMANENT, Outcome::DEFINITELY_FAILED);
+    error->key_not_paired_ = true;
+    return error;
   }
 
  private:
   std::string message_;
   Severity severity_;
   Outcome outcome_;
+  bool key_not_paired_{false};
 };
 
 }  // namespace TeslaBLE

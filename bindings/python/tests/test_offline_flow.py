@@ -452,6 +452,8 @@ def test_unpaired_vehicle_reports_key_not_on_whitelist():
 
     ble, _, vehicle = make_vehicle()
     results = []
+    rejected = []
+    vehicle.set_key_not_paired_callback(lambda: rejected.append(True))
 
     vehicle.set_connected(True)
     vehicle.lock(results.append)
@@ -459,6 +461,19 @@ def test_unpaired_vehicle_reports_key_not_on_whitelist():
 
     assert results and results[-1].failure
     assert "whitelist" in results[-1].error_message
+    assert rejected == [True]
+    vehicle.set_connected(False)
+    vehicle.set_connected(True)
+    vehicle.infotainment_poll(tesla_ble.WakePolicy.NO_WAKE_SKIP)
+    pump(vehicle, ble, sim)
+    assert len(rejected) > 1
+    rejected.clear()
+    sim.set_paired(True)
+    vehicle.set_connected(False)
+    vehicle.set_connected(True)
+    vehicle.vcsec_poll(tesla_ble.WakePolicy.NO_WAKE_SKIP)
+    pump(vehicle, ble, sim)
+    assert not rejected
 
 
 def test_skip_wake_when_already_awake():

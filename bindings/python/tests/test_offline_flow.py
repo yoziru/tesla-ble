@@ -475,6 +475,14 @@ def test_unpaired_vehicle_reports_key_not_on_whitelist():
     pump(vehicle, ble, sim)
     assert not rejected
 
+    vehicle.set_key_not_paired_callback(None)
+    sim.set_paired(False)
+    vehicle.set_connected(False)
+    vehicle.set_connected(True)
+    vehicle.vcsec_poll(tesla_ble.WakePolicy.NO_WAKE_SKIP)
+    pump(vehicle, ble, sim)
+    assert not rejected
+
 
 def test_skip_wake_when_already_awake():
     _, _, vehicle = make_vehicle()

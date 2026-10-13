@@ -774,21 +774,18 @@ Persistent storage for keys and sessions. Subclass and implement:
           py::arg("on_complete") = py::none())
       .def(
           "media_next_favorite",
-          [](TeslaBLE::Vehicle &self, const py::object &callback) {
-            self.media_next_favorite(wrap_result_callback(callback));
-          },
+          [](TeslaBLE::Vehicle &self,
+             const py::object &callback) { self.media_next_favorite(wrap_result_callback(callback)); },
           py::arg("on_complete") = py::none())
       .def(
           "media_previous_favorite",
-          [](TeslaBLE::Vehicle &self, const py::object &callback) {
-            self.media_previous_favorite(wrap_result_callback(callback));
-          },
+          [](TeslaBLE::Vehicle &self,
+             const py::object &callback) { self.media_previous_favorite(wrap_result_callback(callback)); },
           py::arg("on_complete") = py::none())
       .def(
           "media_volume_up",
-          [](TeslaBLE::Vehicle &self, const py::object &callback) {
-            self.media_volume_up(wrap_result_callback(callback));
-          },
+          [](TeslaBLE::Vehicle &self,
+             const py::object &callback) { self.media_volume_up(wrap_result_callback(callback)); },
           py::arg("on_complete") = py::none())
       .def(
           "media_volume_down",

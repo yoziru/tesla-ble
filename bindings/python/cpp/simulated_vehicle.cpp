@@ -515,6 +515,16 @@ std::vector<uint8_t> SimulatedVehicle::respond_to_session_info_request_(
     return {};
   }
 
+  UniversalMessage_RoutableMessage response = UniversalMessage_RoutableMessage_init_default;
+  set_from_domain(response, domain);
+  echo_routing(request, response);
+  response.which_payload = UniversalMessage_RoutableMessage_session_info_tag;
+  std::copy_n(session_info_buffer, session_info_length, response.payload.session_info.bytes);
+  response.payload.session_info.size = static_cast<pb_size_t>(session_info_length);
+  if (!paired_) {
+    return frame_message(response);
+  }
+
   // HMAC input: metadata (signature type, personalization = VIN, challenge =
   // request UUID) followed by the session info bytes.
   std::vector<pb_byte_t> hmac_input;
@@ -550,12 +560,6 @@ std::vector<uint8_t> SimulatedVehicle::respond_to_session_info_request_(
     return {};
   }
 
-  UniversalMessage_RoutableMessage response = UniversalMessage_RoutableMessage_init_default;
-  set_from_domain(response, domain);
-  echo_routing(request, response);
-  response.which_payload = UniversalMessage_RoutableMessage_session_info_tag;
-  std::copy_n(session_info_buffer, session_info_length, response.payload.session_info.bytes);
-  response.payload.session_info.size = static_cast<pb_size_t>(session_info_length);
   response.which_sub_sigData = UniversalMessage_RoutableMessage_signature_data_tag;
   response.sub_sigData.signature_data.which_sig_type = Signatures_SignatureData_session_info_tag_tag;
   std::copy_n(tag, sizeof(tag), response.sub_sigData.signature_data.sig_type.session_info_tag.tag.bytes);

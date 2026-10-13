@@ -333,15 +333,9 @@ std::vector<uint8_t> derive_public_key_from_private_key(const std::vector<uint8_
   return {public_key.begin(), public_key.begin() + public_key_length};
 }
 
-std::vector<uint8_t> make_session_info_no_hmac_tag(UniversalMessage_Domain domain) {
-  TeslaBLE::Client parser;
-  UniversalMessage_RoutableMessage mock_msg = UniversalMessage_RoutableMessage_init_default;
-  auto status = parser.parse_universal_message(const_cast<pb_byte_t *>(MOCK_VCSEC_MESSAGE), sizeof(MOCK_VCSEC_MESSAGE),
-                                               &mock_msg);
-  if (status != TeslaBLE_Status_E_OK) {
-    return {};
-  }
-
+std::vector<uint8_t> make_session_info_no_hmac_tag(
+    UniversalMessage_Domain domain,
+    Signatures_Session_Info_Status status = Signatures_Session_Info_Status_SESSION_INFO_STATUS_OK) {
   UniversalMessage_RoutableMessage response = UniversalMessage_RoutableMessage_init_default;
 
   response.has_from_destination = true;
@@ -349,9 +343,21 @@ std::vector<uint8_t> make_session_info_no_hmac_tag(UniversalMessage_Domain domai
   response.from_destination.sub_destination.domain = domain;
 
   response.which_payload = UniversalMessage_RoutableMessage_session_info_tag;
-  std::copy_n(mock_msg.payload.session_info.bytes, mock_msg.payload.session_info.size,
-              response.payload.session_info.bytes);
-  response.payload.session_info.size = mock_msg.payload.session_info.size;
+  Signatures_SessionInfo info = Signatures_SessionInfo_init_default;
+  TeslaBLE::Client parser;
+  UniversalMessage_RoutableMessage mock_msg = UniversalMessage_RoutableMessage_init_default;
+  if (parser.parse_universal_message(const_cast<pb_byte_t *>(MOCK_VCSEC_MESSAGE), sizeof(MOCK_VCSEC_MESSAGE),
+                                     &mock_msg) != TeslaBLE_Status_E_OK ||
+      parser.parse_payload_session_info(&mock_msg.payload.session_info, &info) != TeslaBLE_Status_E_OK) {
+    return {};
+  }
+  info.status = status;
+  size_t length = sizeof(response.payload.session_info.bytes);
+  if (TeslaBLE::pb_encode_fields(response.payload.session_info.bytes, &length, Signatures_SessionInfo_fields, &info) !=
+      TeslaBLE_Status_E_OK) {
+    return {};
+  }
+  response.payload.session_info.size = length;
 
   return frame_universal_message(response);
 }
@@ -1158,13 +1164,9 @@ TEST_F(VehicleTest, DisconnectClearsAllPendingCommands) {
   ASSERT_FALSE(callback2_success) << "Second command should fail on disconnect";
 }
 
-TEST_F(VehicleTest, SessionInfoKeyNotOnWhitelistHmacVerificationPasses) {
-  // This test validates that session info with KEY_NOT_ON_WHITELIST status
-  // is accepted after HMAC verification and surfaces as a pairing error
-  // rather than a session parse failure.
-  // This aligns with teslamotors/vehicle-command behavior where
-  // KEY_NOT_ON_WHITELIST is treated as ErrKeyNotPaired, not a parse error.
-
+TEST_F(VehicleTest, SignedSessionInfoKeyNotOnWhitelistReportsPairingError) {
+  int rejections = 0;
+  vehicle_->set_key_not_paired_callback([&]() { ++rejections; });
   bool callback_called = false;
   bool callback_success = true;
 
@@ -1205,6 +1207,7 @@ TEST_F(VehicleTest, SessionInfoKeyNotOnWhitelistHmacVerificationPasses) {
   // Command should have been called back with failure
   ASSERT_TRUE(callback_called) << "Command callback should be invoked";
   ASSERT_FALSE(callback_success) << "Command should fail due to key not on whitelist";
+  EXPECT_EQ(rejections, 1);
 
   // Verify no further writes (command should not be sent)
   auto writes_after = mock_ble_->get_written_data();
@@ -2105,7 +2108,40 @@ TEST_F(VehicleTest, SessionCorrelationUsesAuthAndWakePrerequisiteDomains) {
 // Session Info HMAC Tag Handling Tests (Issue #164)
 // ============================================================================
 
+TEST_F(VehicleTest, UnsignedKeyRejectionSignalsRepairWithoutEstablishingSession) {
+  int rejections = 0;
+  vehicle_->set_key_not_paired_callback([&]() { ++rejections; });
+  vehicle_->set_connected(true);
+  vehicle_->vcsec_poll(TeslaBLE::WakePolicy::NO_WAKE_SKIP);
+  vehicle_->loop();
+  const auto uuid = extract_request_uuid(mock_ble_->get_written_data().back());
+  const auto rejection =
+      make_session_info_no_hmac_tag(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+                                    Signatures_Session_Info_Status_SESSION_INFO_STATUS_KEY_NOT_ON_WHITELIST);
+  auto wrong_uuid = uuid;
+  wrong_uuid[0] ^= 1;
+  for (const auto &unrelated :
+       {rejection, with_request_uuid(rejection, wrong_uuid),
+        with_request_uuid(
+            make_session_info_no_hmac_tag(UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+                                          Signatures_Session_Info_Status_SESSION_INFO_STATUS_KEY_NOT_ON_WHITELIST),
+            uuid)}) {
+    vehicle_->on_rx_data(unrelated);
+    vehicle_->loop();
+    EXPECT_EQ(rejections, 0);
+    EXPECT_GT(vehicle_->pending_command_count(), 0U);
+  }
+  vehicle_->on_rx_data(with_request_uuid(rejection, uuid));
+  vehicle_->loop();
+  EXPECT_EQ(rejections, 1);
+  EXPECT_EQ(vehicle_->pending_command_count(), 0U);
+  EXPECT_EQ(mock_storage_->get_storage().count("session_vcsec"), 0U);
+  EXPECT_EQ(mock_ble_->get_written_data().size(), 1U);
+}
+
 TEST_F(VehicleTest, MissingSessionInfoHmacTagFailsAuthGracefully) {
+  int rejections = 0;
+  vehicle_->set_key_not_paired_callback([&]() { ++rejections; });
   bool callback_called = false;
   std::unique_ptr<CommandError> captured_error;
 
@@ -2143,6 +2179,7 @@ TEST_F(VehicleTest, MissingSessionInfoHmacTagFailsAuthGracefully) {
       << "Error should indicate auth failure: " << captured_error->message();
 
   EXPECT_TRUE(mock_ble_->get_written_data().empty()) << "No additional writes should occur after auth failure";
+  EXPECT_EQ(rejections, 0);
 }
 
 TEST_F(VehicleTest, SessionInfoOutsideLatencyWindowCannotRestoreSession) {

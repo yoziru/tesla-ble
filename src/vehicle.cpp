@@ -608,12 +608,17 @@ void TeslaBLE::Vehicle::process_ready_command_(const std::shared_ptr<Command> &c
 
 void TeslaBLE::Vehicle::mark_command_failed_(const std::shared_ptr<Command> &command,
                                              std::unique_ptr<CommandError> error, OperationTerminalReason reason) {
+  const bool key_not_paired = error->is_key_not_paired();
   command->state = CommandState::FAILED;
   auto now = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - command->started_at);
   LOG_ERROR("[%s] Command failed after %lld ms: %s (reason: %d)", command->name.c_str(), (long long) duration.count(),
             error->message().c_str(), static_cast<int>(reason));
   finalize_command_(command, OperationResult::failure(std::move(error), reason));
+  auto callback = key_not_paired_callback_;
+  if (key_not_paired && callback) {
+    callback();
+  }
 }
 
 void TeslaBLE::Vehicle::mark_command_completed_(const std::shared_ptr<Command> &command) {
@@ -2106,7 +2111,9 @@ void TeslaBLE::Vehicle::handle_signed_message_error_(const UniversalMessage_Rout
 
   auto cmd = peek_command_();
   if (!has_session_error && cmd && (cmd->awaiting_response() || cmd->state == CommandState::AUTH_RESPONSE_WAITING)) {
-    mark_command_failed_(cmd, CommandError::authentication_failed("signed message"));
+    mark_command_failed_(cmd, fault == UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_UNKNOWN_KEY_ID
+                                  ? CommandError::key_not_paired(domain_to_string(domain))
+                                  : CommandError::authentication_failed("signed message"));
   }
 }
 

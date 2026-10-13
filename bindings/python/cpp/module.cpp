@@ -467,6 +467,7 @@ Persistent storage for keys and sessions. Subclass and implement:
           },
           py::arg("data"), "Feed a BLE notification frame")
       .def("set_connected", &TeslaBLE::Vehicle::set_connected)
+      .def("set_key_not_paired_callback", &TeslaBLE::Vehicle::set_key_not_paired_callback)
       .def_property_readonly("is_connected", &TeslaBLE::Vehicle::is_connected)
       .def_property_readonly("has_private_key", &TeslaBLE::Vehicle::has_private_key)
       .def_property_readonly("pending_command_count", &TeslaBLE::Vehicle::pending_command_count)
@@ -485,6 +486,7 @@ Persistent storage for keys and sessions. Subclass and implement:
             self.set_media_state_callback(nullptr);
             self.set_software_update_state_callback(nullptr);
             self.set_raw_message_callback(nullptr);
+            self.set_key_not_paired_callback(nullptr);
           },
           "Remove all state and raw-message callbacks; disconnect first to finish pending actions")
       // Polls
@@ -773,9 +775,8 @@ Persistent storage for keys and sessions. Subclass and implement:
           py::arg("on_complete") = py::none())
       .def(
           "media_volume_up",
-          [](TeslaBLE::Vehicle &self, const py::object &callback) {
-            self.media_volume_up(wrap_result_callback(callback));
-          },
+          [](TeslaBLE::Vehicle &self,
+             const py::object &callback) { self.media_volume_up(wrap_result_callback(callback)); },
           py::arg("on_complete") = py::none())
       .def(
           "media_volume_down",

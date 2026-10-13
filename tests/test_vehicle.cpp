@@ -1164,13 +1164,9 @@ TEST_F(VehicleTest, DisconnectClearsAllPendingCommands) {
   ASSERT_FALSE(callback2_success) << "Second command should fail on disconnect";
 }
 
-TEST_F(VehicleTest, SessionInfoKeyNotOnWhitelistHmacVerificationPasses) {
-  // This test validates that session info with KEY_NOT_ON_WHITELIST status
-  // is accepted after HMAC verification and surfaces as a pairing error
-  // rather than a session parse failure.
-  // This aligns with teslamotors/vehicle-command behavior where
-  // KEY_NOT_ON_WHITELIST is treated as ErrKeyNotPaired, not a parse error.
-
+TEST_F(VehicleTest, SignedSessionInfoKeyNotOnWhitelistReportsPairingError) {
+  int rejections = 0;
+  vehicle_->set_key_not_paired_callback([&]() { ++rejections; });
   bool callback_called = false;
   bool callback_success = true;
 
@@ -1211,6 +1207,7 @@ TEST_F(VehicleTest, SessionInfoKeyNotOnWhitelistHmacVerificationPasses) {
   // Command should have been called back with failure
   ASSERT_TRUE(callback_called) << "Command callback should be invoked";
   ASSERT_FALSE(callback_success) << "Command should fail due to key not on whitelist";
+  EXPECT_EQ(rejections, 1);
 
   // Verify no further writes (command should not be sent)
   auto writes_after = mock_ble_->get_written_data();

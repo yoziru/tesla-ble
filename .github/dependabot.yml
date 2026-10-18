@@ -6,3 +6,9 @@ updates:
       interval: monthly
     cooldown:
       default-days: 3
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 3

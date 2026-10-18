@@ -697,6 +697,11 @@ void SimulatedVehicle::set_charger_power(float kw) {
   charge_state_.optional_charger_power.charger_power = static_cast<int32_t>(kw);
 }
 
+void SimulatedVehicle::set_fast_charger_present(bool present) {
+  charge_state_.which_optional_fast_charger_present = CarServer_ChargeState_fast_charger_present_tag;
+  charge_state_.optional_fast_charger_present.fast_charger_present = present;
+}
+
 void SimulatedVehicle::set_charger_voltage(int volts) {
   charge_state_.which_optional_charger_voltage = CarServer_ChargeState_charger_voltage_tag;
   charge_state_.optional_charger_voltage.charger_voltage = volts;

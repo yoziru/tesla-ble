@@ -58,6 +58,30 @@ poll cadence; those retained values are not new observations or per-field
 freshness guarantees. Neither host should optimistically publish a commanded
 state as observed merely because the command completed.
 
+### Charging power
+
+`Vehicle::charging_power()` returns watts, inferred phases, the power multiplier,
+AC/DC classification and source. Python charge-state callbacks add
+`charger_power_w`, `charger_effective_phases`, `charger_power_multiplier`,
+`charger_is_ac` and `charger_power_source`; original protobuf fields stay unchanged.
+
+AC estimates use voltage × current × a multiplier, assuming power factor ≈ 1
+and equally loaded inputs:
+
+- **1:** single-phase, including US 240 V split-phase.
+- **2:** two line-to-neutral inputs.
+- **3 or sqrt(3):** three-phase with
+  [line-to-neutral or line-to-line voltage](https://www.engineeringtoolbox.com/three-phase-electrical-d_888.html), respectively.
+
+Detection requires three stable readings with one plausible multiplier matching
+reported power. Raw phases alone cannot determine it. Uncertain, incomplete or DC
+readings use reported power; absent or invalid power stays unknown. Voltage and
+current are never carried between readings. Unplugging resets detection and
+reports zero; BLE reconnects retain detection but revalidate each reading.
+
+Inferred phases are estimates, not a wiring diagnosis. Integrate AC energy only
+when `is_ac` is true; DC reported power is battery-side power.
+
 ## Building and Testing
 
 ### Quick Start

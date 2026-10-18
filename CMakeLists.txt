@@ -4,6 +4,7 @@ set(GENERATED_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/generated/src")
 
 # Common source files across all builds
 set(TESLABLE_SRCS
+    "src/charging_power.cpp"
     "src/client.cpp"
     "src/crypto_context.cpp"
     "src/errors.cpp"
@@ -34,6 +35,7 @@ set(TESLABLE_PROTO_SRCS
 
 # Public headers
 set(TESLABLE_PUBLIC_HEADERS
+    include/charging_power.h
     include/adapters.h
     include/client.h
     include/command_error.h

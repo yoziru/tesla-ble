@@ -75,6 +75,8 @@ Vehicle::Vehicle(const std::shared_ptr<BleAdapter> &ble, const std::shared_ptr<S
 void TeslaBLE::Vehicle::initialize_rx_buffer() { rx_buffer_.reserve(MAX_MESSAGE_SIZE); }
 
 void TeslaBLE::Vehicle::set_vin(const std::string &vin) {
+  charging_power_estimator_ = ChargingPowerEstimator{};
+  charging_power_ = ChargingPower{};
   if (client_) {
     client_->set_vin(vin);
   }
@@ -1234,6 +1236,9 @@ void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_Routabl
         callback(value);
       }
     };
+    if (vd.has_charge_state) {
+      charging_power_ = charging_power_estimator_.update(vd.charge_state);
+    }
     emit_if(vd.has_charge_state, charge_state_callback_, vd.charge_state);
     emit_if(vd.has_climate_state, climate_state_callback_, vd.climate_state);
     emit_if(vd.has_drive_state, drive_state_callback_, vd.drive_state);

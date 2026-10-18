@@ -807,7 +807,26 @@ Persistent storage for keys and sessions. Subclass and implement:
            })
       .def("set_charge_state_callback",
            [](TeslaBLE::Vehicle &self, const py::object &callback) {
-             self.set_charge_state_callback(wrap_state_callback<CarServer_ChargeState, charge_state_to_dict>(callback));
+             auto fn = to_python_function(callback);
+             if (!fn) {
+               self.set_charge_state_callback(nullptr);
+               return;
+             }
+             self.set_charge_state_callback([fn, vehicle = &self](const CarServer_ChargeState &state) {
+               py::gil_scoped_acquire gil;
+               try {
+                 py::dict d = charge_state_to_dict(state);
+                 const auto &power = vehicle->charging_power();
+                 d["charger_power_w"] = py::cast(power.power_w);
+                 d["charger_effective_phases"] = py::cast(power.effective_phases);
+                 d["charger_power_multiplier"] = py::cast(power.multiplier);
+                 d["charger_power_source"] = power.source;
+                 d["charger_is_ac"] = py::cast(power.is_ac);
+                 invoke_guarded(fn, d);
+               } catch (py::error_already_set &e) {
+                 e.discard_as_unraisable(CALLBACK_ERROR_CONTEXT);
+               }
+             });
            })
       .def("set_climate_state_callback",
            [](TeslaBLE::Vehicle &self, const py::object &callback) {
@@ -931,6 +950,7 @@ Persistent storage for keys and sessions. Subclass and implement:
       .def("set_charge_limit", &SimulatedVehicle::set_charge_limit)
       .def("set_charging_amps", &SimulatedVehicle::set_charging_amps)
       .def("set_charger_power", &SimulatedVehicle::set_charger_power)
+      .def("set_fast_charger_present", &SimulatedVehicle::set_fast_charger_present)
       .def("set_charger_voltage", &SimulatedVehicle::set_charger_voltage)
       .def("set_charger_actual_current", &SimulatedVehicle::set_charger_actual_current)
       .def("set_charger_pilot_current", &SimulatedVehicle::set_charger_pilot_current)

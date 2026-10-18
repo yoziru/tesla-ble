@@ -43,6 +43,7 @@ class SimulatedVehicle {
   void set_charge_limit(int soc);
   void set_charging_amps(int amps);
   void set_charger_power(float kw);
+  void set_fast_charger_present(bool present);
   void set_charger_voltage(int volts);
   void set_charger_actual_current(int amps);
   void set_charger_pilot_current(int amps);

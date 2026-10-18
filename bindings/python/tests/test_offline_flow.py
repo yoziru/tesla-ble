@@ -238,6 +238,44 @@ def test_charge_state_poll_reports_state():
     assert state["charge_port_door_open"] is True
 
 
+def test_charge_power_is_derived_in_vehicle_without_rewriting_telemetry():
+    sim = tesla_ble.SimulatedVehicle(VIN)
+    sim.set_charging_state(tesla_ble.charging_state_tag("Charging"))
+    sim.set_fast_charger_present(False)
+    sim.set_charger_voltage(233)
+    sim.set_charger_actual_current(16)
+    sim.set_charger_phases(2)
+    sim.set_charger_power(11)
+    ble, _, vehicle = make_vehicle()
+    states = []
+    vehicle.set_charge_state_callback(states.append)
+    vehicle.set_connected(True)
+    vehicle.set_awake(True)
+    for _ in range(3):
+        vehicle.charge_state_poll()
+        pump(vehicle, ble, sim)
+    assert states[-1]["charger_power_w"] == 11184
+    assert states[-1]["charger_phases"] == 2
+    assert states[-1]["charger_power"] == 11
+    assert states[-1]["charger_effective_phases"] == 3
+    assert states[-1]["charger_power_multiplier"] == 3
+    assert states[-1]["charger_power_source"] == "estimated"
+    assert states[-1]["charger_is_ac"] is True
+    vehicle.set_connected(False)
+    vehicle.set_connected(True)
+    vehicle.set_awake(True)
+    vehicle.charge_state_poll()
+    pump(vehicle, ble, sim)
+    assert states[-1]["charger_power_w"] == 11184
+    sim.set_fast_charger_present(True)
+    sim.set_charger_power(80)
+    vehicle.charge_state_poll()
+    pump(vehicle, ble, sim)
+    assert states[-1]["charger_power_w"] == 80000
+    assert states[-1]["charger_effective_phases"] is None
+    assert states[-1]["charger_is_ac"] is False
+
+
 def test_software_update_poll_reports_state():
     sim = tesla_ble.SimulatedVehicle(VIN)
     sim.set_software_update_state(

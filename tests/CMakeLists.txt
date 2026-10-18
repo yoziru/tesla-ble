@@ -26,6 +26,7 @@ set(TEST_LINK_LIBS gtest_main gtest TeslaBLE)
 
 # List of all test files
 set(TEST_FILES
+    test_charging_power.cpp
     test_ad_buffer_construction.cpp
     test_client.cpp
     test_encrypted_responses.cpp

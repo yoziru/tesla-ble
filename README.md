@@ -58,6 +58,16 @@ poll cadence; those retained values are not new observations or per-field
 freshness guarantees. Neither host should optimistically publish a commanded
 state as observed merely because the command completed.
 
+`set_poll_result_callback(callback)` reports each telemetry poll's diagnostic
+name and terminal `OperationResult` (`CommandResult` in Python), including
+sleep skips and failures. It covers individual, bulk and follow-up polls;
+completion does not imply a state observation. Python `clear_callbacks()` removes
+this callback too. Disconnect before clearing callbacks to finish pending work.
+
+`InfotainmentPollPolicy::on_poll()` records cadence, not activity. Its idle timer
+continues across absence; neither an awake report nor reconnect should reset it.
+Hosts own bounded arrival probes, genuine-activity detection and freshness.
+
 ### Charging power
 
 `Vehicle::charging_power()` returns watts, inferred phases, the power multiplier,

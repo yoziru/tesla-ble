@@ -487,6 +487,7 @@ Persistent storage for keys and sessions. Subclass and implement:
             self.set_software_update_state_callback(nullptr);
             self.set_raw_message_callback(nullptr);
             self.set_key_not_paired_callback(nullptr);
+            self.set_poll_result_callback(nullptr);
           },
           "Remove all state and raw-message callbacks; disconnect first to finish pending actions")
       // Polls
@@ -800,6 +801,22 @@ Persistent storage for keys and sessions. Subclass and implement:
              const py::object &callback) { self.regenerate_key(wrap_result_callback(callback)); },
           py::arg("on_complete") = py::none())
       // Callbacks
+      .def("set_poll_result_callback",
+           [](TeslaBLE::Vehicle &self, const py::object &callback) {
+             auto fn = to_python_function(callback);
+             if (!fn) {
+               self.set_poll_result_callback(nullptr);
+               return;
+             }
+             self.set_poll_result_callback([fn](const std::string &name, const TeslaBLE::OperationResult &result) {
+               py::gil_scoped_acquire gil;
+               try {
+                 (*fn)(name, make_py_result(result));
+               } catch (py::error_already_set &e) {
+                 e.discard_as_unraisable(CALLBACK_ERROR_CONTEXT);
+               }
+             });
+           })
       .def("set_vehicle_status_callback",
            [](TeslaBLE::Vehicle &self, const py::object &callback) {
              self.set_vehicle_status_callback(

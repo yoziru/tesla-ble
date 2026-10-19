@@ -816,7 +816,8 @@ Persistent storage for keys and sessions. Subclass and implement:
                  e.discard_as_unraisable(CALLBACK_ERROR_CONTEXT);
                }
              });
-           })
+           },
+           py::arg("callback"))
       .def("set_vehicle_status_callback",
            [](TeslaBLE::Vehicle &self, const py::object &callback) {
              self.set_vehicle_status_callback(

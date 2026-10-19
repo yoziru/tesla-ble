@@ -14,7 +14,7 @@ def test_vcsec_poll_reports_vehicle_status():
     states = []
     results = []
     vehicle.set_vehicle_status_callback(states.append)
-    vehicle.set_poll_result_callback(lambda name, result: results.append((name, result)))
+    vehicle.set_poll_result_callback(callback=lambda name, result: results.append((name, result)))
 
     vehicle.set_connected(True)
     vehicle.vcsec_poll()

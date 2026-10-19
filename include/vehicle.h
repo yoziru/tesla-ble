@@ -358,6 +358,8 @@ class Vehicle {
   using RawMessageCallback = std::function<void(const std::vector<uint8_t> &)>;
   void set_raw_message_callback(RawMessageCallback cb) { raw_message_callback_ = std::move(cb); }
   void set_key_not_paired_callback(std::function<void()> cb) { key_not_paired_callback_ = std::move(cb); }
+  using PollResultCallback = std::function<void(const std::string &, const OperationResult &)>;
+  void set_poll_result_callback(PollResultCallback cb) { poll_result_callback_ = std::move(cb); }
 
   // Timeout constants
   static constexpr auto COMMAND_TIMEOUT = std::chrono::seconds(30);
@@ -409,6 +411,7 @@ class Vehicle {
   MessageCallback message_callback_;
   RawMessageCallback raw_message_callback_;
   std::function<void()> key_not_paired_callback_;
+  PollResultCallback poll_result_callback_;
 
   // Message processing for ordered session handling
   std::unique_ptr<MessageProcessor> message_processor_;

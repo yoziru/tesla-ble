@@ -37,8 +37,8 @@ class InfotainmentPollPolicy {
   uint32_t active_interval_ms() const { return active_interval_ms_; }
   uint32_t sleep_timeout_ms() const { return sleep_timeout_ms_; }
 
-  // Forget the idle timing, e.g. on (re)connect. The next update() starts a
-  // fresh idle window.
+  // Forget idle timing after genuine activity, not a link reconnect or awake
+  // report. The next update() starts a fresh idle window.
   void reset() { idle_since_ms_ = 0; }
 
   // Whether a poll is due: at least interval_ms has elapsed since the last poll

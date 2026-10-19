@@ -1536,7 +1536,16 @@ void TeslaBLE::Vehicle::vcsec_poll(WakePolicy wake_policy, Command::OperationRes
         return client->build_vcsec_information_request_message(
             VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_STATUS, buff, len);
       },
-      std::move(on_complete), wake_policy);
+      [this, on_complete = std::move(on_complete)](OperationResult result) {
+        auto callback = poll_result_callback_;
+        if (callback) {
+          callback("VCSEC Poll", result);
+        }
+        if (on_complete) {
+          on_complete(std::move(result));
+        }
+      },
+      wake_policy);
 }
 
 void TeslaBLE::Vehicle::infotainment_poll(bool force_wake) { infotainment_poll(wake_policy_from_bool(force_wake)); }
@@ -1558,7 +1567,13 @@ void TeslaBLE::Vehicle::send_infotainment_poll_(const std::string &name, int32_t
       [data_type](Client *client, uint8_t *buff, size_t *len) {
         return client->build_car_server_get_vehicle_data_message(buff, len, data_type);
       },
-      nullptr, wake_policy);
+      [this, name](OperationResult result) {
+        auto callback = poll_result_callback_;
+        if (callback) {
+          callback(name, result);
+        }
+      },
+      wake_policy);
 }
 
 void TeslaBLE::Vehicle::charge_state_poll(bool force_wake) { charge_state_poll(wake_policy_from_bool(force_wake)); }

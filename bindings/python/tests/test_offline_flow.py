@@ -12,7 +12,9 @@ def test_vcsec_poll_reports_vehicle_status():
 
     ble, _, vehicle = make_vehicle()
     states = []
+    results = []
     vehicle.set_vehicle_status_callback(states.append)
+    vehicle.set_poll_result_callback(callback=lambda name, result: results.append((name, result)))
 
     vehicle.set_connected(True)
     vehicle.vcsec_poll()
@@ -23,6 +25,43 @@ def test_vcsec_poll_reports_vehicle_status():
     assert status["locked"] is False
     assert status["asleep"] is False
     assert status["closures"]["front_driver_door"] == "closed"
+    assert [(name, result.outcome) for name, result in results] == [("VCSEC Poll", "success")]
+
+
+@pytest.mark.parametrize("outcome", ["success", "skipped", "failed"])
+def test_infotainment_poll_reports_terminal_results_without_waking(outcome):
+    sim = tesla_ble.SimulatedVehicle(VIN)
+    ble, _, vehicle = make_vehicle()
+    results = []
+    vehicle.set_poll_result_callback(lambda name, result: results.append((name, result)))
+    vehicle.set_connected(True)
+    vehicle.set_sleep_state(
+        tesla_ble.SleepState.ASLEEP if outcome == "skipped" else tesla_ble.SleepState.AWAKE
+    )
+    if outcome == "failed":
+        vehicle.charge_state_poll(tesla_ble.WakePolicy.NO_WAKE_SKIP)
+        pump(vehicle, ble, sim)
+        results.clear()
+        ble.write = lambda data: False
+    vehicle.infotainment_poll(tesla_ble.WakePolicy.NO_WAKE_SKIP)
+    pump(vehicle, ble, sim)
+    assert {name for name, _ in results} == {
+        "Charge State Poll",
+        "Climate State Poll",
+        "Drive State Poll",
+        "Closures State Poll",
+        "Tire Pressure Poll",
+    }
+    assert all(result.outcome == outcome for _, result in results)
+    assert vehicle.pending_command_count == 0
+    if outcome == "skipped":
+        assert sim.frames_received == 0
+        assert all(result.terminal_reason == "vehicle_asleep" for _, result in results)
+    vehicle.clear_callbacks()
+    results.clear()
+    vehicle.charge_state_poll(tesla_ble.WakePolicy.NO_WAKE_SKIP)
+    pump(vehicle, ble, sim)
+    assert not results
 
 
 def test_unlatch_driver_door_updates_vcsec_and_closures_state():

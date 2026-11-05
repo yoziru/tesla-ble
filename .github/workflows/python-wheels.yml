@@ -28,7 +28,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v10.3.0
 
-      - uses: pypa/cibuildwheel@v4.3.1
+      - uses: pypa/cibuildwheel@v4.3.5
         env:
           CIBW_ARCHS: ${{ matrix.arch }}
           CIBW_BUILD: cp313-${{ matrix.platform }}* cp314-${{ matrix.platform }}* cp315-${{ matrix.platform }}*

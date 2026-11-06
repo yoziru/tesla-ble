@@ -241,6 +241,11 @@ class Vehicle {
       std::function<void(const CarServer_SoftwareUpdateState &, const std::string &)> cb) {
     software_update_callback_ = std::move(cb);
   }
+  // The car's charge schedule state; only charge_schedule_window (the schedule that applies now or
+  // next) is decoded, the full charge_schedules list is skipped.
+  void set_charge_schedule_state_callback(std::function<void(const CarServer_ChargeScheduleState &)> cb) {
+    charge_schedule_state_callback_ = std::move(cb);
+  }
 
   // Actions report their outcome through on_complete (success / skipped /
   // failure with a rich CommandError). Pass nullptr when the result is not
@@ -267,6 +272,9 @@ class Vehicle {
   // Also included in every fifth infotainment_poll(); call directly for a manual refresh.
   void software_update_poll(bool force_wake = false);
   void software_update_poll(WakePolicy wake_policy);
+  // Not part of infotainment_poll(): schedules change rarely; call it as often as they matter.
+  void charge_schedule_state_poll(bool force_wake = false);
+  void charge_schedule_state_poll(WakePolicy wake_policy);
   // Start (or schedule, offset_sec seconds from now) the installation of a
   // downloaded update. The car downloads firmware itself; this cannot fetch it.
   void schedule_software_update(int offset_sec, Command::OperationResultCallback on_complete = nullptr);
@@ -426,6 +434,7 @@ class Vehicle {
   std::function<void(const CarServer_ClosuresState &)> closures_state_callback_;
   std::function<void(const CarServer_MediaState &, const MediaNowPlaying &)> media_state_callback_;
   std::function<void(const CarServer_SoftwareUpdateState &, const std::string &)> software_update_callback_;
+  std::function<void(const CarServer_ChargeScheduleState &)> charge_schedule_state_callback_;
 
   bool is_connected_ = false;
   uint64_t connection_generation_ = 0;

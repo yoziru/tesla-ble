@@ -1244,6 +1244,7 @@ void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_Routabl
     emit_if(vd.has_drive_state, drive_state_callback_, vd.drive_state);
     emit_if(vd.has_tire_pressure_state, tire_pressure_callback_, vd.tire_pressure_state);
     emit_if(vd.has_closures_state, closures_state_callback_, vd.closures_state);
+    emit_if(vd.has_charge_schedule_state, charge_schedule_state_callback_, vd.charge_schedule_state);
     if (generation == connection_generation_ && vd.has_media_state && media_state_callback_) {
       media_state_callback_(vd.media_state, now_playing);
     }
@@ -1618,6 +1619,14 @@ void TeslaBLE::Vehicle::software_update_poll(bool force_wake) {
 
 void TeslaBLE::Vehicle::software_update_poll(WakePolicy wake_policy) {
   send_infotainment_poll_("Software Update Poll", CarServer_GetVehicleData_getSoftwareUpdateState_tag, wake_policy);
+}
+
+void TeslaBLE::Vehicle::charge_schedule_state_poll(bool force_wake) {
+  charge_schedule_state_poll(wake_policy_from_bool(force_wake));
+}
+
+void TeslaBLE::Vehicle::charge_schedule_state_poll(WakePolicy wake_policy) {
+  send_infotainment_poll_("Charge Schedule Poll", CarServer_GetVehicleData_getChargeScheduleState_tag, wake_policy);
 }
 
 void TeslaBLE::Vehicle::schedule_software_update(int offset_sec, Command::OperationResultCallback on_complete) {

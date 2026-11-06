@@ -332,6 +332,49 @@ TEST_F(EncryptedResponseTest, SoftwareUpdateVersionComesFromDecryptedPayload) {
   EXPECT_EQ(version, "2026.40.1");
 }
 
+TEST_F(EncryptedResponseTest, ChargeScheduleWindowComesFromDecryptedPayload) {
+  std::optional<CarServer_ChargeSchedule> window;
+  vehicle_->set_charge_schedule_state_callback([&](const CarServer_ChargeScheduleState &state) {
+    if (state.which_optional_charge_schedule_window) {
+      window = state.optional_charge_schedule_window.charge_schedule_window;
+    }
+  });
+  vehicle_->charge_schedule_state_poll();
+  vehicle_->loop();
+  vehicle_->loop();
+  const auto &writes = mock_ble_->get_written_data();
+  ASSERT_EQ(writes.size(), 1U);
+
+  // Friday 00:00-08:00, as a car reports it.
+  CarServer_Response content = CarServer_Response_init_default;
+  content.which_response_msg = CarServer_Response_vehicleData_tag;
+  content.response_msg.vehicleData.has_charge_schedule_state = true;
+  auto &state = content.response_msg.vehicleData.charge_schedule_state;
+  state.which_optional_charge_schedule_window = CarServer_ChargeScheduleState_charge_schedule_window_tag;
+  auto &sent = state.optional_charge_schedule_window.charge_schedule_window;
+  sent.enabled = true;
+  sent.days_of_week = 32;
+  sent.start_enabled = true;
+  sent.start_time = 0;
+  sent.end_enabled = true;
+  sent.end_time = 480;
+  pb_byte_t payload[256];
+  size_t payload_length = sizeof(payload);
+  ASSERT_EQ(TeslaBLE::pb_encode_fields(payload, &payload_length, CarServer_Response_fields, &content),
+            TeslaBLE_Status_E_OK);
+  auto response = make_encrypted_response(*helper_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, 201, writes.front(),
+                                          payload, payload_length);
+  ASSERT_FALSE(response.empty());
+  vehicle_->on_rx_data(response);
+  vehicle_->loop();
+
+  ASSERT_TRUE(window.has_value());
+  EXPECT_TRUE(window->enabled);
+  EXPECT_EQ(window->days_of_week, 32);
+  EXPECT_TRUE(window->end_enabled);
+  EXPECT_EQ(window->end_time, 480);
+}
+
 TEST_F(EncryptedResponseTest, ResponseWithMismatchedCounterIsRejected) {
   OperationOutcome outcome = OperationOutcome::FAILED;
   auto request = send_climate_command(&outcome);

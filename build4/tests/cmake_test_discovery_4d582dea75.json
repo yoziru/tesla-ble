@@ -1,0 +1,62 @@
+{
+  "tests": 10,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "PsaCryptoTest",
+      "tests": 10,
+      "testsuite": [
+        {
+          "name": "Sha1KnownAnswer",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_psa_crypto.cpp",
+          "line": 66
+        },
+        {
+          "name": "Sha256MatchesLegacy",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_psa_crypto.cpp",
+          "line": 73
+        },
+        {
+          "name": "SessionInfoKeyMatchesSpec",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_psa_crypto.cpp",
+          "line": 80
+        },
+        {
+          "name": "HmacMatchesLegacy",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_psa_crypto.cpp",
+          "line": 87
+        },
+        {
+          "name": "AesGcmMatchesLegacyAndRoundTrips",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_psa_crypto.cpp",
+          "line": 96
+        },
+        {
+          "name": "AesGcmRejectsTampering",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_psa_crypto.cpp",
+          "line": 120
+        },
+        {
+          "name": "PemStorageMatchesLegacyFormat",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_psa_crypto.cpp",
+          "line": 153
+        },
+        {
+          "name": "GeneratedKeyRoundTripsAndAgrees",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_psa_crypto.cpp",
+          "line": 179
+        },
+        {
+          "name": "MoveTransfersKeyOwnership",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_psa_crypto.cpp",
+          "line": 218
+        },
+        {
+          "name": "RejectsNonP256Key",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_psa_crypto.cpp",
+          "line": 232
+        }
+      ]
+    }
+  ]
+}

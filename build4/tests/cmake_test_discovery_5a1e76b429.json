@@ -1,0 +1,22 @@
+{
+  "tests": 2,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "ProtocolVectorsTest",
+      "tests": 2,
+      "testsuite": [
+        {
+          "name": "RequestHashConstruction",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_vectors.cpp",
+          "line": 30
+        },
+        {
+          "name": "CounterAntiReplay",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_vectors.cpp",
+          "line": 70
+        }
+      ]
+    }
+  ]
+}

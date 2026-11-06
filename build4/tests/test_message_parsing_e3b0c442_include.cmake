@@ -1,0 +1,5 @@
+if(EXISTS "/home/dev/dev/tesla-ble/build4/tests/test_message_parsing_e3b0c442_tests.cmake")
+  include("/home/dev/dev/tesla-ble/build4/tests/test_message_parsing_e3b0c442_tests.cmake")
+else()
+  add_test(test_message_parsing_NOT_BUILT test_message_parsing_NOT_BUILT)
+endif()

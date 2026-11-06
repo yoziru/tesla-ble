@@ -1,20 +1,16 @@
 /**
  * @file test_psa_crypto.cpp
  * @brief Checks the PSA Crypto implementation against the protocol vectors and
- *        against the legacy Mbed TLS 3.x APIs it replaced.
+ *        against known answers computed with the legacy Mbed TLS 3.x APIs it
+ *        replaced.
  *
  * The library uses PSA so it builds with Mbed TLS 3.6 (ESP-IDF 5.x) and
- * Mbed TLS 4.x (ESP-IDF 6.x). The host build links Mbed TLS 3.6, so the
- * legacy APIs are still available here as a reference implementation.
+ * Mbed TLS 4.x (ESP-IDF 6.x); CI runs this file against both.
  */
 
 #include <gtest/gtest.h>
 #include <crypto_context.h>
-#include <mbedtls/gcm.h>
-#include <mbedtls/md.h>
 #include <mbedtls/pk.h>
-#include <mbedtls/sha1.h>
-#include <mbedtls/sha256.h>
 #include <psa/crypto.h>
 #include <cstring>
 #include <string>
@@ -45,6 +41,15 @@ int legacy_rng(void * /*unused*/, unsigned char *output, size_t length) {
   return psa_generate_random(output, length) == PSA_SUCCESS ? 0 : -1;
 }
 
+// mbedtls_pk_parse_key() lost its RNG arguments in Mbed TLS 4.x (TF-PSA-Crypto).
+int legacy_pk_parse(mbedtls_pk_context *ctx, const uint8_t *pem, size_t length) {
+#ifdef TF_PSA_CRYPTO_VERSION_MAJOR
+  return mbedtls_pk_parse_key(ctx, pem, length, nullptr, 0);
+#else
+  return mbedtls_pk_parse_key(ctx, pem, length, nullptr, 0, legacy_rng, nullptr);
+#endif
+}
+
 // Protocol spec example: "Turn HVAC on" with its metadata.
 const char *const PLAINTEXT_HEX = "120452020801";
 const char *const METADATA_HEX =
@@ -68,10 +73,8 @@ TEST_F(PsaCryptoTest, Sha1KnownAnswer) {
 TEST_F(PsaCryptoTest, Sha256MatchesLegacy) {
   auto metadata = from_hex(METADATA_HEX);
   uint8_t psa_out[32];
-  uint8_t legacy_out[32];
   ASSERT_EQ(CryptoUtils::sha256_hash(metadata.data(), metadata.size(), psa_out), TeslaBLE_Status_E_OK);
-  ASSERT_EQ(mbedtls_sha256(metadata.data(), metadata.size(), legacy_out, 0), 0);
-  EXPECT_EQ(to_hex(psa_out, 32), to_hex(legacy_out, 32));
+  EXPECT_EQ(to_hex(psa_out, 32), "c33b227adc93c60b7a5738237e678e6996987ab316b4a5fff737cf86cb07764f");
 }
 
 TEST_F(PsaCryptoTest, SessionInfoKeyMatchesSpec) {
@@ -84,14 +87,10 @@ TEST_F(PsaCryptoTest, SessionInfoKeyMatchesSpec) {
 TEST_F(PsaCryptoTest, HmacMatchesLegacy) {
   auto metadata = from_hex(METADATA_HEX);
   uint8_t psa_out[32];
-  uint8_t legacy_out[32];
   ASSERT_EQ(CryptoUtils::hmac_sha256(TestConstants::EXPECTED_SESSION_KEY, 16, metadata.data(), metadata.size(), psa_out,
                                      sizeof(psa_out)),
             TeslaBLE_Status_E_OK);
-  ASSERT_EQ(mbedtls_md_hmac(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), TestConstants::EXPECTED_SESSION_KEY, 16,
-                            metadata.data(), metadata.size(), legacy_out),
-            0);
-  EXPECT_EQ(to_hex(psa_out, 32), to_hex(legacy_out, 32));
+  EXPECT_EQ(to_hex(psa_out, 32), "ef4cbfc54bf5766d0962bce7acb0202ff2375fd055ad1f67ef7fff710bcf11b9");
 }
 
 TEST_F(PsaCryptoTest, AesGcmMatchesLegacyAndRoundTrips) {
@@ -107,20 +106,9 @@ TEST_F(PsaCryptoTest, AesGcmMatchesLegacyAndRoundTrips) {
                                          plaintext.size(), ciphertext.data(), ciphertext.size(), tag),
             TeslaBLE_Status_E_OK);
 
-  // Legacy reference
-  std::vector<uint8_t> legacy_ciphertext(plaintext.size());
-  uint8_t legacy_tag[16];
-  mbedtls_gcm_context gcm;
-  mbedtls_gcm_init(&gcm);
-  ASSERT_EQ(mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, TestConstants::EXPECTED_SESSION_KEY, 128), 0);
-  ASSERT_EQ(
-      mbedtls_gcm_crypt_and_tag(&gcm, MBEDTLS_GCM_ENCRYPT, plaintext.size(), NONCE, sizeof(NONCE), aad, sizeof(aad),
-                                plaintext.data(), legacy_ciphertext.data(), sizeof(legacy_tag), legacy_tag),
-      0);
-  mbedtls_gcm_free(&gcm);
-
-  EXPECT_EQ(to_hex(ciphertext.data(), ciphertext.size()), to_hex(legacy_ciphertext.data(), legacy_ciphertext.size()));
-  EXPECT_EQ(to_hex(tag, 16), to_hex(legacy_tag, 16));
+  // Known answer from the legacy GCM implementation (mbedtls 3.6)
+  EXPECT_EQ(to_hex(ciphertext.data(), ciphertext.size()), "38038e8c0f2e");
+  EXPECT_EQ(to_hex(tag, 16), "8e128da165f162f4d7d2c8da866cf82a");
 
   std::vector<uint8_t> decrypted(plaintext.size());
   ASSERT_EQ(CryptoUtils::aes_gcm_decrypt(TestConstants::EXPECTED_SESSION_KEY, NONCE, aad, sizeof(aad),
@@ -174,9 +162,7 @@ TEST_F(PsaCryptoTest, PemStorageMatchesLegacyFormat) {
 
   mbedtls_pk_context legacy;
   mbedtls_pk_init(&legacy);
-  ASSERT_EQ(mbedtls_pk_parse_key(&legacy, reinterpret_cast<const uint8_t *>(pem), std::strlen(pem) + 1, nullptr, 0,
-                                 legacy_rng, nullptr),
-            0);
+  ASSERT_EQ(legacy_pk_parse(&legacy, reinterpret_cast<const uint8_t *>(pem), std::strlen(pem) + 1), 0);
   uint8_t legacy_pem[512];
   ASSERT_EQ(mbedtls_pk_write_key_pem(&legacy, legacy_pem, sizeof(legacy_pem)), 0);
   mbedtls_pk_free(&legacy);
@@ -225,7 +211,7 @@ TEST_F(PsaCryptoTest, GeneratedKeyRoundTripsAndAgrees) {
 
   mbedtls_pk_context legacy;
   mbedtls_pk_init(&legacy);
-  EXPECT_EQ(mbedtls_pk_parse_key(&legacy, pem, pem_length, nullptr, 0, legacy_rng, nullptr), 0);
+  EXPECT_EQ(legacy_pk_parse(&legacy, pem, pem_length), 0);
   mbedtls_pk_free(&legacy);
 }
 

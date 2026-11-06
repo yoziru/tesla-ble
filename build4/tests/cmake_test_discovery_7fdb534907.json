@@ -1,0 +1,67 @@
+{
+  "tests": 11,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "StateTextTest",
+      "tests": 11,
+      "testsuite": [
+        {
+          "name": "SleepStatus",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_state_text.cpp",
+          "line": 16
+        },
+        {
+          "name": "LockStatus",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_state_text.cpp",
+          "line": 23
+        },
+        {
+          "name": "UserPresence",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_state_text.cpp",
+          "line": 31
+        },
+        {
+          "name": "IsCharging",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_state_text.cpp",
+          "line": 38
+        },
+        {
+          "name": "ChargingStateText",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_state_text.cpp",
+          "line": 49
+        },
+        {
+          "name": "ChargerConnected",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_state_text.cpp",
+          "line": 61
+        },
+        {
+          "name": "Iec61851StateText",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_state_text.cpp",
+          "line": 72
+        },
+        {
+          "name": "SoftwareUpdateStatusText",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_state_text.cpp",
+          "line": 84
+        },
+        {
+          "name": "ShiftStateText",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_state_text.cpp",
+          "line": 96
+        },
+        {
+          "name": "IsParked",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_state_text.cpp",
+          "line": 106
+        },
+        {
+          "name": "ChargeLimitReasonText",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_state_text.cpp",
+          "line": 114
+        }
+      ]
+    }
+  ]
+}

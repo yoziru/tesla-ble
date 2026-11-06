@@ -1,0 +1,406 @@
+{
+  "tests": 67,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "MessageBuildingTest",
+      "tests": 19,
+      "testsuite": [
+        {
+          "name": "BuildWhiteListMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 95
+        },
+        {
+          "name": "BuildVCSECActionMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 108
+        },
+        {
+          "name": "BuildVCSECInformationRequestMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 120
+        },
+        {
+          "name": "BuildVCSECClosureMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 132
+        },
+        {
+          "name": "BuildVCSECClosureMessageMultipleDoors",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 147
+        },
+        {
+          "name": "BuildMessagesWithInvalidParameters",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 163
+        },
+        {
+          "name": "BuildCarServerGetVehicleDataMessageInvalidType",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 234
+        },
+        {
+          "name": "VehicleActionTagsAreUnique",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 268
+        },
+        {
+          "name": "ScheduledDepartureBuildsAndValidatesTimes",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 396
+        },
+        {
+          "name": "MediaUpdateVolumeBuildsAndValidates",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 425
+        },
+        {
+          "name": "SetCopTempRejectsOutOfRangeLevels",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 469
+        },
+        {
+          "name": "SetCabinOverheatProtectionOn",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 479
+        },
+        {
+          "name": "SetCabinOverheatProtectionOff",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 494
+        },
+        {
+          "name": "SetCabinOverheatProtectionFanOnly",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 508
+        },
+        {
+          "name": "ScheduleSoftwareUpdate",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 522
+        },
+        {
+          "name": "ScheduleSoftwareUpdateDelay",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 537
+        },
+        {
+          "name": "CancelSoftwareUpdate",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 551
+        },
+        {
+          "name": "BuildScheduleSoftwareUpdateViaBuilder",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 562
+        },
+        {
+          "name": "BuildSetCabinOverheatProtectionViaBuilder",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 573
+        }
+      ]
+    },
+    {
+      "name": "VehicleDataTest",
+      "tests": 13,
+      "testsuite": [
+        {
+          "name": "VehicleDataTagsAreUnique",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 204
+        },
+        {
+          "name": "VehicleDatagetChargeState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 231
+        },
+        {
+          "name": "VehicleDatagetClimateState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 231
+        },
+        {
+          "name": "VehicleDatagetDriveState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 231
+        },
+        {
+          "name": "VehicleDatagetLocationState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 231
+        },
+        {
+          "name": "VehicleDatagetClosuresState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 231
+        },
+        {
+          "name": "VehicleDatagetChargeScheduleState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 231
+        },
+        {
+          "name": "VehicleDatagetPreconditioningScheduleState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 231
+        },
+        {
+          "name": "VehicleDatagetTirePressureState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 231
+        },
+        {
+          "name": "VehicleDatagetMediaState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 231
+        },
+        {
+          "name": "VehicleDatagetMediaDetailState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 231
+        },
+        {
+          "name": "VehicleDatagetSoftwareUpdateState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 231
+        },
+        {
+          "name": "VehicleDatagetParentalControlsState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 231
+        }
+      ]
+    },
+    {
+      "name": "SimpleActions\/VehicleActionSimpleTest",
+      "tests": 14,
+      "testsuite": [
+        {
+          "name": "BuildSimpleVehicleActionMessage\/vehicleControlFlashLightsAction",
+          "value_param": "(\"vehicleControlFlashLightsAction\", 26)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        },
+        {
+          "name": "BuildSimpleVehicleActionMessage\/vehicleControlHonkHornAction",
+          "value_param": "(\"vehicleControlHonkHornAction\", 27)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        },
+        {
+          "name": "BuildSimpleVehicleActionMessage\/chargePortDoorOpen",
+          "value_param": "(\"chargePortDoorOpen\", 62)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        },
+        {
+          "name": "BuildSimpleVehicleActionMessage\/chargePortDoorClose",
+          "value_param": "(\"chargePortDoorClose\", 61)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        },
+        {
+          "name": "BuildSimpleVehicleActionMessage\/mediaPlayAction",
+          "value_param": "(\"mediaPlayAction\", 15)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        },
+        {
+          "name": "BuildSimpleVehicleActionMessage\/mediaNextFavorite",
+          "value_param": "(\"mediaNextFavorite\", 17)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        },
+        {
+          "name": "BuildSimpleVehicleActionMessage\/mediaPreviousFavorite",
+          "value_param": "(\"mediaPreviousFavorite\", 18)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        },
+        {
+          "name": "BuildSimpleVehicleActionMessage\/mediaNextTrack",
+          "value_param": "(\"mediaNextTrack\", 19)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        },
+        {
+          "name": "BuildSimpleVehicleActionMessage\/mediaPreviousTrack",
+          "value_param": "(\"mediaPreviousTrack\", 20)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        },
+        {
+          "name": "BuildSimpleVehicleActionMessage\/vehicleControlCancelSoftwareUpdateAction",
+          "value_param": "(\"vehicleControlCancelSoftwareUpdateAction\", 25)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        },
+        {
+          "name": "BuildSimpleVehicleActionMessage\/vehicleControlResetValetPinAction",
+          "value_param": "(\"vehicleControlResetValetPinAction\", 28)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        },
+        {
+          "name": "BuildSimpleVehicleActionMessage\/vehicleControlResetPinToDriveAction",
+          "value_param": "(\"vehicleControlResetPinToDriveAction\", 78)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        },
+        {
+          "name": "BuildSimpleVehicleActionMessage\/drivingClearSpeedLimitPinAdminAction",
+          "value_param": "(\"drivingClearSpeedLimitPinAdminAction\", 79)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        },
+        {
+          "name": "BuildSimpleVehicleActionMessage\/vehicleControlResetPinToDriveAdminAction",
+          "value_param": "(\"vehicleControlResetPinToDriveAdminAction\", 89)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 288
+        }
+      ]
+    },
+    {
+      "name": "BooleanActions\/VehicleActionBooleanTest",
+      "tests": 12,
+      "testsuite": [
+        {
+          "name": "BuildBooleanVehicleActionMessage\/vehicleControlSetSentryModeAction_On",
+          "value_param": "(\"vehicleControlSetSentryModeAction_On\", 30, true)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 329
+        },
+        {
+          "name": "BuildBooleanVehicleActionMessage\/vehicleControlSetSentryModeAction_Off",
+          "value_param": "(\"vehicleControlSetSentryModeAction_Off\", 30, false)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 329
+        },
+        {
+          "name": "BuildBooleanVehicleActionMessage\/hvacAutoAction_On",
+          "value_param": "(\"hvacAutoAction_On\", 10, true)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 329
+        },
+        {
+          "name": "BuildBooleanVehicleActionMessage\/hvacAutoAction_Off",
+          "value_param": "(\"hvacAutoAction_Off\", 10, false)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 329
+        },
+        {
+          "name": "BuildBooleanVehicleActionMessage\/hvacSteeringWheelHeaterAction_On",
+          "value_param": "(\"hvacSteeringWheelHeaterAction_On\", 13, true)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 329
+        },
+        {
+          "name": "BuildBooleanVehicleActionMessage\/hvacSteeringWheelHeaterAction_Off",
+          "value_param": "(\"hvacSteeringWheelHeaterAction_Off\", 13, false)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 329
+        },
+        {
+          "name": "BuildBooleanVehicleActionMessage\/setLowPowerModeAction_On",
+          "value_param": "(\"setLowPowerModeAction_On\", 130, true)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 329
+        },
+        {
+          "name": "BuildBooleanVehicleActionMessage\/setLowPowerModeAction_Off",
+          "value_param": "(\"setLowPowerModeAction_Off\", 130, false)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 329
+        },
+        {
+          "name": "BuildBooleanVehicleActionMessage\/setKeepAccessoryPowerModeAction_On",
+          "value_param": "(\"setKeepAccessoryPowerModeAction_On\", 138, true)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 329
+        },
+        {
+          "name": "BuildBooleanVehicleActionMessage\/setKeepAccessoryPowerModeAction_Off",
+          "value_param": "(\"setKeepAccessoryPowerModeAction_Off\", 138, false)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 329
+        },
+        {
+          "name": "BuildBooleanVehicleActionMessage\/guestModeAction_On",
+          "value_param": "(\"guestModeAction_On\", 65, true)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 329
+        },
+        {
+          "name": "BuildBooleanVehicleActionMessage\/guestModeAction_Off",
+          "value_param": "(\"guestModeAction_Off\", 65, false)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 329
+        }
+      ]
+    },
+    {
+      "name": "NumericActions\/VehicleActionNumericTest",
+      "tests": 9,
+      "testsuite": [
+        {
+          "name": "BuildNumericVehicleActionMessage\/setChargingAmpsAction_16A",
+          "value_param": "(\"setChargingAmpsAction_16A\", 43, 16)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 369
+        },
+        {
+          "name": "BuildNumericVehicleActionMessage\/setChargingAmpsAction_32A",
+          "value_param": "(\"setChargingAmpsAction_32A\", 43, 32)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 369
+        },
+        {
+          "name": "BuildNumericVehicleActionMessage\/chargingSetLimitAction_80pct",
+          "value_param": "(\"chargingSetLimitAction_80pct\", 5, 80)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 369
+        },
+        {
+          "name": "BuildNumericVehicleActionMessage\/chargingSetLimitAction_90pct",
+          "value_param": "(\"chargingSetLimitAction_90pct\", 5, 90)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 369
+        },
+        {
+          "name": "BuildNumericVehicleActionMessage\/ping_12345",
+          "value_param": "(\"ping_12345\", 46, 12345)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 369
+        },
+        {
+          "name": "BuildNumericVehicleActionMessage\/ping_99999",
+          "value_param": "(\"ping_99999\", 46, 99999)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 369
+        },
+        {
+          "name": "BuildNumericVehicleActionMessage\/setCopTempAction_Low",
+          "value_param": "(\"setCopTempAction_Low\", 66, 1)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 369
+        },
+        {
+          "name": "BuildNumericVehicleActionMessage\/setCopTempAction_Medium",
+          "value_param": "(\"setCopTempAction_Medium\", 66, 2)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 369
+        },
+        {
+          "name": "BuildNumericVehicleActionMessage\/setCopTempAction_High",
+          "value_param": "(\"setCopTempAction_High\", 66, 3)",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_building.cpp",
+          "line": 369
+        }
+      ]
+    }
+  ]
+}

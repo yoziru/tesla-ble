@@ -1,0 +1,37 @@
+{
+  "tests": 5,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "ProtocolFailureTest",
+      "tests": 5,
+      "testsuite": [
+        {
+          "name": "PrivateKeyPemParsing",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_compliance.cpp",
+          "line": 20
+        },
+        {
+          "name": "EcdhKeyAgreement",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_compliance.cpp",
+          "line": 34
+        },
+        {
+          "name": "SessionInfoAuthentication",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_compliance.cpp",
+          "line": 67
+        },
+        {
+          "name": "ClientStrictValidation",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_compliance.cpp",
+          "line": 100
+        },
+        {
+          "name": "CounterAntiReplay",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_compliance.cpp",
+          "line": 127
+        }
+      ]
+    }
+  ]
+}

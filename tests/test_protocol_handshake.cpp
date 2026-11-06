@@ -10,9 +10,6 @@
 #include <client.h>
 #include <peer.h>
 #include <crypto_context.h>
-#include <mbedtls/gcm.h>
-#include <mbedtls/md.h>
-#include <mbedtls/sha256.h>
 #include <pb_decode.h>
 #include <pb_encode.h>
 #include <algorithm>
@@ -264,32 +261,22 @@ TEST_F(ProtocolHandshakeTest, VcsecResponseDecryptRoundTrip) {
   ASSERT_EQ(ad_result, TeslaBLE_Status_E_OK) << "Failed to construct AD buffer";
 
   unsigned char ad_hash[32];
-  ASSERT_EQ(mbedtls_sha256(ad_buffer.data(), ad_length, ad_hash, 0), 0) << "Failed to hash AD buffer";
+  ASSERT_EQ(CryptoUtils::sha256_hash(ad_buffer.data(), ad_length, ad_hash), TeslaBLE_Status_E_OK)
+      << "Failed to hash AD buffer";
 
   std::array<pb_byte_t, Peer::NONCE_SIZE_BYTES> nonce = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
                                                          0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c};
   std::array<pb_byte_t, 12> plaintext = {0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b};
 
   std::array<pb_byte_t, 32> ciphertext{};
-  size_t ciphertext_length = 0;
+  size_t ciphertext_length = plaintext.size();
   std::array<pb_byte_t, Peer::TAG_SIZE_BYTES> tag{};
-  std::array<pb_byte_t, Peer::TAG_SIZE_BYTES> finish_buffer{};
-  size_t finish_length = 0;
 
-  mbedtls_gcm_context gcm;
-  mbedtls_gcm_init(&gcm);
-  ASSERT_EQ(mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, peer.get_shared_secret(), 128), 0)
-      << "Failed to set AES key";
-  ASSERT_EQ(mbedtls_gcm_starts(&gcm, MBEDTLS_GCM_ENCRYPT, nonce.data(), nonce.size()), 0) << "Failed to start GCM";
-  ASSERT_EQ(mbedtls_gcm_update_ad(&gcm, ad_hash, sizeof(ad_hash)), 0) << "Failed to set AAD";
-  ASSERT_EQ(mbedtls_gcm_update(&gcm, plaintext.data(), plaintext.size(), ciphertext.data(), ciphertext.size(),
-                               &ciphertext_length),
-            0)
-      << "Failed to encrypt";
   ASSERT_EQ(
-      mbedtls_gcm_finish(&gcm, finish_buffer.data(), finish_buffer.size(), &finish_length, tag.data(), tag.size()), 0)
-      << "Failed to finalize encryption";
-  mbedtls_gcm_free(&gcm);
+      CryptoUtils::aes_gcm_encrypt(peer.get_shared_secret(), nonce.data(), ad_hash, sizeof(ad_hash), plaintext.data(),
+                                   plaintext.size(), ciphertext.data(), ciphertext.size(), tag.data()),
+      TeslaBLE_Status_E_OK)
+      << "Failed to encrypt";
 
   std::array<pb_byte_t, 32> decrypted{};
   size_t decrypted_length = 0;

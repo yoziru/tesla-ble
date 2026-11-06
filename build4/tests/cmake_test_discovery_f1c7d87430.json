@@ -1,0 +1,32 @@
+{
+  "tests": 4,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "MessageProcessorTest",
+      "tests": 4,
+      "testsuite": [
+        {
+          "name": "EmptyQueueProcessesNothing",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_processor.cpp",
+          "line": 16
+        },
+        {
+          "name": "ProcessesQueuedMessagesInOrder",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_processor.cpp",
+          "line": 23
+        },
+        {
+          "name": "MessagesQueuedWhileProcessingWaitForTheNextCall",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_processor.cpp",
+          "line": 34
+        },
+        {
+          "name": "BacklogIsBoundedDroppingTheOldest",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_processor.cpp",
+          "line": 54
+        }
+      ]
+    }
+  ]
+}

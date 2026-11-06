@@ -1,0 +1,62 @@
+{
+  "tests": 10,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "ErrorHandlingTest",
+      "tests": 10,
+      "testsuite": [
+        {
+          "name": "ErrorCodeToStringMapping",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_error_handling.cpp",
+          "line": 44
+        },
+        {
+          "name": "UnknownErrorCode",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_error_handling.cpp",
+          "line": 54
+        },
+        {
+          "name": "AllErrorCodesAreMapped",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_error_handling.cpp",
+          "line": 70
+        },
+        {
+          "name": "BuildMessageWithoutPrivateKey",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_error_handling.cpp",
+          "line": 83
+        },
+        {
+          "name": "BuildMessageWithNullParameters",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_error_handling.cpp",
+          "line": 104
+        },
+        {
+          "name": "ParseMessageWithNullParameters",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_error_handling.cpp",
+          "line": 125
+        },
+        {
+          "name": "ParseSessionInfoWithNullParameters",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_error_handling.cpp",
+          "line": 142
+        },
+        {
+          "name": "PrivateKeyOperationsWithoutKey",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_error_handling.cpp",
+          "line": 159
+        },
+        {
+          "name": "EdgeCaseFunctionCalls",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_error_handling.cpp",
+          "line": 168
+        },
+        {
+          "name": "BuildUniversalMessageRejectsOversizedPayload",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_error_handling.cpp",
+          "line": 200
+        }
+      ]
+    }
+  ]
+}

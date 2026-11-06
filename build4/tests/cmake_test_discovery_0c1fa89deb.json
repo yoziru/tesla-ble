@@ -1,0 +1,52 @@
+{
+  "tests": 8,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "TBUtilsTest",
+      "tests": 8,
+      "testsuite": [
+        {
+          "name": "PbEncodeFieldsValidMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_tb_utils.cpp",
+          "line": 12
+        },
+        {
+          "name": "PbEncodeFieldsNullPointers",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_tb_utils.cpp",
+          "line": 31
+        },
+        {
+          "name": "PbEncodeFieldsUniversalMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_tb_utils.cpp",
+          "line": 53
+        },
+        {
+          "name": "FormatHexBasic",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_tb_utils.cpp",
+          "line": 74
+        },
+        {
+          "name": "FormatHexEmptyData",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_tb_utils.cpp",
+          "line": 81
+        },
+        {
+          "name": "FormatHexSingleByte",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_tb_utils.cpp",
+          "line": 90
+        },
+        {
+          "name": "FormatHexAllZeros",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_tb_utils.cpp",
+          "line": 97
+        },
+        {
+          "name": "FormatHexLargeData",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_tb_utils.cpp",
+          "line": 104
+        }
+      ]
+    }
+  ]
+}

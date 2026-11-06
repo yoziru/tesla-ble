@@ -1,0 +1,42 @@
+{
+  "tests": 6,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "ProtocolHandshakeTest",
+      "tests": 6,
+      "testsuite": [
+        {
+          "name": "HandshakeRequestGeneration",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_handshake.cpp",
+          "line": 53
+        },
+        {
+          "name": "HandshakeFlowProcessing",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_handshake.cpp",
+          "line": 87
+        },
+        {
+          "name": "ResponseEncryptionFlag",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_handshake.cpp",
+          "line": 124
+        },
+        {
+          "name": "ResponseDecryption",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_handshake.cpp",
+          "line": 169
+        },
+        {
+          "name": "VcsecResponseDecryptRoundTrip",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_handshake.cpp",
+          "line": 223
+        },
+        {
+          "name": "DomainSpecificBehavior",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_handshake.cpp",
+          "line": 312
+        }
+      ]
+    }
+  ]
+}

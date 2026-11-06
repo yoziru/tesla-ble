@@ -1,0 +1,52 @@
+{
+  "tests": 8,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "ProtocolAuthenticationTest",
+      "tests": 8,
+      "testsuite": [
+        {
+          "name": "AuthenticationStateTransitions",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_authentication.cpp",
+          "line": 32
+        },
+        {
+          "name": "MetadataSerializationEdgeCases",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_authentication.cpp",
+          "line": 62
+        },
+        {
+          "name": "CounterEdgeCases",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_authentication.cpp",
+          "line": 100
+        },
+        {
+          "name": "TimeAndExpirationHandling",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_authentication.cpp",
+          "line": 122
+        },
+        {
+          "name": "NonceGeneration",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_authentication.cpp",
+          "line": 154
+        },
+        {
+          "name": "SessionStateValidation",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_authentication.cpp",
+          "line": 188
+        },
+        {
+          "name": "ErrorConditions",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_authentication.cpp",
+          "line": 225
+        },
+        {
+          "name": "ProtocolCompatibility",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_authentication.cpp",
+          "line": 262
+        }
+      ]
+    }
+  ]
+}

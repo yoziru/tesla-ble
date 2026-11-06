@@ -1,0 +1,87 @@
+{
+  "tests": 15,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "MessageParsingTest",
+      "tests": 15,
+      "testsuite": [
+        {
+          "name": "ParseValidVCSECUniversalMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 71
+        },
+        {
+          "name": "ParseValidInfotainmentUniversalMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 84
+        },
+        {
+          "name": "ParseInvalidUniversalMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 98
+        },
+        {
+          "name": "ParseEmptyUniversalMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 108
+        },
+        {
+          "name": "ParseSessionInfoFromVCSECMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 115
+        },
+        {
+          "name": "ParseSessionInfoFromInfotainmentMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 133
+        },
+        {
+          "name": "ParseMessageWithNullOutput",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 152
+        },
+        {
+          "name": "ParseSessionInfoWithNullOutput",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 159
+        },
+        {
+          "name": "ParsePayloadCarServerResponsePlaintext",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 172
+        },
+        {
+          "name": "ParsePayloadCarServerResponseMediaState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 199
+        },
+        {
+          "name": "ExtractMediaNowPlayingTruncatesOnUtf8Boundary",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 235
+        },
+        {
+          "name": "ExtractMediaNowPlayingRejectsMissingOrMalformed",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 248
+        },
+        {
+          "name": "ParsePayloadCarServerResponseInvalidData",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 262
+        },
+        {
+          "name": "ParsePayloadCarServerResponseEdgeCases",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 280
+        },
+        {
+          "name": "ParsePayloadCarServerResponseChargeLimitReasonOneof",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_message_parsing.cpp",
+          "line": 307
+        }
+      ]
+    }
+  ]
+}

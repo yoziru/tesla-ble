@@ -1,0 +1,72 @@
+{
+  "tests": 12,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "VINUtilsTest",
+      "tests": 12,
+      "testsuite": [
+        {
+          "name": "GetVINAdvertisementNameGeneratesValidFormat",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vin_utils.cpp",
+          "line": 9
+        },
+        {
+          "name": "GetVINAdvertisementNameDeterministic",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vin_utils.cpp",
+          "line": 22
+        },
+        {
+          "name": "GetVINAdvertisementNameDifferentVINsProduceDifferentNames",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vin_utils.cpp",
+          "line": 30
+        },
+        {
+          "name": "GetVINAdvertisementNameHandlesStringInput",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vin_utils.cpp",
+          "line": 37
+        },
+        {
+          "name": "GetVINAdvertisementNameRejectsInvalidInput",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vin_utils.cpp",
+          "line": 42
+        },
+        {
+          "name": "IsTeslaVehicleNameValidatesFormat",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vin_utils.cpp",
+          "line": 50
+        },
+        {
+          "name": "IsTeslaVehicleNameHandlesStringInput",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vin_utils.cpp",
+          "line": 64
+        },
+        {
+          "name": "IsTeslaVehicleNameRejectsInvalidFormat",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vin_utils.cpp",
+          "line": 69
+        },
+        {
+          "name": "MatchesVINVerifiesVINDeviceNamePairing",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vin_utils.cpp",
+          "line": 96
+        },
+        {
+          "name": "MatchesVINHandlesStringInput",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vin_utils.cpp",
+          "line": 112
+        },
+        {
+          "name": "MatchesVINRejectsInvalidInput",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vin_utils.cpp",
+          "line": 119
+        },
+        {
+          "name": "RoundtripVINGenerationAndValidation",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vin_utils.cpp",
+          "line": 128
+        }
+      ]
+    }
+  ]
+}

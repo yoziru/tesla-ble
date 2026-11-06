@@ -1,0 +1,52 @@
+{
+  "tests": 8,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "ADBufferConstructionTest",
+      "tests": 8,
+      "testsuite": [
+        {
+          "name": "RequestMetadataFormat",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_ad_buffer_construction.cpp",
+          "line": 51
+        },
+        {
+          "name": "ResponseMetadataFormat",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_ad_buffer_construction.cpp",
+          "line": 106
+        },
+        {
+          "name": "FlagsConditionalInclusion",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_ad_buffer_construction.cpp",
+          "line": 179
+        },
+        {
+          "name": "ResponseAlwaysIncludesFlags",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_ad_buffer_construction.cpp",
+          "line": 240
+        },
+        {
+          "name": "DifferentDomainsProduceDifferentBuffers",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_ad_buffer_construction.cpp",
+          "line": 267
+        },
+        {
+          "name": "TerminalByteAlwaysPresent",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_ad_buffer_construction.cpp",
+          "line": 288
+        },
+        {
+          "name": "InvalidParametersReturnError",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_ad_buffer_construction.cpp",
+          "line": 303
+        },
+        {
+          "name": "RequestHashDomainDifferences",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_ad_buffer_construction.cpp",
+          "line": 324
+        }
+      ]
+    }
+  ]
+}

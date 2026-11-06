@@ -1,0 +1,32 @@
+{
+  "tests": 4,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "ProtocolEdgeCasesTest",
+      "tests": 4,
+      "testsuite": [
+        {
+          "name": "InvalidPublicKeyFormat",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_edge_cases.cpp",
+          "line": 31
+        },
+        {
+          "name": "InvalidSessionInfoMissingEpoch",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_edge_cases.cpp",
+          "line": 40
+        },
+        {
+          "name": "CounterOverflow",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_edge_cases.cpp",
+          "line": 51
+        },
+        {
+          "name": "RequestHashInvalidTagLength",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_protocol_edge_cases.cpp",
+          "line": 59
+        }
+      ]
+    }
+  ]
+}

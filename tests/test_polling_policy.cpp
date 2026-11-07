@@ -204,3 +204,81 @@ TEST(PollingPolicyTest, FullTickCadenceWhileCharging) {
   d = p.update(20000 + 10000, false, true, false);
   EXPECT_TRUE(p.should_poll(20000 + 10000, d.interval_ms));
 }
+
+TEST(PollingPolicyTest, ProbeOverridesIdleBackoffWithoutResettingIdleOrCadence) {
+  InfotainmentPollPolicy p;
+  p.update(1000, false, false, false);
+  EXPECT_FALSE(p.probe_window_active(1000));
+  p.on_poll(640000);
+  p.begin_probe_window(650000, 180000);
+  EXPECT_FALSE(p.should_poll(650000, p.awake_interval_ms()));
+  EXPECT_TRUE(p.should_poll(670000, p.awake_interval_ms()));
+  EXPECT_EQ(p.update(650000, false, false, false).wake_policy, WakePolicy::WAKE_IF_NEEDED);
+  p.on_poll(650000);
+
+  for (uint32_t now : {661000U, 679999U, 680000U, 829999U}) {
+    auto d = p.update(now, false, false, false);
+    EXPECT_TRUE(p.probe_window_active(now));
+    EXPECT_EQ(d.interval_ms, 30000U);
+    EXPECT_EQ(d.wake_policy, WakePolicy::NO_WAKE_SKIP);
+    EXPECT_EQ(p.should_poll(now, d.interval_ms), now >= 680000U);
+  }
+
+  auto d = p.update(830000, false, false, false);
+  EXPECT_FALSE(p.probe_window_active(830000));
+  EXPECT_EQ(d.interval_ms, 660000U);
+  EXPECT_EQ(d.wake_policy, WakePolicy::NO_WAKE_SKIP);
+}
+
+TEST(PollingPolicyTest, ProbeIsSuppressedByObservedSleepEvenWithActiveState) {
+  for (bool active : {false, true}) {
+    InfotainmentPollPolicy p;
+    p.begin_probe_window(1000, 180000);
+    auto d = p.update(1000, true, active, active);
+    EXPECT_EQ(d.interval_ms, 660000U);
+    EXPECT_EQ(d.wake_policy, WakePolicy::NO_WAKE_SKIP);
+    EXPECT_TRUE(p.probe_window_active(1000));
+  }
+}
+
+TEST(PollingPolicyTest, ProbeRestartsAndCancelsButPollsAndAwakeReportsDoNotExtendIt) {
+  InfotainmentPollPolicy p;
+  p.begin_probe_window(1000, 180000);
+  p.begin_probe_window(100000, 180000);
+  EXPECT_TRUE(p.probe_window_active(181000));
+  p.on_poll(279999);
+  p.update(279999, false, false, false);
+  EXPECT_TRUE(p.probe_window_active(279999));
+  EXPECT_FALSE(p.probe_window_active(280000));
+
+  p.begin_probe_window(280000, 180000);
+  p.begin_probe_window(280001, 0);
+  EXPECT_FALSE(p.probe_window_active(280001));
+  EXPECT_EQ(p.update(1000000, false, false, false).interval_ms, 660000U);
+}
+
+TEST(PollingPolicyTest, ProbeExpiryAcrossMillisWraparoundAndStartAtZero) {
+  for (uint32_t start : {0U, 0xFFFFFFFFU - 10000U}) {
+    InfotainmentPollPolicy p;
+    p.begin_probe_window(start, 30000);
+    EXPECT_TRUE(p.probe_window_active(start));
+    EXPECT_TRUE(p.probe_window_active(start + 29999U));
+    EXPECT_FALSE(p.probe_window_active(start + 30000U));
+  }
+}
+
+TEST(PollingPolicyTest, ProbeHandsOverToChargingOrSentryWithoutSlowingPolling) {
+  for (bool charging : {false, true}) {
+    InfotainmentPollPolicy p;
+    p.update(1000, false, false, false);
+    p.begin_probe_window(700000, 180000);
+    EXPECT_EQ(p.update(700000, false, false, false).interval_ms, 30000U);
+    auto d = p.update(730000, false, charging, !charging);
+    EXPECT_EQ(d.interval_ms, 10000U);
+    EXPECT_EQ(d.wake_policy, WakePolicy::WAKE_IF_NEEDED);
+    d = p.update(880000, false, charging, !charging);
+    EXPECT_FALSE(p.probe_window_active(880000));
+    EXPECT_EQ(d.interval_ms, 10000U);
+    EXPECT_EQ(d.wake_policy, WakePolicy::WAKE_IF_NEEDED);
+  }
+}

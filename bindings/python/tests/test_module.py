@@ -64,6 +64,22 @@ def test_polling_policy():
     assert policy.should_poll(100000 + 30000, 30000)
 
 
+def test_probe_window_binding():
+    policy = tesla_ble.InfotainmentPollPolicy()
+    assert not policy.probe_window_active(now_ms=1000)
+    policy.update(1000, False, False, False)
+    policy.begin_probe_window(now_ms=700000, window_ms=180000)
+    assert policy.probe_window_active(now_ms=700000)
+    assert policy.update(700000, False, False, False) == {
+        "interval_ms": 30000,
+        "wake_policy": tesla_ble.WakePolicy.NO_WAKE_SKIP,
+    }
+    assert not policy.probe_window_active(now_ms=880000)
+    assert policy.update(880000, False, False, False)["interval_ms"] == 660000
+    policy.begin_probe_window(now_ms=880000, window_ms=0)
+    assert not policy.probe_window_active(now_ms=880000)
+
+
 def test_tire_pressure_state_callback():
     sim = tesla_ble.SimulatedVehicle(VIN)
     sim.set_tpms(0, 2.9)

@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.4.0
+
+### Added
+
+- `InfotainmentPollPolicy::begin_probe_window()` and `probe_window_active()`
+  (C++ and Python): opt-in bounded awake-cadence polling without changing idle
+  timing or wake policy.
+
 ## 6.0.0
 
 This release moves the shared host logic into the library and cleans up the

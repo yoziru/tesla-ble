@@ -49,6 +49,15 @@ class InfotainmentPollPolicy {
   // Record that a poll fired at now_ms.
   void on_poll(uint32_t now_ms) { last_poll_ms_ = now_ms; }
 
+  void begin_probe_window(uint32_t now_ms, uint32_t window_ms) {
+    probe_start_ms_ = now_ms;
+    probe_window_ms_ = window_ms;
+  }
+
+  bool probe_window_active(uint32_t now_ms) const {
+    return probe_window_ms_ != 0 && now_ms - probe_start_ms_ < probe_window_ms_;
+  }
+
   InfotainmentPollDecision update(uint32_t now_ms, bool is_asleep, bool is_charging, bool is_sentry_mode) {
     const bool active = is_charging || is_sentry_mode;
     if (active || idle_since_ms_ == 0) {
@@ -62,6 +71,9 @@ class InfotainmentPollPolicy {
     } else if (active) {
       interval_ms = active_interval_ms_;
     }
+    if (!is_asleep && probe_window_active(now_ms) && interval_ms > awake_interval_ms_) {
+      interval_ms = awake_interval_ms_;
+    }
     return {.interval_ms = interval_ms,
             .wake_policy = effective_asleep ? WakePolicy::NO_WAKE_SKIP : WakePolicy::WAKE_IF_NEEDED};
   }
@@ -72,6 +84,8 @@ class InfotainmentPollPolicy {
   uint32_t sleep_timeout_ms_{660000};
   uint32_t idle_since_ms_{0};
   uint32_t last_poll_ms_{0};
+  uint32_t probe_start_ms_{0};
+  uint32_t probe_window_ms_{0};
 };
 
 }  // namespace TeslaBLE

@@ -928,6 +928,9 @@ Persistent storage for keys and sessions. Subclass and implement:
       .def("reset", &TeslaBLE::InfotainmentPollPolicy::reset)
       .def("should_poll", &TeslaBLE::InfotainmentPollPolicy::should_poll, py::arg("now_ms"), py::arg("interval_ms"))
       .def("on_poll", &TeslaBLE::InfotainmentPollPolicy::on_poll, py::arg("now_ms"))
+      .def("begin_probe_window", &TeslaBLE::InfotainmentPollPolicy::begin_probe_window, py::arg("now_ms"),
+           py::arg("window_ms"))
+      .def("probe_window_active", &TeslaBLE::InfotainmentPollPolicy::probe_window_active, py::arg("now_ms"))
       .def(
           "update",
           [](TeslaBLE::InfotainmentPollPolicy &self, uint32_t now_ms, bool is_asleep, bool is_charging,

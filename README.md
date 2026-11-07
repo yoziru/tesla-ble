@@ -66,7 +66,21 @@ this callback too. Disconnect before clearing callbacks to finish pending work.
 
 `InfotainmentPollPolicy::on_poll()` records cadence, not activity. Its idle timer
 continues across absence; neither an awake report nor reconnect should reset it.
-Hosts own bounded arrival probes, genuine-activity detection and freshness.
+Hosts own arrival detection, cooldowns/persistence, genuine activity and freshness.
+After fresh VCSEC evidence that the car is awake, a host can call
+`begin_probe_window(now_ms, window_ms)` to cap the interval at the awake cadence
+without resetting idle timing or changing wake policy. Faster active polling is
+preserved; observed sleep suppresses the cap. `probe_window_active(now_ms)` reports
+the lease lifetime, not vehicle state. A later begin call restarts it; zero duration
+cancels it. Polls and awake reports do not renew it.
+
+Opening a window does not force a poll. Hosts own the immediate refresh and must
+use `NO_WAKE_SKIP` for automatic probes, even if the normal decision allows waking.
+On reconnect, wait for fresh VCSEC status rather than trusting last-known awake;
+treat unknown/stale sleep state as asleep. Cancel the window on sleep or disconnect
+if it must not resume before expiry. Use a short window and host-side cooldowns to
+avoid sustained polling. Times use wrapping `uint32_t` milliseconds, like
+`should_poll()`; elapsed-time checks must stay within one full clock cycle.
 
 ### Charging power
 

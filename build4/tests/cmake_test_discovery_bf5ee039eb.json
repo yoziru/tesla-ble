@@ -1,0 +1,42 @@
+{
+  "tests": 6,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "SessionManagementTest",
+      "tests": 6,
+      "testsuite": [
+        {
+          "name": "GetVCSECPeer",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_management.cpp",
+          "line": 29
+        },
+        {
+          "name": "GetInfotainmentPeer",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_management.cpp",
+          "line": 36
+        },
+        {
+          "name": "InitializeVCSECSession",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_management.cpp",
+          "line": 43
+        },
+        {
+          "name": "InitializeInfotainmentSession",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_management.cpp",
+          "line": 65
+        },
+        {
+          "name": "UpdateSessionWithNullSessionInfo",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_management.cpp",
+          "line": 88
+        },
+        {
+          "name": "MultipleSessionUpdates",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_management.cpp",
+          "line": 97
+        }
+      ]
+    }
+  ]
+}

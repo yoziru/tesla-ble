@@ -1,0 +1,47 @@
+{
+  "tests": 7,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "KeyGenerationTest",
+      "tests": 7,
+      "testsuite": [
+        {
+          "name": "CreatePrivateKeyGeneratesValidKey",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_key_generation.cpp",
+          "line": 20
+        },
+        {
+          "name": "LoadValidPrivateKey",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_key_generation.cpp",
+          "line": 33
+        },
+        {
+          "name": "LoadInvalidPrivateKeyFails",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_key_generation.cpp",
+          "line": 40
+        },
+        {
+          "name": "LoadEmptyPrivateKeyFails",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_key_generation.cpp",
+          "line": 65
+        },
+        {
+          "name": "GetPrivateKeyWithoutLoadingFails",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_key_generation.cpp",
+          "line": 70
+        },
+        {
+          "name": "GetPrivateKeyWithInsufficientBufferFails",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_key_generation.cpp",
+          "line": 77
+        },
+        {
+          "name": "RepeatedKeyGenerationWorks",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_key_generation.cpp",
+          "line": 91
+        }
+      ]
+    }
+  ]
+}

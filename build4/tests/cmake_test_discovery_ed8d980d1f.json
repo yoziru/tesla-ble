@@ -1,0 +1,42 @@
+{
+  "tests": 6,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "ChargingPower",
+      "tests": 6,
+      "testsuite": [
+        {
+          "name": "FieldReportsAndSyntheticSupplyVariants",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_charging_power.cpp",
+          "line": 34
+        },
+        {
+          "name": "AmbiguityAndOutliersFallBackWithoutPoisoningLaterSamples",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_charging_power.cpp",
+          "line": 70
+        },
+        {
+          "name": "CurrentChangesAndAmbiguousVoltageReferenceRequireFreshEvidence",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_charging_power.cpp",
+          "line": 90
+        },
+        {
+          "name": "MissingInvalidAndDcReadingsNeverReuseAcInputs",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_charging_power.cpp",
+          "line": 107
+        },
+        {
+          "name": "CableClassificationDoesNotMistakeDcOrUnknownForAc",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_charging_power.cpp",
+          "line": 159
+        },
+        {
+          "name": "UnplugAndNonChargingStatesResetLearning",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_charging_power.cpp",
+          "line": 186
+        }
+      ]
+    }
+  ]
+}

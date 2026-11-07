@@ -1,0 +1,5 @@
+if(EXISTS "/home/dev/dev/tesla-ble/build4/tests/test_charging_power_e3b0c442_tests.cmake")
+  include("/home/dev/dev/tesla-ble/build4/tests/test_charging_power_e3b0c442_tests.cmake")
+else()
+  add_test(test_charging_power_NOT_BUILT test_charging_power_NOT_BUILT)
+endif()

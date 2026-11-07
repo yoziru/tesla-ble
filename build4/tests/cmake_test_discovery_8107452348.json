@@ -1,0 +1,27 @@
+{
+  "tests": 3,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "ClientTest",
+      "tests": 3,
+      "testsuite": [
+        {
+          "name": "GetPeerForBothDomains",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_client.cpp",
+          "line": 21
+        },
+        {
+          "name": "BuildUniversalMessageUpdatesLastRequestUuid",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_client.cpp",
+          "line": 29
+        },
+        {
+          "name": "BuildWhiteListMessageInvalidRole",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_client.cpp",
+          "line": 54
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "tests": 13,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "SessionRecoveryTest",
+      "tests": 13,
+      "testsuite": [
+        {
+          "name": "UpdateSessionWithHigherCounter",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_recovery.cpp",
+          "line": 61
+        },
+        {
+          "name": "UpdateSessionRejectsLowerCounter",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_recovery.cpp",
+          "line": 78
+        },
+        {
+          "name": "ForceUpdateSessionAcceptsLowerCounter",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_recovery.cpp",
+          "line": 95
+        },
+        {
+          "name": "ForceUpdateSessionRestoresValidity",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_recovery.cpp",
+          "line": 121
+        },
+        {
+          "name": "ForceUpdateSessionWithEpochChange",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_recovery.cpp",
+          "line": 142
+        },
+        {
+          "name": "ForceUpdateSessionWithNullInfo",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_recovery.cpp",
+          "line": 172
+        },
+        {
+          "name": "FullSessionRecoveryFlow",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_recovery.cpp",
+          "line": 185
+        },
+        {
+          "name": "IsInitializedReturnsFalseWhenInvalid",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_recovery.cpp",
+          "line": 213
+        },
+        {
+          "name": "UpdateSessionWithSameCounter",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_recovery.cpp",
+          "line": 228
+        },
+        {
+          "name": "NewAuthenticatedEpochAcceptsCounterOne",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_recovery.cpp",
+          "line": 238
+        },
+        {
+          "name": "ResetSessionAcceptsCounterOne",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_recovery.cpp",
+          "line": 251
+        },
+        {
+          "name": "FailedForceUpdatePreservesResponseWindow",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_recovery.cpp",
+          "line": 261
+        },
+        {
+          "name": "SessionInfoWithoutPublicKeyDoesNotMarkSessionValid",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_session_recovery.cpp",
+          "line": 274
+        }
+      ]
+    }
+  ]
+}

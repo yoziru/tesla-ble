@@ -10,9 +10,6 @@
 #include <client.h>
 #include <peer.h>
 #include <tb_utils.h>
-#include <mbedtls/md.h>
-#include <mbedtls/gcm.h>
-#include <mbedtls/sha256.h>
 #include <cstring>
 #include "test_constants.h"
 

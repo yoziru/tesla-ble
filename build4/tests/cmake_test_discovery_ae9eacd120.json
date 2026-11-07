@@ -1,0 +1,57 @@
+{
+  "tests": 9,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "EncryptedResponseTest",
+      "tests": 9,
+      "testsuite": [
+        {
+          "name": "InfotainmentCommandCompletesWithEncryptedResponse",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_encrypted_responses.cpp",
+          "line": 260
+        },
+        {
+          "name": "DelayedEncryptedResponseCompletesDuringRetryBackoff",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_encrypted_responses.cpp",
+          "line": 274
+        },
+        {
+          "name": "TamperedResponseTagIsRejected",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_encrypted_responses.cpp",
+          "line": 289
+        },
+        {
+          "name": "SoftwareUpdateVersionComesFromDecryptedPayload",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_encrypted_responses.cpp",
+          "line": 312
+        },
+        {
+          "name": "ChargeScheduleWindowComesFromDecryptedPayload",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_encrypted_responses.cpp",
+          "line": 335
+        },
+        {
+          "name": "ResponseWithMismatchedCounterIsRejected",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_encrypted_responses.cpp",
+          "line": 378
+        },
+        {
+          "name": "VcsecCommandCompletesWithDelayedEncryptedResponse",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_encrypted_responses.cpp",
+          "line": 393
+        },
+        {
+          "name": "ClientKeepsRequestHashPerDomain",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_encrypted_responses.cpp",
+          "line": 434
+        },
+        {
+          "name": "WakeAndProbeKeepIndependentRoutingAndReplayContexts",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_encrypted_responses.cpp",
+          "line": 470
+        }
+      ]
+    }
+  ]
+}

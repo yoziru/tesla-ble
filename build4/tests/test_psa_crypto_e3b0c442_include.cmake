@@ -1,0 +1,5 @@
+if(EXISTS "/home/dev/dev/tesla-ble/build4/tests/test_psa_crypto_e3b0c442_tests.cmake")
+  include("/home/dev/dev/tesla-ble/build4/tests/test_psa_crypto_e3b0c442_tests.cmake")
+else()
+  add_test(test_psa_crypto_NOT_BUILT test_psa_crypto_NOT_BUILT)
+endif()

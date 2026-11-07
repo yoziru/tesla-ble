@@ -294,8 +294,8 @@ This architecture provides a clean, maintainable approach to command lifecycle m
 ### Dependencies
 
 - [nanopb](https://github.com/nanopb/nanopb)
-- [mbedtls 3.x](https://github.com/Mbed-TLS/mbedtls)
-  - NOTE: ESP-IDF <=4.4 includes [mbedtls 2.x](https://github.com/espressif/mbedtls/wiki#mbed-tls-support-in-esp-idf), and is not compatible with this library. You will need to use at least ESP-IDF 5.0.
+- [mbedtls 3.6 or 4.x](https://github.com/Mbed-TLS/mbedtls) (PSA Crypto API)
+  - NOTE: ESP-IDF 5.3 is the first release with Mbed TLS 3.6; older ESP-IDF releases are not compatible with this library.
 
 ## Features
 

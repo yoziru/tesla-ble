@@ -1,0 +1,72 @@
+{
+  "tests": 12,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "LoggingTest",
+      "tests": 12,
+      "testsuite": [
+        {
+          "name": "BasicLogging",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_logging.cpp",
+          "line": 47
+        },
+        {
+          "name": "LoggingWithFormat",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_logging.cpp",
+          "line": 56
+        },
+        {
+          "name": "AllLogLevels",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_logging.cpp",
+          "line": 64
+        },
+        {
+          "name": "CustomTagInSource",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_logging.cpp",
+          "line": 79
+        },
+        {
+          "name": "NullFormatHandling",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_logging.cpp",
+          "line": 86
+        },
+        {
+          "name": "NullTagHandling",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_logging.cpp",
+          "line": 94
+        },
+        {
+          "name": "NoCallbackFallback",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_logging.cpp",
+          "line": 103
+        },
+        {
+          "name": "FormatHexUtility",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_logging.cpp",
+          "line": 114
+        },
+        {
+          "name": "FormatHexEmptyData",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_logging.cpp",
+          "line": 121
+        },
+        {
+          "name": "FormatHexLargeData",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_logging.cpp",
+          "line": 130
+        },
+        {
+          "name": "LongMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_logging.cpp",
+          "line": 148
+        },
+        {
+          "name": "MultipleMessages",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_logging.cpp",
+          "line": 157
+        }
+      ]
+    }
+  ]
+}

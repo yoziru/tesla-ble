@@ -1,0 +1,97 @@
+{
+  "tests": 17,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "PollingPolicyTest",
+      "tests": 17,
+      "testsuite": [
+        {
+          "name": "DefaultIntervals",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 17
+        },
+        {
+          "name": "IdlePollingBacksOffAfterTimeout",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 24
+        },
+        {
+          "name": "ObservedAsleepSkipsWakePolling",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 40
+        },
+        {
+          "name": "ChargingKeepsVehicleAwake",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 49
+        },
+        {
+          "name": "SentryModeKeepsVehicleAwake",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 62
+        },
+        {
+          "name": "AwakeBlipDoesNotResumeWakePolling",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 75
+        },
+        {
+          "name": "ActivityAfterSleepResumesFastPolling",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 86
+        },
+        {
+          "name": "ResetStartsFreshIdleWindow",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 98
+        },
+        {
+          "name": "IdleTimeoutCountsFromChargingStop",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 109
+        },
+        {
+          "name": "IdleTimeoutCountsFromSentryOff",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 125
+        },
+        {
+          "name": "ChargingAndSentryTogetherStayAwake",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 140
+        },
+        {
+          "name": "PollDueWhenNoPollFiredYet",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 149
+        },
+        {
+          "name": "PollDueAfterInterval",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 157
+        },
+        {
+          "name": "PollTracksFireTime",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 165
+        },
+        {
+          "name": "ForceUpdateThrottledToActiveInterval",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 174
+        },
+        {
+          "name": "PollStaysCorrectAcrossMillisWraparound",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 182
+        },
+        {
+          "name": "FullTickCadenceWhileCharging",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_polling_policy.cpp",
+          "line": 191
+        }
+      ]
+    }
+  ]
+}

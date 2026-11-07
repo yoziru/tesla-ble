@@ -1,0 +1,5 @@
+if(EXISTS "/home/dev/dev/tesla-ble/build4/tests/test_error_handling_e3b0c442_tests.cmake")
+  include("/home/dev/dev/tesla-ble/build4/tests/test_error_handling_e3b0c442_tests.cmake")
+else()
+  add_test(test_error_handling_NOT_BUILT test_error_handling_NOT_BUILT)
+endif()

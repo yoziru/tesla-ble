@@ -1,0 +1,469 @@
+{
+  "tests": 89,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "VehicleTest",
+      "tests": 86,
+      "testsuite": [
+        {
+          "name": "ConnectionStateTransitions",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 448
+        },
+        {
+          "name": "WakeCommandSendsData",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 462
+        },
+        {
+          "name": "VCSECPollSendsData",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 473
+        },
+        {
+          "name": "InfotainmentPollWithForceWakeSendsData",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 482
+        },
+        {
+          "name": "InfotainmentPollCompletesOnResponse",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 491
+        },
+        {
+          "name": "PollAndChargingCommandResponsesStaySerialized",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 546
+        },
+        {
+          "name": "CounterReplaySessionInfoIsAppliedInsteadOfRejected",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 594
+        },
+        {
+          "name": "StoredSessionWithFutureClockTimeIsNotRejected",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 634
+        },
+        {
+          "name": "InfotainmentActionFailureSurfacesPlainTextReason",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 677
+        },
+        {
+          "name": "AlreadySetActionIsAnIdempotentSuccess",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 736
+        },
+        {
+          "name": "SetChargingAmpsSendsData",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 781
+        },
+        {
+          "name": "SetChargingLimitSendsData",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 790
+        },
+        {
+          "name": "ScheduleSoftwareUpdateRejectsNegativeOffset",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 799
+        },
+        {
+          "name": "CommandCallbackIsInvokedOnSuccess",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 819
+        },
+        {
+          "name": "CommandCallbackReceivesFailureOnDisconnect",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 856
+        },
+        {
+          "name": "NullCallbackIsHandledSafely",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 878
+        },
+        {
+          "name": "ReceivingDataDoesNotCrash",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 896
+        },
+        {
+          "name": "ReceivingPartialDataDoesNotCrash",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 902
+        },
+        {
+          "name": "ReceivingEmptyDataDoesNotCrash",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 908
+        },
+        {
+          "name": "ReceivingValidSessionInfoCompletesAuth",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 913
+        },
+        {
+          "name": "RecoverySkipsCorruptPrefix",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 951
+        },
+        {
+          "name": "SplitFrameAcrossNotificationsIsReassembled",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 970
+        },
+        {
+          "name": "MultipleFramesInOneNotificationAreProcessed",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 982
+        },
+        {
+          "name": "CorruptLengthBeforeSplitFrameDoesNotDiscardValidFrame",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 995
+        },
+        {
+          "name": "MalformedProtobufBeforeValidFrameIsSkipped",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1009
+        },
+        {
+          "name": "IdenticalNotificationsAcrossReconnectArePreserved",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1022
+        },
+        {
+          "name": "DisconnectDiscardsDecodedRepliesBeforeReconnect",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1037
+        },
+        {
+          "name": "UnknownSleepObservationDoesNotMeanAwake",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1053
+        },
+        {
+          "name": "DisconnectDuringObservationDefersNewConnectionMessages",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1064
+        },
+        {
+          "name": "DisconnectDuringMessageCallbackDiscardsCurrentObservation",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1083
+        },
+        {
+          "name": "DisconnectClearsAuthenticationState",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1113
+        },
+        {
+          "name": "DisconnectClearsAllPendingCommands",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1129
+        },
+        {
+          "name": "SignedSessionInfoKeyNotOnWhitelistReportsPairingError",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1167
+        },
+        {
+          "name": "SessionInfoKeyNotOnWhitelistDoesNotUpdatePeerSession",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1217
+        },
+        {
+          "name": "DisconnectClearsPartiallyReceivedData",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1265
+        },
+        {
+          "name": "DisconnectWithEmptyQueueDoesNotCrash",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1279
+        },
+        {
+          "name": "ReconnectionAllowsFreshCommands",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1281
+        },
+        {
+          "name": "MultipleDisconnectsOnlyCallbackOnce",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1298
+        },
+        {
+          "name": "PairingWhitelistRequestUsesCommandTimeout",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1354
+        },
+        {
+          "name": "InfotainmentWakeTransitionResetsCommandTimeoutBudget",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1379
+        },
+        {
+          "name": "WakeStatusBurstSendsOneInfotainmentSessionRequest",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1442
+        },
+        {
+          "name": "WakeWaitPollsStatusWithoutBlockingOnQueuedCommands",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1485
+        },
+        {
+          "name": "WakeSessionRecoveryRebuildsRequestsAndRemainsBounded",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1557
+        },
+        {
+          "name": "UnansweredSessionRequestIsResentUnchangedEverySecond",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1615
+        },
+        {
+          "name": "ResponseTimeoutResendsTheSameMessage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1663
+        },
+        {
+          "name": "ErrorTimeExpiredTriggersSessionResetAndReAuth",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1763
+        },
+        {
+          "name": "SignedMessageRejectionCompletesDuringRetryBackoff",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1860
+        },
+        {
+          "name": "SignedMessageCorrelationProtectsPendingControl",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1902
+        },
+        {
+          "name": "UnknownKeyDuringPollReportsPairingRequired",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1962
+        },
+        {
+          "name": "StaleVcsecResponsesObserveButDoNotCompleteNewControl",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1985
+        },
+        {
+          "name": "SessionCorrelationUsesAuthAndWakePrerequisiteDomains",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2038
+        },
+        {
+          "name": "UnsignedKeyRejectionSignalsRepairWithoutEstablishingSession",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2111
+        },
+        {
+          "name": "MissingSessionInfoHmacTagFailsAuthGracefully",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2142
+        },
+        {
+          "name": "SessionInfoOutsideLatencyWindowCannotRestoreSession",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2185
+        },
+        {
+          "name": "MissingSessionInfoHmacTagDoesNotBlockSubsequentCommands",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2220
+        },
+        {
+          "name": "PairingBypassesAuthEvenWhenVcsecAuthIsFailing",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2272
+        },
+        {
+          "name": "NoWakeSkipSkipsWhenVehicleAsleep",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2311
+        },
+        {
+          "name": "NoWakeFailWhenVehicleAsleep",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2338
+        },
+        {
+          "name": "WakeIfNeededProceedsWhenAwake",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2365
+        },
+        {
+          "name": "WakeIfNeededTriggersWakeWhenAsleep",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2383
+        },
+        {
+          "name": "WakePolicyRichOutcomeCallbackDistinguishesSkipped",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2401
+        },
+        {
+          "name": "WakePolicyRichOutcomeCallbackDistinguishesFailed",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2429
+        },
+        {
+          "name": "WakePhaseTimeoutDoesNotConsumeFinalResponseBudget",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2458
+        },
+        {
+          "name": "AuthPhaseTimeoutIndependentFromFinalResponseTimeout",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2505
+        },
+        {
+          "name": "WrapperCanObserveSkippedOutcomeWithoutInspectingInternals",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2544
+        },
+        {
+          "name": "WrapperCanObservePhaseTransitions",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2572
+        },
+        {
+          "name": "AuthStallReportsFailureOnceAndDisconnects",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2707
+        },
+        {
+          "name": "AuthTimeoutRaisesRetryLevelBeforeFailing",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2747
+        },
+        {
+          "name": "RegenerateKeyResetsSessionsAndStoredCredentials",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2780
+        },
+        {
+          "name": "LockActionCallbackReceivesFailureWhenDisconnected",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2826
+        },
+        {
+          "name": "WakeActionCallbackReceivesSkippedWhenAwake",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2840
+        },
+        {
+          "name": "SetChargingAmpsCallbackReceivesBuildFailureForInvalidValue",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2853
+        },
+        {
+          "name": "SetClimateActionCallbackReceivesSuccessOnAlreadySet",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2865
+        },
+        {
+          "name": "RegenerateKeyCallbackReceivesSuccess",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2896
+        },
+        {
+          "name": "PendingCommandCountTracksQueue",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2913
+        },
+        {
+          "name": "HasPrivateKeyReflectsStorage",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2922
+        },
+        {
+          "name": "SuccessfulActionSchedulesFollowUpPoll",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2931
+        },
+        {
+          "name": "ClimateActionSchedulesChargeIndependentFollowUp",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2962
+        },
+        {
+          "name": "PairingWaitsForWhitelistConfirmation",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2998
+        },
+        {
+          "name": "PairingRejectsOuterAndNestedErrors",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 3023
+        },
+        {
+          "name": "CompletionCanDisconnectWithoutReportingAgain",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 3054
+        },
+        {
+          "name": "DisconnectCallbacksCanDisconnectAndReconnect",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 3083
+        },
+        {
+          "name": "PhaseCallbacksCanCancelWithoutSendingOrCompletingTwice",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 3107
+        },
+        {
+          "name": "FollowUpPollsCoalesceAndClearOnDisconnect",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 3141
+        },
+        {
+          "name": "FullQueueRetainsDeferredFollowUpUntilSpaceIsAvailable",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 3165
+        },
+        {
+          "name": "VcsecPollCallbackReportsCompletion",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 3194
+        }
+      ]
+    },
+    {
+      "name": "VehiclePairingTest",
+      "tests": 1,
+      "testsuite": [
+        {
+          "name": "PairPersistsGeneratedKeyAndSendsDirectWhitelistRequest",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 1318
+        }
+      ]
+    },
+    {
+      "name": "VehicleInternalTest",
+      "tests": 2,
+      "testsuite": [
+        {
+          "name": "ExpectedLengthIncludesHeader",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2636
+        },
+        {
+          "name": "CommandCompletesAfterTimeoutWithPartialData",
+          "file": "\/home\/dev\/dev\/tesla-ble\/tests\/test_vehicle.cpp",
+          "line": 2643
+        }
+      ]
+    }
+  ]
+}

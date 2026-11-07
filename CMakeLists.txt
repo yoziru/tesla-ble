@@ -156,10 +156,14 @@ else()
         GIT_TAG 0.4.9.1
         GIT_SHALLOW TRUE
     )
+    # Host builds default to the ESP-IDF 5.x fork; CI also builds against
+    # upstream Mbed TLS 4.x (TF-PSA-Crypto), which ESP-IDF 6 ships.
+    set(TESLABLE_MBEDTLS_REPO https://github.com/espressif/mbedtls.git CACHE STRING "Mbed TLS git repository")
+    set(TESLABLE_MBEDTLS_TAG mbedtls-3.6.6-idf CACHE STRING "Mbed TLS git tag")
     FetchContent_Declare(
         mbedtls
-        GIT_REPOSITORY https://github.com/espressif/mbedtls.git
-        GIT_TAG mbedtls-3.6.6-idf
+        GIT_REPOSITORY ${TESLABLE_MBEDTLS_REPO}
+        GIT_TAG ${TESLABLE_MBEDTLS_TAG}
         GIT_SHALLOW TRUE
     )
     FetchContent_MakeAvailable(nanopb mbedtls)
@@ -193,7 +197,12 @@ else()
              ${NANOPB_INCLUDE_DIRS}
      )
     
-    target_link_libraries(TeslaBLE PUBLIC mbedcrypto mbedtls mbedx509)
+    # Mbed TLS 4.x moved the crypto library into TF-PSA-Crypto (tfpsacrypto).
+    if(TARGET tfpsacrypto)
+        target_link_libraries(TeslaBLE PUBLIC tfpsacrypto mbedtls mbedx509)
+    else()
+        target_link_libraries(TeslaBLE PUBLIC mbedcrypto mbedtls mbedx509)
+    endif()
 
     # Strict warnings for the library's own C++ sources. Scoped to this target and
     # language so third-party deps (mbedtls, nanopb) and generated .pb.c files are

@@ -1240,6 +1240,14 @@ void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_Routabl
       charging_power_ = charging_power_estimator_.update(vd.charge_state);
     }
     emit_if(vd.has_charge_state, charge_state_callback_, vd.charge_state);
+    if (generation == connection_generation_ && vd.has_charge_state && context && context->active
+        && context->domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT
+        && msg.request_uuid.size == context->uuid.size()
+        && std::equal(context->uuid.begin(), context->uuid.end(), msg.request_uuid.bytes)
+        && correlated_charge_state_callback_) {
+      correlated_charge_state_callback_(vd.charge_state,
+          format_hex(context->uuid.data(), context->uuid.size()));
+    }
     emit_if(vd.has_climate_state, climate_state_callback_, vd.climate_state);
     emit_if(vd.has_drive_state, drive_state_callback_, vd.drive_state);
     emit_if(vd.has_tire_pressure_state, tire_pressure_callback_, vd.tire_pressure_state);

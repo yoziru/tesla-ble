@@ -1,4 +1,5 @@
 #pragma once
+#define TESLABLE_CORRELATED_CHARGE_STATE 1
 
 #include "adapters.h"
 #include "charging_power.h"
@@ -218,6 +219,12 @@ class Vehicle {
   void set_charge_state_callback(std::function<void(const CarServer_ChargeState &)> cb) {
     charge_state_callback_ = std::move(cb);
   }
+  // Recovery consumers need the actual correlated native response, rather
+  // than an entity echo or an unsolicited/replayed charge-state notification.
+  void set_correlated_charge_state_callback(
+      std::function<void(const CarServer_ChargeState &, const std::string &)> cb) {
+    correlated_charge_state_callback_ = std::move(cb);
+  }
   const ChargingPower &charging_power() const { return charging_power_; }
   void set_climate_state_callback(std::function<void(const CarServer_ClimateState &)> cb) {
     climate_state_callback_ = std::move(cb);
@@ -426,6 +433,7 @@ class Vehicle {
 
   std::function<void(const VCSEC_VehicleStatus &)> vehicle_status_callback_;
   std::function<void(const CarServer_ChargeState &)> charge_state_callback_;
+  std::function<void(const CarServer_ChargeState &, const std::string &)> correlated_charge_state_callback_;
   ChargingPowerEstimator charging_power_estimator_;
   ChargingPower charging_power_;
   std::function<void(const CarServer_ClimateState &)> climate_state_callback_;

@@ -3210,3 +3210,69 @@ TEST_F(VehicleTest, VcsecPollCallbackReportsCompletion) {
   EXPECT_EQ(callbacks, 1);
   EXPECT_EQ(vehicle_->pending_command_count(), 0U);
 }
+
+
+TEST_F(VehicleInternalTest, RecoveryChargeReportsRequireCurrentRequestCorrelation) {
+  int reports = 0;
+  std::string observed_uuid;
+  vehicle_->set_correlated_charge_state_callback([&](const CarServer_ChargeState &, const std::string &uuid) {
+    ++reports; observed_uuid = uuid;
+  });
+  vehicle_->charge_state_poll(TeslaBLE::WakePolicy::WAKE_IF_NEEDED);
+  vehicle_->loop();
+  auto writes = mock_ble_->get_written_data();
+  ASSERT_FALSE(writes.empty());
+  size_t length = 0;
+  auto uuid = extract_request_uuid(writes.back(), &length);
+  ASSERT_EQ(length, uuid.size());
+  vehicle_->on_rx_data(make_vcsec_session_info_with_valid_hmac(uuid.data(), length));
+  vehicle_->loop();
+  writes = mock_ble_->get_written_data();
+  uuid = extract_request_uuid(writes.back(), &length);
+  vehicle_->on_rx_data(make_infotainment_session_info_with_valid_hmac(uuid.data(), length));
+  vehicle_->loop();
+  writes = mock_ble_->get_written_data();
+  uuid = extract_request_uuid(writes.back(), &length);
+  ASSERT_EQ(length, uuid.size());
+
+  CarServer_Response response = CarServer_Response_init_default;
+  response.which_response_msg = CarServer_Response_vehicleData_tag;
+  response.response_msg.vehicleData.has_charge_state = true;
+  auto &charge = response.response_msg.vehicleData.charge_state;
+  charge.has_charging_state = true;
+  charge.charging_state.which_type = CarServer_ChargeState_ChargingState_Stopped_tag;
+  charge.which_optional_charger_actual_current = CarServer_ChargeState_charger_actual_current_tag;
+  charge.optional_charger_actual_current.charger_actual_current = 0;
+  charge.which_optional_charger_power = CarServer_ChargeState_charger_power_tag;
+  charge.optional_charger_power.charger_power = 0;
+  pb_byte_t buffer[256];
+  size_t size = sizeof(buffer);
+  ASSERT_EQ(TeslaBLE::pb_encode_fields(buffer, &size, CarServer_Response_fields, &response), TeslaBLE_Status_E_OK);
+  UniversalMessage_RoutableMessage message = UniversalMessage_RoutableMessage_init_default;
+  message.has_from_destination = true;
+  message.from_destination.which_sub_destination = UniversalMessage_Destination_domain_tag;
+  message.from_destination.sub_destination.domain = UniversalMessage_Domain_DOMAIN_INFOTAINMENT;
+  message.which_payload = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
+  message.payload.protobuf_message_as_bytes.size = size;
+  std::copy_n(buffer, size, message.payload.protobuf_message_as_bytes.bytes);
+  // Unsolicited data may feed ordinary state; it cannot become recovery proof.
+  vehicle_->on_rx_data(frame_universal_message(message));
+  vehicle_->loop();
+  EXPECT_EQ(reports, 0);
+  message.request_uuid.size = uuid.size();
+  std::copy(uuid.begin(), uuid.end(), message.request_uuid.bytes);
+  message.request_uuid.bytes[0] ^= 1;
+  vehicle_->on_rx_data(frame_universal_message(message));
+  vehicle_->loop();
+  EXPECT_EQ(reports, 0);
+  message.request_uuid.bytes[0] ^= 1;
+  const auto matching = frame_universal_message(message);
+  vehicle_->on_rx_data(matching);
+  vehicle_->loop();
+  EXPECT_EQ(reports, 1);
+  EXPECT_EQ(observed_uuid, TeslaBLE::format_hex(uuid.data(), uuid.size()));
+  vehicle_->loop();
+  vehicle_->on_rx_data(matching);
+  vehicle_->loop();
+  EXPECT_EQ(reports, 1); // a completed request cannot renew recovery freshness
+}

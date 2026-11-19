@@ -176,8 +176,9 @@ void TeslaBLE::Vehicle::process_command_queue_() {
 
   auto command = command_queue_.front();
   auto now = std::chrono::steady_clock::now();
+  const bool queued = command->state == CommandState::IDLE && command->phase == OperationPhase::QUEUED;
   auto phase_duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - command->phase_started_at);
-  if (phase_duration > AUTH_RESPONSE_TIMEOUT && command->state != CommandState::WAITING_FOR_RESPONSE &&
+  if (!queued && phase_duration > AUTH_RESPONSE_TIMEOUT && command->state != CommandState::WAITING_FOR_RESPONSE &&
       command->state != CommandState::READY && command->state != CommandState::AUTH_RESPONSE_WAITING) {
     if (is_connected_) {
       LOG_WARNING("Command step timeout while connected: %s (phase: %d)", command->name.c_str(),
@@ -218,6 +219,9 @@ void TeslaBLE::Vehicle::process_command_queue_() {
 
   switch (command->state) {
     case CommandState::IDLE:
+      if (queued) {
+        command->phase_started_at = now;
+      }
       process_idle_command_(command);
       break;
     case CommandState::AUTHENTICATING:
@@ -377,6 +381,7 @@ void TeslaBLE::Vehicle::handle_auth_timeout_common_(const std::shared_ptr<Comman
   }
   rx_buffer_.clear();
   command->state = retry_state;
+  command->phase_started_at = now;
 }
 
 void TeslaBLE::Vehicle::handle_vcsec_auth_timeout_(const std::shared_ptr<Command> &command) {

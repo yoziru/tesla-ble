@@ -2704,6 +2704,101 @@ TEST_F(VehicleInternalTest, CommandCompletesAfterTimeoutWithPartialData) {
 // Auth Stall Recovery Regression Tests
 // ============================================================================
 
+TEST_F(VehicleTest, QueuedCommandDoesNotExpireBeforeReachingQueueHead) {
+  vehicle_->set_connected(true);
+  int completion_count = 0;
+  auto builder = [](Client *, uint8_t *buffer, size_t *len) {
+    *len = 4;
+    std::fill_n(buffer, 4, 0x42);
+    return TeslaBLE_Status_E_OK;
+  };
+  TeslaBLE::TestHelpers::send_command_bool(*vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY, "First command",
+                                           builder, nullptr);
+  TeslaBLE::TestHelpers::send_command_bool(*vehicle_, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+                                           "Waiting command", builder, [&](bool) { ++completion_count; });
+
+  auto &queue = vehicle_->get_command_queue_for_testing();
+  ASSERT_EQ(queue.size(), 2u);
+  auto waiting = queue.back();
+  waiting->started_at = std::chrono::steady_clock::now() - Vehicle::AUTH_RESPONSE_TIMEOUT - std::chrono::seconds(1);
+  waiting->phase_started_at = waiting->started_at;
+  queue.pop();
+
+  vehicle_->loop();
+
+  ASSERT_FALSE(queue.empty());
+  EXPECT_EQ(queue.front(), waiting);
+  EXPECT_EQ(completion_count, 0);
+  EXPECT_EQ(waiting->state, CommandState::AUTH_RESPONSE_WAITING);
+  EXPECT_EQ(mock_ble_->get_written_data().size(), 1u);
+}
+
+class VehicleAuthRetryTest : public VehicleTest, public ::testing::WithParamInterface<UniversalMessage_Domain> {};
+
+TEST_P(VehicleAuthRetryTest, AuthRetryReceivesFreshStepTimeout) {
+  const auto domain = GetParam();
+  vehicle_->set_connected(true);
+  int completion_count = 0;
+  std::unique_ptr<CommandError> captured_error;
+  TeslaBLE::TestHelpers::send_command_error_callback(
+      *vehicle_, domain, "Auth retry",
+      [](Client *, uint8_t *buffer, size_t *len) {
+        *len = 4;
+        std::fill_n(buffer, 4, 0x42);
+        return TeslaBLE_Status_E_OK;
+      },
+      [&](std::unique_ptr<CommandError> error) {
+        ++completion_count;
+        captured_error = std::move(error);
+      },
+      false);
+  vehicle_->loop();
+  if (domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT) {
+    ASSERT_FALSE(mock_ble_->get_written_data().empty());
+    size_t length = 0;
+    const auto uuid = extract_request_uuid(mock_ble_->get_written_data().back(), &length);
+    ASSERT_EQ(length, uuid.size());
+    const auto session = make_vcsec_session_info_with_valid_hmac(uuid.data(), length);
+    ASSERT_FALSE(session.empty());
+    vehicle_->on_rx_data(session);
+    vehicle_->loop();
+  }
+  auto &queue = vehicle_->get_command_queue_for_testing();
+  ASSERT_FALSE(queue.empty());
+  auto command = queue.front();
+  ASSERT_EQ(command->state, CommandState::AUTH_RESPONSE_WAITING);
+  ASSERT_EQ(command->current_auth_domain, domain);
+  command->started_at = std::chrono::steady_clock::now() - Vehicle::AUTH_RESPONSE_TIMEOUT - std::chrono::seconds(1);
+  command->phase_started_at = command->started_at;
+  command->last_tx_at = command->started_at;
+
+  vehicle_->loop();
+  ASSERT_FALSE(queue.empty());
+  ASSERT_EQ(command->state, CommandState::AUTHENTICATING);
+  ASSERT_EQ(command->retry_count, 1);
+  mock_ble_->clear_written_data();
+  vehicle_->loop();
+  ASSERT_FALSE(queue.empty());
+  EXPECT_EQ(completion_count, 0);
+  EXPECT_TRUE(vehicle_->is_connected());
+  EXPECT_EQ(command->state, CommandState::AUTH_RESPONSE_WAITING);
+  EXPECT_EQ(command->current_auth_domain, domain);
+  EXPECT_EQ(mock_ble_->get_written_data().size(), 1u);
+
+  command->started_at = std::chrono::steady_clock::now() - std::chrono::seconds(400);
+  command->last_tx_at = std::chrono::steady_clock::now() - Vehicle::AUTH_RESPONSE_TIMEOUT - std::chrono::seconds(1);
+  vehicle_->loop();
+  EXPECT_TRUE(queue.empty());
+  EXPECT_EQ(completion_count, 1);
+  EXPECT_FALSE(vehicle_->is_connected());
+  ASSERT_NE(captured_error, nullptr);
+  EXPECT_NE(captured_error->message().find("session stale"), std::string::npos);
+}
+
+INSTANTIATE_TEST_SUITE_P(AuthDomains, VehicleAuthRetryTest,
+                         ::testing::Values(UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+                                           UniversalMessage_Domain_DOMAIN_INFOTAINMENT));
+
 TEST_F(VehicleTest, AuthStallReportsFailureOnceAndDisconnects) {
   vehicle_->set_connected(true);
 

@@ -7,6 +7,7 @@
 #include <mbedtls/gcm.h>
 #include <mbedtls/sha256.h>
 #include <pb_decode.h>
+#include <pb_encode.h>
 
 #include "defs.h"
 #include "signatures.pb.h"
@@ -17,6 +18,18 @@ using TeslaBLE::TeslaBLE_Status_E_OK;
 namespace tesla_ble_python {
 
 namespace {
+constexpr uint32_t SIMULATED_MAX_PRECONDITION_SCHEDULES = 100;
+
+bool encode_precondition_schedules(pb_ostream_t *stream, const pb_field_t *field, void *const *arg) {
+  const auto *schedules = static_cast<const std::vector<CarServer_PreconditionSchedule> *>(*arg);
+  for (const auto &schedule : *schedules) {
+    if (!pb_encode_tag_for_field(stream, field) ||
+        !pb_encode_submessage(stream, CarServer_PreconditionSchedule_fields, &schedule)) {
+      return false;
+    }
+  }
+  return true;
+}
 
 constexpr size_t ENCODE_BUFFER_SIZE = 4096;
 
@@ -345,10 +358,30 @@ bool SimulatedVehicle::apply_carserver_action_(const CarServer_Action &action) {
       const auto &poll = value.getVehicleData;
       return (poll.has_getChargeState || poll.has_getClimateState || poll.has_getDriveState ||
               poll.has_getClosuresState || poll.has_getTirePressureState || poll.has_getMediaState ||
-              poll.has_getMediaDetailState || poll.has_getSoftwareUpdateState) &&
-             !poll.has_getLocationState && !poll.has_getChargeScheduleState &&
-             !poll.has_getPreconditioningScheduleState && !poll.has_getParentalControlsState;
+              poll.has_getMediaDetailState || poll.has_getSoftwareUpdateState ||
+              poll.has_getPreconditioningScheduleState) &&
+             !poll.has_getLocationState && !poll.has_getChargeScheduleState && !poll.has_getParentalControlsState;
     }
+    case CarServer_VehicleAction_addPreconditionScheduleAction_tag: {
+      auto schedule = value.addPreconditionScheduleAction;
+      schedule.name.funcs.encode = nullptr;
+      schedule.name.arg = nullptr;
+      auto existing = std::ranges::find_if(precondition_schedules_, [&](const auto &s) { return s.id == schedule.id; });
+      if (existing != precondition_schedules_.end()) {
+        *existing = schedule;
+      } else {
+        precondition_schedules_.push_back(schedule);
+      }
+      return true;
+    }
+    case CarServer_VehicleAction_removePreconditionScheduleAction_tag: {
+      const auto id = value.removePreconditionScheduleAction.id;
+      std::erase_if(precondition_schedules_, [&](const auto &s) { return s.id == id; });
+      return true;
+    }
+    case CarServer_VehicleAction_batchRemovePreconditionSchedulesAction_tag:
+      precondition_schedules_.clear();
+      return true;
     case CarServer_VehicleAction_chargingStartStopAction_tag:
       if (value.chargingStartStopAction.which_charging_action != CarServer_ChargingStartStopAction_start_tag &&
           value.chargingStartStopAction.which_charging_action != CarServer_ChargingStartStopAction_stop_tag)
@@ -650,6 +683,16 @@ std::vector<std::vector<uint8_t>> SimulatedVehicle::respond_to_carserver_(
   vehicle_data.media_state = media_state_;
   vehicle_data.has_software_update_state = poll->has_getSoftwareUpdateState;
   vehicle_data.software_update_state = software_update_state_;
+  vehicle_data.has_preconditioning_schedule_state = poll->has_getPreconditioningScheduleState;
+  if (poll->has_getPreconditioningScheduleState) {
+    auto &schedule_state = vehicle_data.preconditioning_schedule_state;
+    schedule_state.precondition_schedules.funcs.encode = encode_precondition_schedules;
+    schedule_state.precondition_schedules.arg = &precondition_schedules_;
+    schedule_state.which_optional_max_num_precondition_schedules =
+        CarServer_PreconditioningScheduleState_max_num_precondition_schedules_tag;
+    schedule_state.optional_max_num_precondition_schedules.max_num_precondition_schedules =
+        SIMULATED_MAX_PRECONDITION_SCHEDULES;
+  }
   if (auto frame = encode_response(state_response); !frame.empty()) {
     responses.push_back(std::move(frame));
   }

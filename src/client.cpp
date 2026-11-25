@@ -105,6 +105,50 @@ bool find_wire_bytes(const pb_byte_t *data, size_t length, uint32_t field_number
   return found;
 }
 
+// Collects every length-delimited occurrence of `field_number` (a repeated message field), up to
+// max_count. Returns false if the bytes are malformed.
+bool collect_wire_bytes(const pb_byte_t *data, size_t length, uint32_t field_number, size_t max_count,
+                        std::vector<std::pair<const pb_byte_t *, size_t>> &out) {
+  const pb_byte_t *pos = data;
+  const pb_byte_t *end = data + length;
+  while (pos < end) {
+    uint64_t key = 0;
+    if (!read_wire_varint(pos, end, &key)) {
+      return false;
+    }
+    uint64_t skip = 0;
+    switch (static_cast<pb_wire_type_t>(key & 0x07)) {
+      case PB_WT_VARINT:
+        if (!read_wire_varint(pos, end, &skip)) {
+          return false;
+        }
+        skip = 0;
+        break;
+      case PB_WT_64BIT:
+        skip = 8;
+        break;
+      case PB_WT_32BIT:
+        skip = 4;
+        break;
+      case PB_WT_STRING:
+        if (!read_wire_varint(pos, end, &skip)) {
+          return false;
+        }
+        if (std::cmp_less_equal(skip, end - pos) && (key >> 3) == field_number && out.size() < max_count) {
+          out.emplace_back(pos, static_cast<size_t>(skip));
+        }
+        break;
+      default:
+        return false;
+    }
+    if (std::cmp_greater(skip, end - pos)) {
+      return false;
+    }
+    pos += skip;
+  }
+  return true;
+}
+
 // Copies at most max_length bytes, cut back to a UTF-8 character boundary.
 std::string truncate_utf8(const pb_byte_t *data, size_t length, size_t max_length) {
   if (length > max_length) {
@@ -468,11 +512,58 @@ bool extract_software_update_version(const pb_byte_t *response, size_t length, s
   return true;
 }
 
+bool extract_precondition_schedules(const pb_byte_t *response, size_t length,
+                                    std::vector<PreconditionScheduleEntry> &output) {
+  output.clear();
+  if (!response) {
+    return false;
+  }
+  const pb_byte_t *vehicle_data = nullptr;
+  size_t vehicle_data_length = 0;
+  const pb_byte_t *state = nullptr;
+  size_t state_length = 0;
+  if (!find_wire_bytes(response, length, CarServer_Response_vehicleData_tag, &vehicle_data, &vehicle_data_length) ||
+      !find_wire_bytes(vehicle_data, vehicle_data_length, CarServer_VehicleData_preconditioning_schedule_state_tag,
+                       &state, &state_length)) {
+    return false;
+  }
+  std::vector<std::pair<const pb_byte_t *, size_t>> entries;
+  if (!collect_wire_bytes(state, state_length, CarServer_PreconditioningScheduleState_precondition_schedules_tag,
+                          MAX_PRECONDITION_SCHEDULES, entries)) {
+    return true;
+  }
+  output.reserve(entries.size());
+  for (const auto &[bytes, size] : entries) {
+    CarServer_PreconditionSchedule schedule = CarServer_PreconditionSchedule_init_default;
+    pb_istream_t stream = pb_istream_from_buffer(bytes, size);
+    if (!pb_decode(&stream, CarServer_PreconditionSchedule_fields, &schedule)) {
+      LOG_DEBUG("Skipping undecodable precondition schedule: %s", PB_GET_ERROR(&stream));
+      continue;
+    }
+    PreconditionScheduleEntry entry;
+    entry.id = schedule.id;
+    entry.days_of_week = schedule.days_of_week;
+    entry.precondition_time = schedule.precondition_time;
+    entry.one_time = schedule.one_time;
+    entry.enabled = schedule.enabled;
+    entry.latitude = schedule.latitude;
+    entry.longitude = schedule.longitude;
+    const pb_byte_t *text = nullptr;
+    size_t text_length = 0;
+    if (find_wire_bytes(bytes, size, CarServer_PreconditionSchedule_name_tag, &text, &text_length)) {
+      entry.name = truncate_utf8(text, text_length, PreconditionScheduleEntry::MAX_NAME_LENGTH);
+    }
+    output.push_back(std::move(entry));
+  }
+  return true;
+}
+
 int Client::parse_payload_car_server_response(
     UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
     Signatures_SignatureData *signature_data, pb_size_t which_sub_sig_data,
     UniversalMessage_MessageFault_E signed_message_fault, uint32_t response_flags, CarServer_Response *output,
-    uint32_t *response_counter, MediaNowPlaying *media_now_playing, std::string *software_update_version) {
+    uint32_t *response_counter, MediaNowPlaying *media_now_playing, std::string *software_update_version,
+    std::vector<PreconditionScheduleEntry> *precondition_schedules) {
   uint32_t counter = 0;
 
   // If encrypted, decrypt the payload
@@ -514,6 +605,9 @@ int Client::parse_payload_car_server_response(
         if (software_update_version) {
           extract_software_update_version(decrypt_buffer.bytes, decrypt_buffer.size, *software_update_version);
         }
+        if (precondition_schedules) {
+          extract_precondition_schedules(decrypt_buffer.bytes, decrypt_buffer.size, *precondition_schedules);
+        }
         break;
       }
       default:
@@ -532,6 +626,9 @@ int Client::parse_payload_car_server_response(
     }
     if (software_update_version) {
       extract_software_update_version(input_buffer->bytes, input_buffer->size, *software_update_version);
+    }
+    if (precondition_schedules) {
+      extract_precondition_schedules(input_buffer->bytes, input_buffer->size, *precondition_schedules);
     }
   }
 

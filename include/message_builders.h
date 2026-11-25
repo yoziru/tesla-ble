@@ -64,6 +64,9 @@ class VehicleActionBuilder {
   static int build_set_guest_mode(CarServer_VehicleAction &action, const void *data);
   static int build_set_cop_temp(CarServer_VehicleAction &action, const void *data);
   static int build_scheduled_departure(CarServer_VehicleAction &action, const void *data);
+  static int build_add_precondition_schedule(CarServer_VehicleAction &action, const void *data);
+  static int build_remove_precondition_schedule(CarServer_VehicleAction &action, const void *data);
+  static int build_batch_remove_precondition_schedules(CarServer_VehicleAction &action, const void *data);
   static int build_set_keep_accessory_power_mode(CarServer_VehicleAction &action, const void *data);
 };
 

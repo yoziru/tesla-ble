@@ -3,6 +3,8 @@
 #include <memory>
 #include <string>
 #include <array>
+#include <cstdint>
+#include <vector>
 
 #include "crypto_context.h"
 #include "message_builders.h"
@@ -38,6 +40,33 @@ bool extract_media_now_playing(const pb_byte_t *response, size_t length, MediaNo
 // The software-update version is an unbounded string in the generated struct;
 // it is extracted from the raw response separately.
 bool extract_software_update_version(const pb_byte_t *response, size_t length, std::string &output);
+
+/**
+ * One entry of PreconditioningScheduleState.precondition_schedules. The generated struct keeps that
+ * repeated field (and each entry's name) as callbacks, so pb_decode skips them; they are read from the
+ * raw CarServer.Response instead. days_of_week is a Sunday=bit0 .. Saturday=bit6 mask and
+ * precondition_time is minutes after midnight.
+ */
+struct PreconditionScheduleEntry {
+  static constexpr size_t MAX_NAME_LENGTH = 64;
+  uint64_t id = 0;
+  std::string name;
+  int32_t days_of_week = 0;
+  int32_t precondition_time = 0;
+  bool one_time = false;
+  bool enabled = false;
+  float latitude = 0.0F;
+  float longitude = 0.0F;
+};
+
+/**
+ * @brief Read every precondition schedule from an encoded CarServer.Response
+ * (vehicleData.preconditioning_schedule_state), at most MAX_PRECONDITION_SCHEDULES entries.
+ * Returns false if the response has no preconditioning schedule state.
+ */
+constexpr size_t MAX_PRECONDITION_SCHEDULES = 32;
+bool extract_precondition_schedules(const pb_byte_t *response, size_t length,
+                                    std::vector<PreconditionScheduleEntry> &output);
 
 /**
  * @brief Main client class for Tesla BLE communication
@@ -133,7 +162,8 @@ class Client {
                                         UniversalMessage_MessageFault_E signed_message_fault, uint32_t response_flags,
                                         CarServer_Response *output, uint32_t *response_counter = nullptr,
                                         MediaNowPlaying *media_now_playing = nullptr,
-                                        std::string *software_update_version = nullptr);
+                                        std::string *software_update_version = nullptr,
+                                        std::vector<PreconditionScheduleEntry> *precondition_schedules = nullptr);
 
   const pb_byte_t *get_last_request_hash(UniversalMessage_Domain domain, size_t *length) const;
   bool get_last_request_uuid(UniversalMessage_Domain domain, pb_byte_t *uuid, size_t *uuid_length) const;

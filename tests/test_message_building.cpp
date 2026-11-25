@@ -422,6 +422,71 @@ TEST_F(MessageBuildingTest, ScheduledDepartureBuildsAndValidatesTimes) {
             TeslaBLE_Status_E_ERROR_INVALID_PARAMS);
 }
 
+TEST_F(MessageBuildingTest, AddPreconditionScheduleBuildsAndValidates) {
+  pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+  size_t length = 0;
+  CarServer_PreconditionSchedule schedule = CarServer_PreconditionSchedule_init_default;
+  schedule.id = 1764100000;
+  schedule.days_of_week = 0x3E;
+  schedule.precondition_time = 6 * 60 + 30;
+  schedule.one_time = true;
+  schedule.enabled = true;
+  schedule.latitude = 37.39F;
+  schedule.longitude = -122.15F;
+  EXPECT_EQ(client->build_car_server_vehicle_action_message(
+                buffer, &length, CarServer_VehicleAction_addPreconditionScheduleAction_tag, &schedule),
+            TeslaBLE_Status_E_OK);
+  EXPECT_GT(length, 0);
+
+  auto expect_invalid = [&](CarServer_PreconditionSchedule bad) {
+    length = 0;
+    EXPECT_EQ(client->build_car_server_vehicle_action_message(
+                  buffer, &length, CarServer_VehicleAction_addPreconditionScheduleAction_tag, &bad),
+              TeslaBLE_Status_E_ERROR_INVALID_PARAMS);
+  };
+  auto bad = schedule;
+  bad.id = 0;
+  expect_invalid(bad);
+  bad = schedule;
+  bad.precondition_time = 24 * 60;
+  expect_invalid(bad);
+  bad = schedule;
+  bad.days_of_week = 0;
+  expect_invalid(bad);
+  bad = schedule;
+  bad.days_of_week = 0x80;
+  expect_invalid(bad);
+  bad = schedule;
+  bad.latitude = 91.0F;
+  expect_invalid(bad);
+}
+
+TEST_F(MessageBuildingTest, RemovePreconditionSchedulesBuildAndValidate) {
+  pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
+  size_t length = 0;
+  uint64_t id = 1764100000;
+  EXPECT_EQ(client->build_car_server_vehicle_action_message(
+                buffer, &length, CarServer_VehicleAction_removePreconditionScheduleAction_tag, &id),
+            TeslaBLE_Status_E_OK);
+  id = 0;
+  length = 0;
+  EXPECT_EQ(client->build_car_server_vehicle_action_message(
+                buffer, &length, CarServer_VehicleAction_removePreconditionScheduleAction_tag, &id),
+            TeslaBLE_Status_E_ERROR_INVALID_PARAMS);
+
+  CarServer_BatchRemovePreconditionSchedulesAction batch =
+      CarServer_BatchRemovePreconditionSchedulesAction_init_default;
+  length = 0;
+  EXPECT_EQ(client->build_car_server_vehicle_action_message(
+                buffer, &length, CarServer_VehicleAction_batchRemovePreconditionSchedulesAction_tag, &batch),
+            TeslaBLE_Status_E_ERROR_INVALID_PARAMS);
+  batch.home = true;
+  length = 0;
+  EXPECT_EQ(client->build_car_server_vehicle_action_message(
+                buffer, &length, CarServer_VehicleAction_batchRemovePreconditionSchedulesAction_tag, &batch),
+            TeslaBLE_Status_E_OK);
+}
+
 TEST_F(MessageBuildingTest, MediaUpdateVolumeBuildsAndValidates) {
   pb_byte_t buffer[UniversalMessage_RoutableMessage_size];
   size_t length = 0;

@@ -1218,11 +1218,13 @@ void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_Routabl
   CarServer_Response response = CarServer_Response_init_default;
   MediaNowPlaying now_playing;
   std::string update_version;
+  std::vector<PreconditionScheduleEntry> precondition_schedules;
   int result = client_->parse_payload_car_server_response(
       const_cast<UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *>(
           &msg.payload.protobuf_message_as_bytes),
       nullptr, 0, UniversalMessage_MessageFault_E_MESSAGEFAULT_ERROR_NONE, msg.flags, &response, nullptr,
-      media_state_callback_ ? &now_playing : nullptr, software_update_callback_ ? &update_version : nullptr);
+      media_state_callback_ ? &now_playing : nullptr, software_update_callback_ ? &update_version : nullptr,
+      precondition_schedule_state_callback_ ? &precondition_schedules : nullptr);
   if (result != 0) {
     LOG_ERROR("Failed to parse CarServer response: %d", result);
     return;
@@ -1250,6 +1252,10 @@ void TeslaBLE::Vehicle::handle_carserver_message_(const UniversalMessage_Routabl
     }
     if (generation == connection_generation_ && vd.has_software_update_state && software_update_callback_) {
       software_update_callback_(vd.software_update_state, update_version);
+    }
+    if (generation == connection_generation_ && vd.has_preconditioning_schedule_state &&
+        precondition_schedule_state_callback_) {
+      precondition_schedule_state_callback_(vd.preconditioning_schedule_state, precondition_schedules);
     }
   }
   if (generation != connection_generation_) {
@@ -1629,6 +1635,15 @@ void TeslaBLE::Vehicle::charge_schedule_state_poll(WakePolicy wake_policy) {
   send_infotainment_poll_("Charge Schedule Poll", CarServer_GetVehicleData_getChargeScheduleState_tag, wake_policy);
 }
 
+void TeslaBLE::Vehicle::precondition_schedule_state_poll(bool force_wake) {
+  precondition_schedule_state_poll(wake_policy_from_bool(force_wake));
+}
+
+void TeslaBLE::Vehicle::precondition_schedule_state_poll(WakePolicy wake_policy) {
+  send_infotainment_poll_("Precondition Schedule Poll", CarServer_GetVehicleData_getPreconditioningScheduleState_tag,
+                          wake_policy);
+}
+
 void TeslaBLE::Vehicle::schedule_software_update(int offset_sec, Command::OperationResultCallback on_complete) {
   if (offset_sec < 0) {
     LOG_ERROR("Invalid software update offset: %d (must be >= 0 seconds)", offset_sec);
@@ -1934,6 +1949,37 @@ void TeslaBLE::Vehicle::set_scheduled_departure(bool enabled, int departure_minu
   }
   send_infotainment_action_(enabled ? "Scheduled Departure On" : "Scheduled Departure Off",
                             CarServer_VehicleAction_scheduledDepartureAction_tag, departure, std::move(on_complete));
+}
+
+void TeslaBLE::Vehicle::add_precondition_schedule(const PreconditionScheduleEntry &schedule,
+                                                  Command::OperationResultCallback on_complete) {
+  CarServer_PreconditionSchedule action = CarServer_PreconditionSchedule_init_default;
+  action.id = schedule.id;
+  action.days_of_week = schedule.days_of_week;
+  action.precondition_time = schedule.precondition_time;
+  action.one_time = schedule.one_time;
+  action.enabled = schedule.enabled;
+  action.latitude = schedule.latitude;
+  action.longitude = schedule.longitude;
+  send_infotainment_action_("Add Precondition Schedule", CarServer_VehicleAction_addPreconditionScheduleAction_tag,
+                            action, std::move(on_complete));
+}
+
+void TeslaBLE::Vehicle::remove_precondition_schedule(uint64_t id, Command::OperationResultCallback on_complete) {
+  send_infotainment_action_("Remove Precondition Schedule",
+                            CarServer_VehicleAction_removePreconditionScheduleAction_tag, id, std::move(on_complete));
+}
+
+void TeslaBLE::Vehicle::batch_remove_precondition_schedules(bool home, bool work, bool other,
+                                                            Command::OperationResultCallback on_complete) {
+  CarServer_BatchRemovePreconditionSchedulesAction action =
+      CarServer_BatchRemovePreconditionSchedulesAction_init_default;
+  action.home = home;
+  action.work = work;
+  action.other = other;
+  send_infotainment_action_("Batch Remove Precondition Schedules",
+                            CarServer_VehicleAction_batchRemovePreconditionSchedulesAction_tag, action,
+                            std::move(on_complete));
 }
 
 void TeslaBLE::Vehicle::vent_windows(Command::OperationResultCallback on_complete) {

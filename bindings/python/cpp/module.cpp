@@ -485,6 +485,7 @@ Persistent storage for keys and sessions. Subclass and implement:
             self.set_closures_state_callback(nullptr);
             self.set_media_state_callback(nullptr);
             self.set_software_update_state_callback(nullptr);
+            self.set_precondition_schedule_state_callback(nullptr);
             self.set_raw_message_callback(nullptr);
             self.set_key_not_paired_callback(nullptr);
             self.set_poll_result_callback(nullptr);
@@ -529,6 +530,10 @@ Persistent storage for keys and sessions. Subclass and implement:
       .def(
           "software_update_poll",
           [](TeslaBLE::Vehicle &self, TeslaBLE::WakePolicy policy) { self.software_update_poll(policy); },
+          py::arg("wake_policy") = TeslaBLE::WakePolicy::WAKE_IF_NEEDED)
+      .def(
+          "precondition_schedule_state_poll",
+          [](TeslaBLE::Vehicle &self, TeslaBLE::WakePolicy policy) { self.precondition_schedule_state_poll(policy); },
           py::arg("wake_policy") = TeslaBLE::WakePolicy::WAKE_IF_NEEDED)
       // Charging
       .def(
@@ -723,6 +728,36 @@ Persistent storage for keys and sessions. Subclass and implement:
           },
           py::arg("level"), py::arg("on_complete") = py::none())
       .def(
+          "add_precondition_schedule",
+          [](TeslaBLE::Vehicle &self, uint64_t id, int days_of_week, int precondition_time, float latitude,
+             float longitude, bool one_time, bool enabled, const py::object &callback) {
+            TeslaBLE::PreconditionScheduleEntry schedule;
+            schedule.id = id;
+            schedule.days_of_week = days_of_week;
+            schedule.precondition_time = precondition_time;
+            schedule.latitude = latitude;
+            schedule.longitude = longitude;
+            schedule.one_time = one_time;
+            schedule.enabled = enabled;
+            self.add_precondition_schedule(schedule, wrap_result_callback(callback));
+          },
+          py::arg("id"), py::arg("days_of_week"), py::arg("precondition_time"), py::arg("latitude"),
+          py::arg("longitude"), py::arg("one_time") = false, py::arg("enabled") = true,
+          py::arg("on_complete") = py::none())
+      .def(
+          "remove_precondition_schedule",
+          [](TeslaBLE::Vehicle &self, uint64_t id, const py::object &callback) {
+            self.remove_precondition_schedule(id, wrap_result_callback(callback));
+          },
+          py::arg("id"), py::arg("on_complete") = py::none())
+      .def(
+          "batch_remove_precondition_schedules",
+          [](TeslaBLE::Vehicle &self, bool home, bool work, bool other, const py::object &callback) {
+            self.batch_remove_precondition_schedules(home, work, other, wrap_result_callback(callback));
+          },
+          py::arg("home") = false, py::arg("work") = false, py::arg("other") = false,
+          py::arg("on_complete") = py::none())
+      .def(
           "set_scheduled_departure",
           [](TeslaBLE::Vehicle &self, bool enabled, int departure_minutes, int preconditioning_policy,
              int off_peak_policy, int off_peak_end_minutes, const py::object &callback) {
@@ -895,6 +930,62 @@ Persistent storage for keys and sessions. Subclass and implement:
                    py::gil_scoped_acquire gil;
                    try {
                      py::dict d = software_update_state_to_dict(state, version);
+                     invoke_guarded(fn, d);
+                   } catch (py::error_already_set &e) {
+                     e.discard_as_unraisable(CALLBACK_ERROR_CONTEXT);
+                   }
+                 });
+           })
+      .def("set_precondition_schedule_state_callback",
+           [](TeslaBLE::Vehicle &self, const py::object &callback) {
+             auto fn = to_python_function(callback);
+             if (!fn) {
+               self.set_precondition_schedule_state_callback(nullptr);
+               return;
+             }
+             self.set_precondition_schedule_state_callback(
+                 [fn](const CarServer_PreconditioningScheduleState &state,
+                      const std::vector<TeslaBLE::PreconditionScheduleEntry> &schedules) {
+                   py::gil_scoped_acquire gil;
+                   try {
+                     auto entry_dict = [](uint64_t id, const std::string &name, int32_t days, int32_t time,
+                                          bool one_time, bool enabled, float lat, float lon) {
+                       py::dict e;
+                       e["id"] = id;
+                       e["name"] = name;
+                       e["days_of_week"] = days;
+                       e["precondition_time"] = time;
+                       e["one_time"] = one_time;
+                       e["enabled"] = enabled;
+                       e["latitude"] = lat;
+                       e["longitude"] = lon;
+                       return e;
+                     };
+                     py::list items;
+                     for (const auto &s : schedules) {
+                       items.append(entry_dict(s.id, s.name, s.days_of_week, s.precondition_time, s.one_time,
+                                               s.enabled, s.latitude, s.longitude));
+                     }
+                     py::dict d;
+                     d["schedules"] = items;
+                     if (state.which_optional_preconditioning_schedule_window) {
+                       const auto &w = state.optional_preconditioning_schedule_window.preconditioning_schedule_window;
+                       d["window"] = entry_dict(w.id, std::string(), w.days_of_week, w.precondition_time, w.one_time,
+                                                w.enabled, w.latitude, w.longitude);
+                     } else {
+                       d["window"] = py::none();
+                     }
+                     if (state.which_optional_max_num_precondition_schedules) {
+                       d["max_num_precondition_schedules"] =
+                           state.optional_max_num_precondition_schedules.max_num_precondition_schedules;
+                     } else {
+                       d["max_num_precondition_schedules"] = py::none();
+                     }
+                     if (state.which_optional_next_schedule) {
+                       d["next_schedule"] = state.optional_next_schedule.next_schedule;
+                     } else {
+                       d["next_schedule"] = py::none();
+                     }
                      invoke_guarded(fn, d);
                    } catch (py::error_already_set &e) {
                      e.discard_as_unraisable(CALLBACK_ERROR_CONTEXT);

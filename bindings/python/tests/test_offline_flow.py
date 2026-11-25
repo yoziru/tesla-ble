@@ -643,3 +643,55 @@ def test_closure_helpers():
     assert tesla_ble.closure_state_text(0) == "closed"
     assert tesla_ble.closure_is_open(1) is True
     assert tesla_ble.closure_is_open(0) is False
+
+
+def test_precondition_schedules_add_replace_list_and_remove():
+    sim = tesla_ble.SimulatedVehicle(VIN)
+    ble, _, vehicle = make_vehicle()
+    results = []
+    states = []
+    vehicle.set_precondition_schedule_state_callback(states.append)
+    vehicle.set_connected(True)
+    vehicle.set_awake(True)
+
+    vehicle.add_precondition_schedule(
+        1001, 0x3E, 6 * 60 + 30, 37.39, -122.15, on_complete=results.append
+    )
+    pump(vehicle, ble, sim)
+    assert results[-1].success, results[-1]
+    vehicle.add_precondition_schedule(
+        1002, 0x01, 9 * 60, 37.39, -122.15, one_time=True, on_complete=results.append
+    )
+    pump(vehicle, ble, sim)
+    # Same id replaces the schedule instead of adding a third one.
+    vehicle.add_precondition_schedule(
+        1001, 0x3E, 8 * 60, 37.39, -122.15, enabled=False, on_complete=results.append
+    )
+    pump(vehicle, ble, sim)
+    assert all(r.success for r in results), results
+
+    vehicle.precondition_schedule_state_poll()
+    pump(vehicle, ble, sim)
+    assert states, "a precondition schedule poll must report state"
+    by_id = {s["id"]: s for s in states[-1]["schedules"]}
+    assert set(by_id) == {1001, 1002}
+    assert by_id[1001]["precondition_time"] == 8 * 60 and by_id[1001]["enabled"] is False
+    assert by_id[1002]["one_time"] is True and by_id[1002]["days_of_week"] == 0x01
+    assert states[-1]["max_num_precondition_schedules"] == 100
+
+    vehicle.remove_precondition_schedule(1001, on_complete=results.append)
+    pump(vehicle, ble, sim)
+    assert results[-1].success, results[-1]
+    vehicle.precondition_schedule_state_poll()
+    pump(vehicle, ble, sim)
+    assert [s["id"] for s in states[-1]["schedules"]] == [1002]
+
+    # Invalid schedules are rejected by the message builder and never change the car.
+    sent_before = sim.frames_received
+    vehicle.add_precondition_schedule(1003, 0, 60, 37.39, -122.15, on_complete=results.append)
+    pump(vehicle, ble, sim)
+    assert results[-1].failure, results[-1]
+    vehicle.batch_remove_precondition_schedules(on_complete=results.append)
+    pump(vehicle, ble, sim)
+    assert results[-1].failure, results[-1]
+    assert sim.frames_received == sent_before

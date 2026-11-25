@@ -20,6 +20,8 @@
 #include "test_command_helpers.h"
 
 #include <car_server.pb.h>
+#include <pb_encode.h>
+#include <vehicle.pb.h>
 #include <signatures.pb.h>
 #include <vcsec.pb.h>
 
@@ -373,6 +375,134 @@ TEST_F(EncryptedResponseTest, ChargeScheduleWindowComesFromDecryptedPayload) {
   EXPECT_EQ(window->days_of_week, 32);
   EXPECT_TRUE(window->end_enabled);
   EXPECT_EQ(window->end_time, 480);
+}
+
+namespace {
+bool encode_schedule_name(pb_ostream_t *stream, const pb_field_t *field, void *const *arg) {
+  const auto *name = static_cast<const char *>(*arg);
+  return pb_encode_tag_for_field(stream, field) &&
+         pb_encode_string(stream, reinterpret_cast<const pb_byte_t *>(name), strlen(name));
+}
+
+bool encode_schedule_list(pb_ostream_t *stream, const pb_field_t *field, void *const *arg) {
+  const auto *schedules = static_cast<const std::vector<CarServer_PreconditionSchedule> *>(*arg);
+  for (const auto &schedule : *schedules) {
+    if (!pb_encode_tag_for_field(stream, field) ||
+        !pb_encode_submessage(stream, CarServer_PreconditionSchedule_fields, &schedule)) {
+      return false;
+    }
+  }
+  return true;
+}
+}  // namespace
+
+TEST_F(EncryptedResponseTest, PreconditionSchedulesComeFromDecryptedPayload) {
+  std::optional<CarServer_PreconditionSchedule> window;
+  std::vector<TeslaBLE::PreconditionScheduleEntry> received;
+  bool called = false;
+  vehicle_->set_precondition_schedule_state_callback(
+      [&](const CarServer_PreconditioningScheduleState &state,
+          const std::vector<TeslaBLE::PreconditionScheduleEntry> &schedules) {
+        called = true;
+        if (state.which_optional_preconditioning_schedule_window) {
+          window = state.optional_preconditioning_schedule_window.preconditioning_schedule_window;
+        }
+        received = schedules;
+      });
+  vehicle_->precondition_schedule_state_poll();
+  vehicle_->loop();
+  vehicle_->loop();
+  const auto &writes = mock_ble_->get_written_data();
+  ASSERT_EQ(writes.size(), 1U);
+
+  std::vector<CarServer_PreconditionSchedule> schedules(2, CarServer_PreconditionSchedule_init_default);
+  schedules[0].id = 1764100000;
+  static const char kName[] = "Home";
+  schedules[0].name.funcs.encode = encode_schedule_name;
+  schedules[0].name.arg = const_cast<char *>(kName);
+  schedules[0].days_of_week = 0x3E;
+  schedules[0].precondition_time = 390;
+  schedules[0].enabled = true;
+  schedules[0].latitude = 37.39F;
+  schedules[0].longitude = -122.15F;
+  schedules[1].id = 1764200000;
+  schedules[1].days_of_week = 0x01;
+  schedules[1].precondition_time = 600;
+  schedules[1].one_time = true;
+  schedules[1].enabled = false;
+
+  CarServer_Response content = CarServer_Response_init_default;
+  content.which_response_msg = CarServer_Response_vehicleData_tag;
+  content.response_msg.vehicleData.has_preconditioning_schedule_state = true;
+  auto &state = content.response_msg.vehicleData.preconditioning_schedule_state;
+  state.precondition_schedules.funcs.encode = encode_schedule_list;
+  state.precondition_schedules.arg = &schedules;
+  state.which_optional_preconditioning_schedule_window =
+      CarServer_PreconditioningScheduleState_preconditioning_schedule_window_tag;
+  state.optional_preconditioning_schedule_window.preconditioning_schedule_window = schedules[1];
+  state.optional_preconditioning_schedule_window.preconditioning_schedule_window.name.funcs.encode = nullptr;
+  pb_byte_t payload[512];
+  size_t payload_length = sizeof(payload);
+  ASSERT_EQ(TeslaBLE::pb_encode_fields(payload, &payload_length, CarServer_Response_fields, &content),
+            TeslaBLE_Status_E_OK);
+  auto response = make_encrypted_response(*helper_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, 201, writes.front(),
+                                          payload, payload_length);
+  ASSERT_FALSE(response.empty());
+  vehicle_->on_rx_data(response);
+  vehicle_->loop();
+
+  ASSERT_TRUE(called);
+  ASSERT_EQ(received.size(), 2U);
+  EXPECT_EQ(received[0].id, 1764100000U);
+  EXPECT_EQ(received[0].name, "Home");
+  EXPECT_EQ(received[0].days_of_week, 0x3E);
+  EXPECT_EQ(received[0].precondition_time, 390);
+  EXPECT_TRUE(received[0].enabled);
+  EXPECT_FALSE(received[0].one_time);
+  EXPECT_FLOAT_EQ(received[0].latitude, 37.39F);
+  EXPECT_FLOAT_EQ(received[0].longitude, -122.15F);
+  EXPECT_EQ(received[1].id, 1764200000U);
+  EXPECT_TRUE(received[1].name.empty());
+  EXPECT_TRUE(received[1].one_time);
+  EXPECT_FALSE(received[1].enabled);
+  ASSERT_TRUE(window.has_value());
+  EXPECT_EQ(window->id, 1764200000U);
+  EXPECT_EQ(window->precondition_time, 600);
+}
+
+TEST_F(EncryptedResponseTest, EmptyPreconditionScheduleStateReportsNoSchedules) {
+  bool called = false;
+  bool has_window = true;
+  size_t count = 1;
+  vehicle_->set_precondition_schedule_state_callback(
+      [&](const CarServer_PreconditioningScheduleState &state,
+          const std::vector<TeslaBLE::PreconditionScheduleEntry> &schedules) {
+        called = true;
+        has_window = state.which_optional_preconditioning_schedule_window != 0;
+        count = schedules.size();
+      });
+  vehicle_->precondition_schedule_state_poll();
+  vehicle_->loop();
+  vehicle_->loop();
+  const auto &writes = mock_ble_->get_written_data();
+  ASSERT_EQ(writes.size(), 1U);
+
+  CarServer_Response content = CarServer_Response_init_default;
+  content.which_response_msg = CarServer_Response_vehicleData_tag;
+  content.response_msg.vehicleData.has_preconditioning_schedule_state = true;
+  pb_byte_t payload[128];
+  size_t payload_length = sizeof(payload);
+  ASSERT_EQ(TeslaBLE::pb_encode_fields(payload, &payload_length, CarServer_Response_fields, &content),
+            TeslaBLE_Status_E_OK);
+  auto response = make_encrypted_response(*helper_, UniversalMessage_Domain_DOMAIN_INFOTAINMENT, 201, writes.front(),
+                                          payload, payload_length);
+  ASSERT_FALSE(response.empty());
+  vehicle_->on_rx_data(response);
+  vehicle_->loop();
+
+  ASSERT_TRUE(called);
+  EXPECT_FALSE(has_window);
+  EXPECT_EQ(count, 0U);
 }
 
 TEST_F(EncryptedResponseTest, ResponseWithMismatchedCounterIsRejected) {

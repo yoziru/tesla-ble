@@ -64,7 +64,10 @@ const std::unordered_map<pb_size_t, VehicleActionBuilder::BuilderFunction> &Vehi
       {CarServer_VehicleAction_setKeepAccessoryPowerModeAction_tag, build_set_keep_accessory_power_mode},
       {CarServer_VehicleAction_guestModeAction_tag, build_set_guest_mode},
       {CarServer_VehicleAction_setCopTempAction_tag, build_set_cop_temp},
-      {CarServer_VehicleAction_scheduledDepartureAction_tag, build_scheduled_departure}};
+      {CarServer_VehicleAction_scheduledDepartureAction_tag, build_scheduled_departure},
+      {CarServer_VehicleAction_addPreconditionScheduleAction_tag, build_add_precondition_schedule},
+      {CarServer_VehicleAction_removePreconditionScheduleAction_tag, build_remove_precondition_schedule},
+      {CarServer_VehicleAction_batchRemovePreconditionSchedulesAction_tag, build_batch_remove_precondition_schedules}};
   return BUILDERS;
 }
 
@@ -506,6 +509,65 @@ int VehicleActionBuilder::build_scheduled_departure(CarServer_VehicleAction &act
   }
 
   action.vehicle_action_msg.scheduledDepartureAction = *departure;
+  return TeslaBLE_Status_E_OK;
+}
+
+int VehicleActionBuilder::build_add_precondition_schedule(CarServer_VehicleAction &action, const void *data) {
+  const CarServer_PreconditionSchedule *schedule = require_data<CarServer_PreconditionSchedule>(
+      data, "Add precondition schedule action requires CarServer_PreconditionSchedule data");
+  if (!schedule) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  constexpr int32_t minutes_per_day = 24 * 60;
+  constexpr int32_t all_days_mask = 0x7F;
+  if (schedule->id == 0) {
+    LOG_ERROR("Precondition schedule id must be non-zero");
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  if (schedule->precondition_time < 0 || schedule->precondition_time >= minutes_per_day) {
+    LOG_ERROR("Precondition time must be minutes after midnight (0-1439)");
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  if (schedule->days_of_week <= 0 || (schedule->days_of_week & ~all_days_mask) != 0) {
+    LOG_ERROR("Precondition days_of_week must be a non-empty Sunday=bit0..Saturday=bit6 mask");
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  if (!std::isfinite(schedule->latitude) || !std::isfinite(schedule->longitude) || schedule->latitude < -90.0F ||
+      schedule->latitude > 90.0F || schedule->longitude < -180.0F || schedule->longitude > 180.0F) {
+    LOG_ERROR("Precondition schedule latitude/longitude out of range");
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  action.vehicle_action_msg.addPreconditionScheduleAction = *schedule;
+  action.vehicle_action_msg.addPreconditionScheduleAction.name.funcs.encode = nullptr;
+  action.vehicle_action_msg.addPreconditionScheduleAction.name.arg = nullptr;
+  return TeslaBLE_Status_E_OK;
+}
+
+int VehicleActionBuilder::build_remove_precondition_schedule(CarServer_VehicleAction &action, const void *data) {
+  const uint64_t *id = require_data<uint64_t>(data, "Remove precondition schedule action requires uint64_t id");
+  if (!id) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  if (*id == 0) {
+    LOG_ERROR("Precondition schedule id must be non-zero");
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  action.vehicle_action_msg.removePreconditionScheduleAction.id = *id;
+  return TeslaBLE_Status_E_OK;
+}
+
+int VehicleActionBuilder::build_batch_remove_precondition_schedules(CarServer_VehicleAction &action, const void *data) {
+  const CarServer_BatchRemovePreconditionSchedulesAction *batch =
+      require_data<CarServer_BatchRemovePreconditionSchedulesAction>(
+          data, "Batch remove precondition schedules action requires CarServer_BatchRemovePreconditionSchedulesAction");
+  if (!batch) {
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  if (!batch->home && !batch->work && !batch->other) {
+    LOG_ERROR("Batch remove precondition schedules needs at least one of home, work, other");
+    return TeslaBLE_Status_E_ERROR_INVALID_PARAMS;
+  }
+  action.vehicle_action_msg.batchRemovePreconditionSchedulesAction = *batch;
   return TeslaBLE_Status_E_OK;
 }
 

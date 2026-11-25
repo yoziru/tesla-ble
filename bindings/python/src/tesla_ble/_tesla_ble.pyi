@@ -159,6 +159,29 @@ class Vehicle:
     def set_preconditioning_max(self, enable: bool, on_complete: _Completion = None) -> None: ...
     def set_raw_message_callback(self, arg0: Callable[[bytes], None] | None, /) -> None: ...
     def set_key_not_paired_callback(self, arg0: Callable[[], None] | None, /) -> None: ...
+    def add_precondition_schedule(
+        self,
+        id: _Int,
+        days_of_week: _Int,
+        precondition_time: _Int,
+        latitude: _Float,
+        longitude: _Float,
+        one_time: bool = False,
+        enabled: bool = True,
+        on_complete: _Completion = None,
+    ) -> None: ...
+    def batch_remove_precondition_schedules(
+        self,
+        home: bool = False,
+        work: bool = False,
+        other: bool = False,
+        on_complete: _Completion = None,
+    ) -> None: ...
+    def precondition_schedule_state_poll(
+        self, wake_policy: WakePolicy = WakePolicy.WAKE_IF_NEEDED
+    ) -> None: ...
+    def remove_precondition_schedule(self, id: _Int, on_complete: _Completion = None) -> None: ...
+    def set_precondition_schedule_state_callback(self, arg0: _StateCallback, /) -> None: ...
     def set_scheduled_departure(
         self,
         enabled: bool,

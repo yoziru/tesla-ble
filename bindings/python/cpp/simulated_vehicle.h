@@ -104,6 +104,8 @@ class SimulatedVehicle {
   CarServer_ClosuresState closures_state_;
   CarServer_MediaState media_state_;
   CarServer_SoftwareUpdateState software_update_state_ = CarServer_SoftwareUpdateState_init_default;
+  // Precondition schedules by id; the simulator has no locations, so a batch remove clears them all.
+  std::vector<CarServer_PreconditionSchedule> precondition_schedules_;
   std::array<bool, 4> doors_open_ = {false, false, false, false};
   bool charge_port_open_ = false;
   bool front_trunk_open_ = false;
